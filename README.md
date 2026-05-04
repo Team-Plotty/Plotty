@@ -9,7 +9,9 @@
 - ブランチ名は英数字小文字と `-` を使用する
 - 命名形式は `feature/<category>-<topic>` を基本とする
 - 1機能実装 1ブランチを徹底する
-- 最新の状態をmainから取得し、mainブランチから切って作業をする
+- 作業前に `main` を最新化してから、対象ブランチへ切り替える
+  - 新しく作る場合: `git switch main && git pull && git switch -c <branch-name>`
+  - 既存ブランチに切り替える場合: `git switch <branch-name>`
 
 
 ##  commitメッセージ規則
