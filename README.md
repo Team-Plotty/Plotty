@@ -13,6 +13,10 @@
   - 新しく作る場合: `git switch main && git pull && git switch -c <branch-name>`
   - 既存ブランチに切り替える場合: `git switch <branch-name>`
 
+## プルリクエストルール
+
+- PRタイトルはそのブランチでの最初のコミットメッセージを使用
+
 
 ##  commitメッセージ規則
 
