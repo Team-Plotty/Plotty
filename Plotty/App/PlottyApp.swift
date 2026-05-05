@@ -1,12 +1,12 @@
 import SwiftUI
 
 @main
-struct ScheduleAIApp: App {
+struct PlottyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
         WindowGroup {
-            Text("ScheduleAI")
+            Text("Plotty")
         }
     }
 }
