@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const jwtPayloadSchema = z.object({
   sub: z.string().uuid()
@@ -35,5 +36,20 @@ export const createJwtPayloadVerifier = (): AuthVerifier => ({
     }
 
     return { userId: parsed.data.sub };
+  }
+});
+
+export const createSupabaseAuthVerifier = (supabase: SupabaseClient): AuthVerifier => ({
+  async verifyAccessToken(token: string): Promise<{ userId: string }> {
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user?.id) {
+      throw new Error("Invalid token");
+    }
+
+    const parsed = z.string().uuid().safeParse(data.user.id);
+    if (!parsed.success) {
+      throw new Error("Invalid token payload");
+    }
+    return { userId: parsed.data };
   }
 });
