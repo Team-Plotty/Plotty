@@ -53,10 +53,24 @@ export interface EntityReadFilter {
 export interface EntityReadModel {
   type: EntityType;
   id: string;
+  userId: string;
   titleEncrypted: string;
   iv: string;
   startAt?: string;
   dueDate?: string;
+  contentEncrypted?: string;
+  isDeleted?: boolean;
+}
+
+export interface EntityUpdateInput {
+  id: string;
+  userId: string;
+  type: EntityType;
+  titleEncrypted?: string;
+  iv?: string;
+  startAt?: string;
+  dueDate?: string;
+  contentEncrypted?: string;
 }
 
 export interface PersistenceRepository {
@@ -65,6 +79,8 @@ export interface PersistenceRepository {
   insertTask(input: TaskWriteInput): Promise<void>;
   insertMemo(input: MemoWriteInput): Promise<void>;
   listEntities(filter: EntityReadFilter): Promise<EntityReadModel[]>;
+  updateEntity(input: EntityUpdateInput): Promise<EntityReadModel | null>;
+  softDeleteEntity(input: { id: string; userId: string; type: EntityType }): Promise<boolean>;
 }
 
 export interface BuildPersistenceInput {

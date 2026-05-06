@@ -71,3 +71,26 @@ export const getEntitiesResponseSchema = z.object({
 });
 
 export type GetEntitiesResponse = z.infer<typeof getEntitiesResponseSchema>;
+
+export const patchEntityRequestSchema = z.object({
+  title: z.string().min(1).max(100).optional(),
+  start_at: z.string().datetime().optional(),
+  due_date: z.string().datetime().optional(),
+  content: z.string().min(1).max(4000).optional()
+});
+
+export type PatchEntityRequest = z.infer<typeof patchEntityRequestSchema>;
+
+export const patchEntityResponseSchema = z.object({
+  entity: entityListItemSchema
+});
+
+export type PatchEntityResponse = z.infer<typeof patchEntityResponseSchema>;
+
+export const deleteEntityResponseSchema = z.object({
+  deleted: z.literal(true),
+  type: entityTypeSchema,
+  id: z.string().uuid()
+});
+
+export type DeleteEntityResponse = z.infer<typeof deleteEntityResponseSchema>;
