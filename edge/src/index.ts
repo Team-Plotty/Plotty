@@ -4,6 +4,7 @@ export * from "./app/get-entities-handler.js";
 export * from "./app/get-typed-entities-handler.js";
 export * from "./app/patch-entity-handler.js";
 export * from "./app/router.js";
+export * from "./adapters/aes-gcm-crypto.js";
 export * from "./adapters/in-memory-persistence.js";
 export * from "./adapters/simple-crypto.js";
 export * from "./adapters/supabase-persistence.js";

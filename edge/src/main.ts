@@ -1,5 +1,5 @@
 import { createAppRouter } from "./app/router.js";
-import { createSimpleCryptoService } from "./adapters/simple-crypto.js";
+import { createAesGcmCryptoService } from "./adapters/aes-gcm-crypto.js";
 import {
   createSupabaseClient,
   createSupabaseUserSettingsRepository
@@ -15,6 +15,7 @@ const env = parseEdgeEnv({
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   GROQ_API_KEY: process.env.GROQ_API_KEY,
+  APP_ENCRYPTION_KEY_BASE64: process.env.APP_ENCRYPTION_KEY_BASE64,
   GROQ_MODEL: process.env.GROQ_MODEL,
   GROQ_TIMEOUT_MS: process.env.GROQ_TIMEOUT_MS,
   GROQ_RETRY_COUNT: process.env.GROQ_RETRY_COUNT,
@@ -27,7 +28,7 @@ const app = createAppRouter({
   authVerifier: createSupabaseAuthVerifier(supabase),
   userSettingsRepository: createSupabaseUserSettingsRepository(supabase),
   persistenceRepository: createSupabasePersistenceRepository(supabase),
-  cryptoService: createSimpleCryptoService(),
+  cryptoService: createAesGcmCryptoService(env.APP_ENCRYPTION_KEY_BASE64),
   groqClient: createGroqClient({
     apiKey: env.GROQ_API_KEY,
     model: env.GROQ_MODEL,
