@@ -3,6 +3,8 @@ import { z } from "zod";
 const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_JWT_ISSUER: z.string().min(1),
+  SUPABASE_JWT_AUDIENCE: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),
   APP_ENCRYPTION_KEY_BASE64: z.string().min(1),
   GROQ_MODEL: z.string().min(1).default("llama-3.1-70b-versatile"),

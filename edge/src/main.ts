@@ -14,6 +14,8 @@ import { createInMemoryRateLimiter } from "./services/rate-limit.js";
 const env = parseEdgeEnv({
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  SUPABASE_JWT_ISSUER: process.env.SUPABASE_JWT_ISSUER,
+  SUPABASE_JWT_AUDIENCE: process.env.SUPABASE_JWT_AUDIENCE,
   GROQ_API_KEY: process.env.GROQ_API_KEY,
   APP_ENCRYPTION_KEY_BASE64: process.env.APP_ENCRYPTION_KEY_BASE64,
   GROQ_MODEL: process.env.GROQ_MODEL,
@@ -25,7 +27,10 @@ const env = parseEdgeEnv({
 
 const supabase = createSupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 const app = createAppRouter({
-  authVerifier: createSupabaseAuthVerifier(supabase),
+  authVerifier: createSupabaseAuthVerifier(supabase, {
+    expectedIssuer: env.SUPABASE_JWT_ISSUER,
+    expectedAudience: env.SUPABASE_JWT_AUDIENCE
+  }),
   userSettingsRepository: createSupabaseUserSettingsRepository(supabase),
   persistenceRepository: createSupabasePersistenceRepository(supabase),
   cryptoService: createAesGcmCryptoService(env.APP_ENCRYPTION_KEY_BASE64),
