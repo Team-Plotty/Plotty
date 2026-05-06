@@ -8,7 +8,10 @@ import { createRequestContext } from "../core/request-context.js";
 import { jsonResponse, type JsonResponse } from "../core/http.js";
 import { consoleLogger, type Logger } from "../core/logger.js";
 import { parseBearerToken, type AuthVerifier } from "../services/auth.js";
+import type { CryptoService } from "../services/crypto.js";
+import { persistExtractionResults } from "../services/entity-builder.js";
 import type { GroqClient } from "../services/groq-client.js";
+import type { PersistenceRepository } from "../services/persistence.js";
 import type { UserSettingsRepository } from "../services/user-settings.js";
 
 const FUNCTION_NAME = "post_chat_messages";
@@ -17,6 +20,8 @@ export interface ChatMessagesHandlerDeps {
   authVerifier: AuthVerifier;
   userSettingsRepository: UserSettingsRepository;
   groqClient: GroqClient;
+  cryptoService: CryptoService;
+  persistenceRepository: PersistenceRepository;
   logger?: Logger;
 }
 
@@ -97,6 +102,7 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
     }
 
     let extractionReply = "";
+    let createdEntities: PostChatMessagesResponse["created_entities"] = [];
     try {
       const currentTime = new Date().toISOString();
       const extraction = await deps.groqClient.extract({
@@ -106,25 +112,47 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
         userPrompt: parsedBody.data.text
       });
       extractionReply = extraction.reply_message;
+
+      const userMessageEncryption = await deps.cryptoService.encryptText(parsedBody.data.text);
+      const analysisResultsEncryption = await deps.cryptoService.encryptText(JSON.stringify(extraction));
+      const assistantMessageEncryption = await deps.cryptoService.encryptText(extractionReply);
+      const messageId = crypto.randomUUID();
+
+      createdEntities = await persistExtractionResults(
+        deps.persistenceRepository,
+        deps.cryptoService,
+        {
+          messageId,
+          userId,
+          clientMessageId: parsedBody.data.client_message_id,
+          extraction,
+          analysisResultsEncrypted: analysisResultsEncryption,
+          textEncryption: userMessageEncryption,
+          assistantTextEncryption: assistantMessageEncryption
+        }
+      );
+
+      const responseBody: PostChatMessagesResponse = {
+        message_id: messageId,
+        confirmation_text: extractionReply,
+        created_entities: createdEntities
+      };
+
+      const parsedResponse = postChatMessagesResponseSchema.parse(responseBody);
+      logger.info("Request completed", {
+        request_id: context.requestId,
+        function_name: FUNCTION_NAME,
+        user_id: userId,
+        latency_ms: Date.now() - context.startedAt
+      });
+
+      return jsonResponse(200, parsedResponse);
     } catch (error) {
-      const code = error instanceof Error && error.name === "AbortError" ? "GROQ_TIMEOUT" : "GROQ_UNAVAILABLE";
+      const code =
+        error instanceof Error && error.name === "AbortError"
+          ? "GROQ_TIMEOUT"
+          : "GROQ_UNAVAILABLE";
       return toErrorResponse(context.requestId, code, logger, context.startedAt, userId);
     }
-
-    const responseBody: PostChatMessagesResponse = {
-      message_id: crypto.randomUUID(),
-      confirmation_text: extractionReply,
-      created_entities: []
-    };
-
-    const parsedResponse = postChatMessagesResponseSchema.parse(responseBody);
-    logger.info("Request completed", {
-      request_id: context.requestId,
-      function_name: FUNCTION_NAME,
-      user_id: userId,
-      latency_ms: Date.now() - context.startedAt
-    });
-
-    return jsonResponse(200, parsedResponse);
   };
 };
