@@ -11,6 +11,7 @@ import { createRequestContext } from "../core/request-context.js";
 import { parseBearerToken, type AuthVerifier } from "../services/auth.js";
 import type { CryptoService } from "../services/crypto.js";
 import type { PersistenceRepository } from "../services/persistence.js";
+import type { RateLimiter } from "../services/rate-limit.js";
 
 const FUNCTION_NAME = "patch_entity";
 
@@ -18,6 +19,7 @@ export interface PatchEntityHandlerDeps {
   authVerifier: AuthVerifier;
   cryptoService: CryptoService;
   persistenceRepository: PersistenceRepository;
+  rateLimiter?: RateLimiter;
   logger?: Logger;
 }
 
@@ -79,6 +81,13 @@ export const createPatchEntityHandler = (deps: PatchEntityHandlerDeps) => {
       userId = (await deps.authVerifier.verifyAccessToken(token)).userId;
     } catch {
       return toErrorResponse(context.requestId, "UNAUTHORIZED", logger, context.startedAt);
+    }
+
+    if (deps.rateLimiter) {
+      const limit = await deps.rateLimiter.consume(`${FUNCTION_NAME}:${userId}`);
+      if (!limit.allowed) {
+        return toErrorResponse(context.requestId, "RATE_LIMITED", logger, context.startedAt, userId);
+      }
     }
 
     const parsedBody = patchEntityRequestSchema.safeParse(input.body);

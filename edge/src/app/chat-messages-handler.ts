@@ -12,6 +12,7 @@ import type { CryptoService } from "../services/crypto.js";
 import { persistExtractionResults } from "../services/entity-builder.js";
 import type { GroqClient } from "../services/groq-client.js";
 import type { PersistenceRepository } from "../services/persistence.js";
+import type { RateLimiter } from "../services/rate-limit.js";
 import type { UserSettingsRepository } from "../services/user-settings.js";
 
 const FUNCTION_NAME = "post_chat_messages";
@@ -22,6 +23,7 @@ export interface ChatMessagesHandlerDeps {
   groqClient: GroqClient;
   cryptoService: CryptoService;
   persistenceRepository: PersistenceRepository;
+  rateLimiter?: RateLimiter;
   logger?: Logger;
 }
 
@@ -83,6 +85,13 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
       userId = auth.userId;
     } catch {
       return toErrorResponse(context.requestId, "UNAUTHORIZED", logger, context.startedAt);
+    }
+
+    if (deps.rateLimiter) {
+      const limit = await deps.rateLimiter.consume(`${FUNCTION_NAME}:${userId}`);
+      if (!limit.allowed) {
+        return toErrorResponse(context.requestId, "RATE_LIMITED", logger, context.startedAt, userId);
+      }
     }
 
     const parsedBody = postChatMessagesRequestSchema.safeParse(input.body);

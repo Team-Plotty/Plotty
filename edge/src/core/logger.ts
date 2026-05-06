@@ -14,9 +14,23 @@ export interface Logger {
 
 export const consoleLogger: Logger = {
   info(message, fields) {
-    console.info(message, fields);
+    console.info(
+      JSON.stringify({
+        level: "info",
+        message,
+        timestamp: new Date().toISOString(),
+        ...fields
+      })
+    );
   },
   error(message, fields) {
-    console.error(message, fields);
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message,
+        timestamp: new Date().toISOString(),
+        ...fields
+      })
+    );
   }
 };

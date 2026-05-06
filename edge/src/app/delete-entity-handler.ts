@@ -9,12 +9,14 @@ import { consoleLogger, type Logger } from "../core/logger.js";
 import { createRequestContext } from "../core/request-context.js";
 import { parseBearerToken, type AuthVerifier } from "../services/auth.js";
 import type { PersistenceRepository } from "../services/persistence.js";
+import type { RateLimiter } from "../services/rate-limit.js";
 
 const FUNCTION_NAME = "delete_entity";
 
 export interface DeleteEntityHandlerDeps {
   authVerifier: AuthVerifier;
   persistenceRepository: PersistenceRepository;
+  rateLimiter?: RateLimiter;
   logger?: Logger;
 }
 
@@ -75,6 +77,13 @@ export const createDeleteEntityHandler = (deps: DeleteEntityHandlerDeps) => {
       userId = (await deps.authVerifier.verifyAccessToken(token)).userId;
     } catch {
       return toErrorResponse(context.requestId, "UNAUTHORIZED", logger, context.startedAt);
+    }
+
+    if (deps.rateLimiter) {
+      const limit = await deps.rateLimiter.consume(`${FUNCTION_NAME}:${userId}`);
+      if (!limit.allowed) {
+        return toErrorResponse(context.requestId, "RATE_LIMITED", logger, context.startedAt, userId);
+      }
     }
 
     const deleted = await deps.persistenceRepository.softDeleteEntity({
