@@ -49,3 +49,25 @@ export const postChatMessagesResponseSchema = z.object({
 export type PostChatMessagesResponse = z.infer<
   typeof postChatMessagesResponseSchema
 >;
+
+export const getEntitiesQuerySchema = z.object({
+  type: entityTypeSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50)
+});
+
+export type GetEntitiesQuery = z.infer<typeof getEntitiesQuerySchema>;
+
+export const entityListItemSchema = z.object({
+  type: entityTypeSchema,
+  id: z.string().uuid(),
+  title: z.string().min(1),
+  start_at: z.string().datetime().optional(),
+  due_date: z.string().datetime().optional()
+});
+
+export const getEntitiesResponseSchema = z.object({
+  items: z.array(entityListItemSchema),
+  next_cursor: z.string().nullable()
+});
+
+export type GetEntitiesResponse = z.infer<typeof getEntitiesResponseSchema>;

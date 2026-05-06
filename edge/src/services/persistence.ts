@@ -44,11 +44,27 @@ export interface MemoWriteInput extends BaseEntityWriteInput {
   contentEncrypted: string;
 }
 
+export interface EntityReadFilter {
+  userId: string;
+  type?: EntityType;
+  limit: number;
+}
+
+export interface EntityReadModel {
+  type: EntityType;
+  id: string;
+  titleEncrypted: string;
+  iv: string;
+  startAt?: string;
+  dueDate?: string;
+}
+
 export interface PersistenceRepository {
   insertMessage(input: MessageWriteInput): Promise<void>;
   insertSchedule(input: ScheduleWriteInput): Promise<void>;
   insertTask(input: TaskWriteInput): Promise<void>;
   insertMemo(input: MemoWriteInput): Promise<void>;
+  listEntities(filter: EntityReadFilter): Promise<EntityReadModel[]>;
 }
 
 export interface BuildPersistenceInput {
