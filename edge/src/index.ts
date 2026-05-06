@@ -1,4 +1,6 @@
 export * from "./app/chat-messages-handler.js";
+export * from "./app/get-entities-handler.js";
+export * from "./app/get-typed-entities-handler.js";
 export * from "./adapters/in-memory-persistence.js";
 export * from "./adapters/simple-crypto.js";
 export * from "./contracts/chat-messages.js";

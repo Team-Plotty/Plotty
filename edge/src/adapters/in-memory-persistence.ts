@@ -1,4 +1,6 @@
 import type {
+  EntityReadFilter,
+  EntityReadModel,
   MemoWriteInput,
   MessageWriteInput,
   PersistenceRepository,
@@ -34,5 +36,31 @@ export const createInMemoryPersistenceRepository = (
   },
   async insertMemo(input: MemoWriteInput): Promise<void> {
     db.memos.push(input);
+  },
+  async listEntities(filter: EntityReadFilter): Promise<EntityReadModel[]> {
+    const schedules: EntityReadModel[] = db.schedules.map((item) => ({
+      type: "schedule",
+      id: item.id,
+      titleEncrypted: item.titleEncrypted,
+      iv: item.iv,
+      startAt: item.startAt
+    }));
+    const tasks: EntityReadModel[] = db.tasks.map((item) => ({
+      type: "task",
+      id: item.id,
+      titleEncrypted: item.titleEncrypted,
+      iv: item.iv,
+      dueDate: item.dueDate
+    }));
+    const memos: EntityReadModel[] = db.memos.map((item) => ({
+      type: "memo",
+      id: item.id,
+      titleEncrypted: item.titleEncrypted,
+      iv: item.iv
+    }));
+
+    return [...schedules, ...tasks, ...memos]
+      .filter((item) => (filter.type ? item.type === filter.type : true))
+      .slice(0, filter.limit);
   }
 });

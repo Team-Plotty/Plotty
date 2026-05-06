@@ -5,4 +5,5 @@ export interface EncryptedPayload {
 
 export interface CryptoService {
   encryptText(plainText: string): Promise<EncryptedPayload>;
+  decryptText(payload: EncryptedPayload): Promise<string>;
 }
