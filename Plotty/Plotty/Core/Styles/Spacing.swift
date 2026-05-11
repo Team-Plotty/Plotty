@@ -12,9 +12,6 @@ enum Spacing {
     
     /// Screen edge padding (comfortable breathing room)
     static let screenEdge: CGFloat = 35
-    
-    /// Chat: tighter than list tabs so bubbles use width naturally
-    static let chatHorizontal: CGFloat = 16
 }
 
 // MARK: - Spacing View Helpers

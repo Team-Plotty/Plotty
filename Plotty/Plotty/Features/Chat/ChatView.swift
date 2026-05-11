@@ -14,6 +14,7 @@ struct ChatTabView: View {
     @Environment(\.colorScheme) private var colorScheme
     
     @State private var messages: [ChatMessage] = ChatMessage.sampleData
+    let bottomInset: CGFloat
     
     var body: some View {
         ScrollView {
@@ -26,9 +27,9 @@ struct ChatTabView: View {
                     )
                 }
             }
-            .padding(.horizontal, Spacing.chatHorizontal)
+            .padding(.horizontal, Spacing.screenEdge)
             .padding(.top, Spacing.lg)
-            .padding(.bottom, Spacing.md)
+            .padding(.bottom, max(bottomInset, 140))
         }
         .scrollDismissesKeyboard(.interactively)
     }
@@ -61,7 +62,7 @@ extension ChatMessage {
 }
 
 #Preview {
-    ChatTabView()
+    ChatTabView(bottomInset: 140)
         .ambientBackground()
         .preferredColorScheme(.dark)
 }
