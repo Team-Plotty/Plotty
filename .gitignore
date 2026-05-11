@@ -1,14 +1,26 @@
+# 環境変数・シークレット（ローカル設定はコミットしない）
+.env
+.env.*
+!.env.example
+
+# エディタ・IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
 # Xcode
 #
-# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
+# gitignore 貢献者向け: Global/Xcode.gitignore, Objective-C.gitignore, Swift.gitignore も更新すること
 
-## User settings
+## ユーザー設定
 xcuserdata/
 
-## Obj-C/Swift specific
+## Obj-C / Swift 固有
 *.hmap
 
-## App packaging
+## アプリ配布物
 *.ipa
 *.dSYM.zip
 *.dSYM
@@ -19,45 +31,42 @@ playground.xcworkspace
 
 # Swift Package Manager
 #
-# Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
+# SPM の依存ソースをリポジトリに含めない場合は次を有効化する
 # Packages/
 # Package.pins
 # Package.resolved
 # *.xcodeproj
 #
-# Xcode automatically generates this directory with a .xcworkspacedata file and xcuserdata
-# hence it is not needed unless you have added a package configuration file to your project
+# Xcode が .xcworkspacedata と xcuserdata で自動生成するため、プロジェクトにパッケージ設定を追加していない限り通常は不要
 # .swiftpm
 
 .build/
 
 # CocoaPods
 #
-# We recommend against adding the Pods directory to your .gitignore. However
-# you should judge for yourself, the pros and cons are mentioned at:
+# Pods は通常 .gitignore に含めない推奨だが、要否はプロジェクトで判断すること
 # https://guides.cocoapods.org/using/using-cocoapods.html#should-i-check-the-pods-directory-into-source-control
 #
 # Pods/
 #
-# Add this line if you want to avoid checking in source code from the Xcode workspace
+# Xcode ワークスペースのソースを含めない場合は次を有効化する
 # *.xcworkspace
 
 # Carthage
 #
-# Add this line if you want to avoid checking in source code from Carthage dependencies.
+# Carthage の依存ソースを含めない場合は次を有効化する
 # Carthage/Checkouts
 
 Carthage/Build/
 
 # fastlane
 #
-# It is recommended to not store the screenshots in the git repo.
-# Instead, use fastlane to re-generate the screenshots whenever they are needed.
-# For more information about the recommended setup visit:
+# スクリーンショットは git に置かず、必要時に fastlane で再生成するのが推奨
 # https://docs.fastlane.tools/best-practices/source-control/#source-control
 
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
-.DS_Store
+
+node_modules/
