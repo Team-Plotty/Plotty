@@ -7,13 +7,23 @@
 
 import SwiftUI
 
+private struct HeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct ContentView: View {
     @Environment(\.appSettings) private var appSettings
     
-    @State private var selectedTab = TabItem.chat.rawValue
+    @State private var selectedTab: TabItem = .chat
     @State private var chatInput = ""
     @State private var sendButtonState: SendButtonState = .empty
-    @State private var messages: [ChatMessage] = ChatMessage.sampleData
+    
+    @State private var inputBarHeight: CGFloat = 0
+    private let tabBarHeightEstimate: CGFloat = 64
+    private let inputBarLift: CGFloat = 30
     
     var body: some View {
         ZStack {
@@ -21,52 +31,62 @@ struct ContentView: View {
             
             TabView(selection: $selectedTab) {
                 MemoView()
-                    .tag(TabItem.memo.rawValue)
+                    .tag(TabItem.memo)
+                    .tabItem {
+                        Label(TabItem.memo.label, systemImage: TabItem.memo.icon.active)
+                    }
                 TodoView()
-                    .tag(TabItem.todo.rawValue)
-                ChatTabView()
-                    .tag(TabItem.chat.rawValue)
+                    .tag(TabItem.todo)
+                    .tabItem {
+                        Label(TabItem.todo.label, systemImage: TabItem.todo.icon.active)
+                    }
+                ChatTabView(bottomInset: inputBarHeight + tabBarHeightEstimate + 16)
+                    .tag(TabItem.chat)
+                    .tabItem {
+                        Label("チャット", systemImage: TabItem.chat.icon.active)
+                    }
                 CalendarTabView()
-                    .tag(TabItem.calendar.rawValue)
+                    .tag(TabItem.calendar)
+                    .tabItem {
+                        Label(TabItem.calendar.label, systemImage: TabItem.calendar.icon.active)
+                    }
                 SettingsView()
-                    .tag(TabItem.settings.rawValue)
+                    .tag(TabItem.settings)
+                    .tabItem {
+                        Label(TabItem.settings.label, systemImage: TabItem.settings.icon.active)
+                    }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .preferredColorScheme(appSettings.theme.colorScheme)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomChrome
-        }
-    }
-    
-    private var bottomChrome: some View {
-        VStack(spacing: Spacing.xs) {
-            if selectedTab == TabItem.chat.rawValue {
-                FloatingInputBar(
-                    text: $chatInput,
-                    sendButtonState: $sendButtonState,
-                    onSend: handleChatSend
-                )
-                .padding(.horizontal, Spacing.chatHorizontal)
+        .overlay(alignment: .bottom) {
+            if selectedTab == .chat {
+                GeometryReader { proxy in
+                    let bottom = proxy.safeAreaInsets.bottom
+                    FloatingInputBar(
+                        text: $chatInput,
+                        sendButtonState: $sendButtonState,
+                        onSend: handleChatSend
+                    )
+                    .padding(.horizontal, Spacing.screenEdge)
+                    .padding(.bottom, bottom + tabBarHeightEstimate + Spacing.xs + inputBarLift)
+                    .background(
+                        GeometryReader { p in
+                            Color.clear
+                                .preference(key: HeightPreferenceKey.self, value: p.size.height)
+                        }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                }
+                .ignoresSafeArea()
             }
-            FooterTabBar(selectedTab: $selectedTab)
         }
+        .onPreferenceChange(HeightPreferenceKey.self) { inputBarHeight = $0 }
     }
     
     private func handleChatSend() {
         guard !chatInput.isEmpty else { return }
-        
-        let userMessage = ChatMessage(
-            role: .user,
-            text: chatInput,
-            chips: [],
-            timestamp: Date()
-        )
-        
         sendButtonState = .processing
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            messages.append(userMessage)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             sendButtonState = .done
             chatInput = ""
         }
