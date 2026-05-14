@@ -1,7 +1,7 @@
 import SwiftUI
 
-// MARK: - Tab Item
-enum TabItem: Int, CaseIterable {
+// MARK: - 下部タブの識別子
+enum TabItem: Int, CaseIterable, Hashable {
     case memo = 0
     case todo = 1
     case chat = 2
@@ -22,70 +22,70 @@ enum TabItem: Int, CaseIterable {
         switch self {
         case .memo: return "メモ"
         case .todo: return "TODO"
-        case .chat: return ""
+        case .chat: return "チャット"
         case .calendar: return "カレンダー"
+        case .settings: return "設定"
+        }
+    }
+    
+    /// 画面上部の「Plotty / …」表示用。タブのラベル文字列と違う場合がある。
+    var rootBreadcrumbTitle: String {
+        switch self {
+        case .memo: return "メモ"
+        case .todo: return "TODO"
+        case .chat: return "チャット"
+        case .calendar: return "スケジュール"
         case .settings: return "設定"
         }
     }
 }
 
-// MARK: - Footer Tab Bar
+// MARK: - 自作フッタータブバー（システムの TabBar を隠して使う）
 struct FooterTabBar: View {
     @Environment(\.colorScheme) private var colorScheme
     
-    @Binding var selectedTab: Int
+    @Binding var selectedTab: TabItem
     
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(TabItem.allCases, id: \.rawValue) { tab in
+            ForEach(TabItem.allCases, id: \.self) { tab in
                 tabButton(for: tab)
             }
         }
         .frame(height: 60)
-        .background(tabBarBackground)
+        /// タップ領域の高さは 60pt のまま。背景だけホームインジケータの下まで伸ばし、下端の白抜けを防ぐ。
+        .background {
+            tabBarBackground
+                .ignoresSafeArea(edges: .bottom)
+        }
     }
     
     @ViewBuilder
     private func tabButton(for tab: TabItem) -> some View {
-        let isSelected = selectedTab == tab.rawValue
+        let isSelected = selectedTab == tab
         
         Button(action: {
-            withAnimation(.quick) {
-                selectedTab = tab.rawValue
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) {
+                selectedTab = tab
             }
         }) {
             VStack(spacing: 2) {
-                if tab == .chat {
-                    chatTabIcon(isSelected: isSelected)
-                } else {
-                    Image(systemName: isSelected ? tab.icon.active : tab.icon.inactive)
-                        .font(.system(size: 22))
-                        .foregroundColor(tabIconColor(isSelected: isSelected))
-                    
-                    Text(tab.label)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(tabIconColor(isSelected: isSelected))
-                }
+                Image(systemName: isSelected ? tab.icon.active : tab.icon.inactive)
+                    .font(.system(size: 22))
+                    .foregroundColor(tabIconColor(isSelected: isSelected))
+                
+                Text(tab.label)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(tabIconColor(isSelected: isSelected))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
-    }
-    
-    @ViewBuilder
-    private func chatTabIcon(isSelected: Bool) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: isSelected ? TabItem.chat.icon.active : TabItem.chat.icon.inactive)
-                .font(.system(size: 24))
-                .foregroundColor(tabIconColor(isSelected: isSelected))
-            
-            if isSelected {
-                Circle()
-                    .fill(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
-                    .frame(width: 3, height: 3)
-            }
-        }
     }
     
     private func tabIconColor(isSelected: Bool) -> Color {
@@ -100,18 +100,7 @@ struct FooterTabBar: View {
     private var tabBarBackground: some View {
         ZStack {
             Rectangle()
-                .fill(.ultraThinMaterial)
-            
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: colorScheme == .dark
-                            ? [Color(hex: "#1A1612").opacity(0.86), Color(hex: "#0F0E0D").opacity(0.94)]
-                            : [Color(hex: "#FAF8F4").opacity(0.94), Color(hex: "#F2EEE6").opacity(0.96)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .glassEffect(.regular, in: Rectangle())
             
             VStack(spacing: 0) {
                 Rectangle()

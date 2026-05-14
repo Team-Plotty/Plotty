@@ -1,12 +1,18 @@
 import SwiftUI
 
-// MARK: - Chip
+// MARK: - チップ（短文ラベル。チャット内のタグなど）
 struct Chip: View {
     @Environment(\.colorScheme) private var colorScheme
     
     var text: String
     var icon: String? = nil
     var onTap: (() -> Void)? = nil
+    /// `glassEffect` の内側などで `@Environment(\.colorScheme)` が誤ることがあるため、親から正しい外観を渡せるようにする。
+    var resolvedColorScheme: ColorScheme? = nil
+    
+    private var scheme: ColorScheme {
+        resolvedColorScheme ?? colorScheme
+    }
     
     var body: some View {
         HStack(spacing: Spacing.xxs) {
@@ -17,7 +23,7 @@ struct Chip: View {
             Text(text)
                 .font(.micro)
         }
-        .foregroundColor(colorScheme == .dark
+        .foregroundColor(scheme == .dark
                          ? Color.white.opacity(0.72)
                          : Color.black.opacity(0.62))
         .padding(.horizontal, 10)
@@ -28,38 +34,24 @@ struct Chip: View {
         }
     }
     
+    @ViewBuilder
     private var chipBackground: some View {
-        ZStack {
+        /// 吹き出しなど `glassEffect` の内側ではネストしたガラスが暗く潰れやすいので、ライトはフラット寄りにする。
+        if scheme == .dark {
             Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-            
+                .glassEffect(.regular.interactive(), in: .capsule)
+        } else {
             Capsule(style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: colorScheme == .dark
-                            ? [Color.white.opacity(0.14), Color.white.opacity(0.06)]
-                            : [Color.black.opacity(0.07), Color.black.opacity(0.03)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            
-            Capsule(style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: colorScheme == .dark
-                            ? [Color.white.opacity(0.30), Color.white.opacity(0.08)]
-                            : [Color.white.opacity(0.6), Color.black.opacity(0.08)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 0.6
+                .fill(Color.black.opacity(0.07))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5)
                 )
         }
     }
 }
 
-// MARK: - Dismissable Chip
+// MARK: - 閉じる付きチップ
 struct DismissableChip: View {
     @Environment(\.colorScheme) private var colorScheme
     
@@ -85,33 +77,12 @@ struct DismissableChip: View {
         .padding(.vertical, 4)
         .background(
             Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: colorScheme == .dark
-                                    ? [Color.white.opacity(0.14), Color.white.opacity(0.06)]
-                                    : [Color.black.opacity(0.07), Color.black.opacity(0.03)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                )
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(
-                            colorScheme == .dark
-                                ? Color.white.opacity(0.18)
-                                : Color.black.opacity(0.10),
-                            lineWidth: 0.6
-                        )
-                )
+                .glassEffect(.regular.interactive(), in: .capsule)
         )
     }
 }
 
-// MARK: - Selectable Chip
+// MARK: - 選択状態の切り替えができるチップ
 struct SelectableChip: View {
     @Environment(\.colorScheme) private var colorScheme
     
@@ -147,38 +118,19 @@ struct SelectableChip: View {
                     LinearGradient(
                         colors: colorScheme == .dark
                             ? [Color(hex: "#FFFCF8"), Color(hex: "#E8E4DD")]
-                            : [Color(hex: "#1F1A14"), Color(hex: "#0F0E0D")],
+                            : [Color(hex: "#2E2418"), Color(hex: "#38342F")],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
         } else {
-            ZStack {
-                Capsule(style: .continuous)
-                    .fill(.ultraThinMaterial)
-                Capsule(style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: colorScheme == .dark
-                                ? [Color.white.opacity(0.10), Color.white.opacity(0.04)]
-                                : [Color.black.opacity(0.05), Color.black.opacity(0.02)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                Capsule(style: .continuous)
-                    .stroke(
-                        colorScheme == .dark
-                            ? Color.white.opacity(0.16)
-                            : Color.black.opacity(0.08),
-                        lineWidth: 0.6
-                    )
-            }
+            Capsule(style: .continuous)
+                .glassEffect(.regular.interactive(), in: .capsule)
         }
     }
 }
 
-#Preview {
+#Preview("チップ各種") {
     VStack(spacing: 16) {
         HStack(spacing: 8) {
             Chip(text: "10:00 ミーティング")
