@@ -1,10 +1,10 @@
 import SwiftUI
 
-// MARK: - Border Chaser Speed
+// MARK: - 枠線が回る演出の速さ（1周にかかる秒数）
 enum BorderChaserSpeed {
-    case slow   // 4.0s - Idle state
-    case normal // 2.4s - Normal AI action
-    case fast   // 1.2s - AI processing
+    case slow   /// 4.0 秒・目立たせたくない待機向け
+    case normal /// 2.4 秒・通常の AI 処理中など
+    case fast   /// 1.2 秒・送信直後など短い処理向け
     
     var duration: Double {
         switch self {
@@ -15,7 +15,7 @@ enum BorderChaserSpeed {
     }
 }
 
-// MARK: - Border Chaser Effect
+// MARK: - 角丸枠をなぞる光のグラデーション（回転アニメーション）
 struct BorderChaserEffect: View {
     @Environment(\.colorScheme) private var colorScheme
     
@@ -51,7 +51,7 @@ struct BorderChaserEffect: View {
     }
 }
 
-// MARK: - Border Chaser Button
+// MARK: - 枠が回る見た目のボタン（ラベルは呼び出し側で差し込む）
 struct BorderChaserButton<Label: View>: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
@@ -111,7 +111,7 @@ struct BorderChaserButton<Label: View>: View {
     }
 }
 
-// MARK: - Circle Border Chaser (for Send Button)
+// MARK: - 円形の枠線チェイサー（送信ボタンの処理中表示用）
 struct CircleBorderChaser: View {
     @Environment(\.colorScheme) private var colorScheme
     

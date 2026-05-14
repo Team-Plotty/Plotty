@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Corner Radius (Apple HIG Compliant - Continuous Squircle)
+// MARK: - 角丸の大きさ（連続曲線のスクワイクル用）
 enum Radius {
     static let xs: CGFloat = 8
     static let sm: CGFloat = 12
@@ -11,7 +11,7 @@ enum Radius {
     static let pill: CGFloat = 999
 }
 
-// MARK: - Rounded Rectangle Helpers
+// MARK: - 角丸クリップのショートカット
 extension View {
     func roundedCorner(_ radius: CGFloat, style: RoundedCornerStyle = .continuous) -> some View {
         clipShape(RoundedRectangle(cornerRadius: radius, style: style))
@@ -46,12 +46,13 @@ extension View {
     }
 }
 
-// MARK: - Chat Bubble Corner Radius
+// MARK: - チャット吹き出しの角（ユーザー / AI で非対称）
 enum BubbleCorners {
     static let user: (topLeading: CGFloat, topTrailing: CGFloat, bottomLeading: CGFloat, bottomTrailing: CGFloat) = (16, 4, 16, 16)
     static let ai: (topLeading: CGFloat, topTrailing: CGFloat, bottomLeading: CGFloat, bottomTrailing: CGFloat) = (4, 16, 16, 16)
 }
 
+/// 四隅それぞれ別の半径を持つ角丸長方形（`UnevenRoundedRectangle` を `Path` に変換）。
 struct UnevenRoundedRectangleShape: Shape {
     var topLeading: CGFloat
     var topTrailing: CGFloat

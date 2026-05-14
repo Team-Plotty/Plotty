@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// 16 進カラー文字列から `Color` を作る拡張。
+/// 対応形式の例: `#RGB`, `#RRGGBB`, `#RRGGBBAA`（先頭の `#` は省略可）。
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)

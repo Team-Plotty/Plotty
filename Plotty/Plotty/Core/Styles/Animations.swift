@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Animations (Apple HIG Compliant)
+// MARK: - よく使うアニメーション（バネのきつさは HIG の体感に近づけた値）
 extension Animation {
     static let standard = Animation.spring(response: 0.4, dampingFraction: 0.75)
     static let quick = Animation.spring(response: 0.25, dampingFraction: 0.8)
@@ -8,7 +8,7 @@ extension Animation {
     static let page = Animation.easeInOut(duration: 0.3)
 }
 
-// MARK: - Animation Durations
+// MARK: - アニメーションの長さ（秒）
 enum AnimationDuration {
     static let instant: Double = 0.1
     static let quick: Double = 0.2
@@ -20,7 +20,7 @@ enum AnimationDuration {
     static let doneReset: Double = 0.6
 }
 
-// MARK: - Button Press Effect
+// MARK: - ボタン押下時の縮小・薄くする演出
 struct PressEffect: ViewModifier {
     var isPressed: Bool
     
@@ -38,7 +38,7 @@ extension View {
     }
 }
 
-// MARK: - Appear Animation
+// MARK: - 表示時にふわっと出す演出
 struct AppearAnimation: ViewModifier {
     @State private var isVisible = false
     var delay: Double = 0
@@ -61,7 +61,7 @@ extension View {
     }
 }
 
-// MARK: - Reduce Motion Support
+// MARK: - 「動きを減らす」設定に合わせたアニメーション切り替え
 struct ReducedMotionAnimation: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var animation: Animation
@@ -79,7 +79,7 @@ extension View {
     }
 }
 
-// MARK: - Loading Pulse Animation
+// MARK: - 読み込み中などの脈打つ不透明度アニメーション
 struct PulseAnimation: ViewModifier {
     @State private var isPulsing = false
     

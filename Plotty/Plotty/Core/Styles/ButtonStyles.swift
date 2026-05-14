@@ -1,12 +1,12 @@
 import SwiftUI
 
-// MARK: - Button Size
+// MARK: - ボタンの高さと余白（タップしやすさの段階）
 enum ButtonSize {
-    case xl    // 56pt height - Main CTA
-    case lg    // 50pt height - Section main action
-    case md    // 44pt height - HIG minimum tap target (standard)
-    case sm    // 36pt height - Secondary action
-    case xs    // 28pt height - Chips, tags, inline only
+    case xl    /// 高さ 56pt・画面で一番目立たせる操作
+    case lg    /// 高さ 50pt・セクションの主ボタン
+    case md    /// 高さ 44pt・Apple HIG の最小タップ領域（標準）
+    case sm    /// 高さ 36pt・補助的な操作
+    case xs    /// 高さ 28pt・チップやインラインのみ向け
     
     var height: CGFloat {
         switch self {
@@ -37,17 +37,17 @@ enum ButtonSize {
     }
 }
 
-// MARK: - Button Style Type
+// MARK: - ボタンの見た目の種類（塗り / 枠線 / 危険操作など）
 enum ButtonStyleType {
-    case filled      // Primary action
-    case tinted      // Cancel, secondary
-    case glass       // On layered elements
-    case outline     // Alternative action
-    case destructive // Delete (red exception allowed)
-    case plain       // Skip, etc.
+    case filled      /// メイン操作（塗りつぶし）
+    case tinted      /// キャンセルや副次的な操作
+    case glass       /// 重なった面の上に置く半透明
+    case outline     /// 代替の枠線だけの操作
+    case destructive /// 削除など危険な操作（赤の例外を許容）
+    case plain       /// 「スキップ」など装飾の少ないテキスト
 }
 
-// MARK: - Filled Button Style
+// MARK: - 塗りつぶしボタン（`FilledButtonStyle`）
 struct FilledButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
@@ -73,7 +73,7 @@ struct FilledButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Tinted Button Style
+// MARK: - 薄い背景のボタン（`TintedButtonStyle`）
 struct TintedButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
@@ -99,7 +99,7 @@ struct TintedButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Glass Button Style
+// MARK: - ガラス調のボタン（`GlassButtonStyle`）
 struct GlassButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
@@ -135,7 +135,7 @@ struct GlassButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Outline Button Style
+// MARK: - 枠線だけのボタン（`OutlineButtonStyle`）
 struct OutlineButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
@@ -161,7 +161,7 @@ struct OutlineButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Destructive Button Style
+// MARK: - 削除など危険操作向けボタン（`DestructiveButtonStyle`）
 struct DestructiveButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
@@ -191,7 +191,7 @@ struct DestructiveButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Plain Button Style
+// MARK: - 装飾の少ないテキストボタン（`PlainTextButtonStyle`）
 struct PlainTextButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
@@ -211,15 +211,15 @@ struct PlainTextButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Icon Button Styles
+// MARK: - 円形アイコンボタン（塗りあり / なし）
 struct CircleIconButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
     
     enum Size {
-        case lg  // 52×52
-        case md  // 44×44
-        case sm  // 36×36
+        case lg  /// 52×52 pt
+        case md  /// 44×44 pt
+        case sm  /// 36×36 pt
         
         var dimension: CGFloat {
             switch self {
@@ -258,6 +258,7 @@ struct CircleIconButtonStyle: ButtonStyle {
     }
 }
 
+// MARK: - ガラス風の円形アイコンボタン（検索横の「＋」など）
 struct GlassIconButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
@@ -291,7 +292,54 @@ struct GlassIconButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - View Extensions
+// MARK: - シート上部ツールバー用の主ボタン（保存・追加など）
+/// Apple の [ボタン HIG](https://developer.apple.com/design/human-interface-guidelines/buttons) に近づけた見た目。
+/// 有効時はアクセント色、無効時は二次色。最小 44×44pt。押したときは不透明度だけ変えてレイアウトは動かさない。
+struct ToolbarPrimarySheetActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .multilineTextAlignment(.center)
+            .foregroundStyle(foregroundColor)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+            .opacity(pressedOpacity(isPressed: configuration.isPressed))
+            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
+            .animation(.easeInOut(duration: 0.18), value: isEnabled)
+    }
+    
+    private var foregroundColor: Color {
+        isEnabled ? Color.accentColor : Color.secondary
+    }
+    
+    private func pressedOpacity(isPressed: Bool) -> Double {
+        guard isEnabled, isPressed else { return 1.0 }
+        return 0.88
+    }
+}
+
+/// ナビゲーションバー右側の確定ボタン向け（「保存」「追加」など）。
+struct ToolbarPrimarySheetActionButton: View {
+    let title: String
+    let action: () -> Void
+    
+    /// 先頭のラベルを省略して `ToolbarPrimarySheetActionButton("保存", action: { … })` と書ける初期化子。
+    init(_ title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.action = action
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+        }
+        .buttonStyle(ToolbarPrimarySheetActionButtonStyle())
+    }
+}
+
+// MARK: - 各種 `ButtonStyle` を一行で適用するショートカット
 extension View {
     func filledButtonStyle(size: ButtonSize = .md) -> some View {
         buttonStyle(FilledButtonStyle(size: size))

@@ -1,11 +1,11 @@
 import SwiftUI
 
-// MARK: - Glass Material Types
+// MARK: - ガラス風レイヤーの濃さ（用途別プリセット）
 enum GlassType {
-    case heavy    // User message bubble
-    case medium   // AI bubble, normal cards
-    case light    // Nested elements
-    case input    // Input bar
+    case heavy    /// ユーザー吹き出しなど、一番しっかりしたガラス
+    case medium   /// AI 吹き出し・通常カード
+    case light    /// 内側の小さな要素
+    case input    /// 入力バー専用
     
     // ダークモード: 白を載せて明るく
     var fillOpacityDark: Double {
@@ -46,7 +46,7 @@ enum GlassType {
     }
 }
 
-// MARK: - Premium Glass Card
+// MARK: - ガラス調の塗り（形はジェネリックで差し替え可能）
 struct PremiumGlass<S: Shape>: View {
     @Environment(\.colorScheme) private var colorScheme
     
@@ -61,18 +61,18 @@ struct PremiumGlass<S: Shape>: View {
         }
     }
     
-    // MARK: - Dark Mode Glass
+    // MARK: - ダークモード用のガラス
     private var darkGlass: some View {
         ZStack {
-            // Base blur
+            /// 奥にぼかしマテリアル
             shape
                 .fill(.ultraThinMaterial)
             
-            // White tint
+            /// 手前に白を薄く載せてコントラストを出す
             shape
                 .fill(Color.white.opacity(glassType.fillOpacityDark))
             
-            // Top highlight
+            /// 上から下へのハイライト（立体感）
             shape
                 .fill(
                     LinearGradient(
@@ -87,7 +87,7 @@ struct PremiumGlass<S: Shape>: View {
                 .blendMode(.plusLighter)
                 .opacity(0.5)
             
-            // Border
+            /// 縁の細いグラデーション線
             shape
                 .stroke(
                     LinearGradient(
@@ -109,14 +109,14 @@ struct PremiumGlass<S: Shape>: View {
         )
     }
     
-    // MARK: - Light Mode Glass (White Frosted)
+    // MARK: - ライトモード用の白いすりガラス
     private var lightGlass: some View {
         ZStack {
-            // White frosted fill (65% / 30% style)
+            /// 白ベースのすりガラス（不透明度は `GlassType` で切り替え）
             shape
                 .fill(Color.white.opacity(glassType.fillOpacityLight))
             
-            // Subtle top highlight
+            /// 上側を少し明るく見せる縦グラデーション
             shape
                 .fill(
                     LinearGradient(
@@ -129,7 +129,7 @@ struct PremiumGlass<S: Shape>: View {
                     )
                 )
             
-            // Very subtle border
+            /// 輪郭をほんのり区切る白線
             shape
                 .stroke(
                     Color.white.opacity(0.8),
@@ -145,7 +145,7 @@ struct PremiumGlass<S: Shape>: View {
     }
 }
 
-// MARK: - Glass Card Modifier
+// MARK: - `.glassCard` 修飾子（中身の背後にガラス形を敷く）
 struct GlassCard: ViewModifier {
     var glassType: GlassType = .medium
     var radius: CGFloat = Radius.lg
@@ -161,7 +161,7 @@ struct GlassCard: ViewModifier {
     }
 }
 
-// MARK: - Glass Card with Custom Opacity (Backwards Compatible)
+// MARK: - 不透明度指定版のガラスカード（既存コードとの互換用）
 struct GlassCardCustom: ViewModifier {
     var opacity: Double = 0.07
     var borderOpacity: Double = 0.11
@@ -178,7 +178,7 @@ struct GlassCardCustom: ViewModifier {
     }
 }
 
-// MARK: - View Extensions
+// MARK: - View へのショートカット（`glassHeavy` など）
 extension View {
     func glassCard(_ type: GlassType = .medium, radius: CGFloat = Radius.lg) -> some View {
         modifier(GlassCard(glassType: type, radius: radius))
@@ -205,7 +205,7 @@ extension View {
     }
 }
 
-// MARK: - Chat Bubble Glass Backgrounds
+// MARK: - チャット吹き出し専用のガラス背景（角だけユーザーと AI で違う）
 struct UserBubbleBackground: View {
     var body: some View {
         PremiumGlass(
