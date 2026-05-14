@@ -7,3 +7,7 @@
 （自動で追記されていきます）
 - 2026/05/05: ユーザーが名前を指定していないのにプロダクト名・ルートフォルダ名・@main の型名などを勝手に決めた（例: ScheduleAI） → 意図と違う名前がコードとリポジトリに残り、後から訂正が必要になる → 名前はユーザーが明示するまで付けず、必要なら「仮のプレースホルダーでよいか」と確認する。ユーザーが構造だけ示した場合は `App` や `Sources` など中立なパスか、ユーザー入力待ちにする
 
+## UI 実装の方針（Plotty）
+- **画面・レイアウト・タイポグラフィ・見た目の調整は SwiftUI 以外使わない。**`import UIKit` / `import AppKit` は禁止し、`UIView` / `UIViewController` / `UITabBar` / `UITabBarAppearance` / `UIFontMetrics` など **UIKit・AppKit の API は呼ばない**。
+- モデル・設定・永続化など **UI 以外**の処理は Swift / Foundation でもよい。
+- ダイナミックタイプやレイアウト上のスケールは **`Font` のテキストスタイル**や **`@ScaledMetric`** など SwiftUI の手段に寄せる。
