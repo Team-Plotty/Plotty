@@ -1,133 +1,295 @@
 import SwiftUI
 
-// MARK: - Calendar Event Model
+// MARK: - 予定（カレンダー用のデータモデル）
 struct CalendarEvent: Identifiable {
     let id = UUID()
     var title: String
     var startTime: Date
     var endTime: Date
-    var color: Color
+    var swatch: AccentSwatch
+    
+    var color: Color { swatch.color }
 }
 
-// MARK: - Calendar View
+// MARK: - スケジュール（カレンダー）タブの画面
 struct CalendarTabView: View {
     @Environment(\.colorScheme) private var colorScheme
     
+    /// 親のタブ（カレンダー以外に切り替えたら検索のフォーカスを外す）
+    var selectedTab: TabItem = .calendar
+    @Binding var showCreateSheet: Bool
+    
+    @State private var monthAnchor = Date()
     @State private var selectedDate = Date()
     @State private var events: [CalendarEvent] = CalendarEvent.sampleData
+    
+    @State private var searchText = ""
+    @State private var draftTitle = ""
+    @State private var draftStart = Date()
+    @State private var draftEnd = Date().addingTimeInterval(3600)
+    @State private var draftSwatch: AccentSwatch = .sky
+    
+    @FocusState private var isSearchFocused: Bool
     
     private let calendar = Calendar.current
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                header
+                PlotTopSearchRow(
+                    text: $searchText,
+                    isFocused: $isSearchFocused
+                )
                 
-                weekStrip
+                monthNavigation
+                
+                monthGrid
                 
                 todayEvents
             }
             .padding(.horizontal, Spacing.screenEdge)
-            .padding(.top, Spacing.xl)
-            .padding(.bottom, 140)
+            .padding(.top, Spacing.lg)
+            .padding(.bottom, Spacing.floatingAddButtonClearance)
+        }
+        .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .simultaneousGesture(
+            TapGesture().onEnded { _ in
+                isSearchFocused = false
+            }
+        )
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab != .calendar {
+                isSearchFocused = false
+            }
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            createSheet
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
     
-    // MARK: - Header
-    private var header: some View {
+    private var monthNavigation: some View {
         HStack {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(selectedDate.formatted(.dateTime.month(.wide).year()))
-                    .font(.scaledDisplayMedium())
-                    .titleTracking()
+            Button {
+                shiftMonth(-1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(textColor)
-                
-                Text(selectedDate.formatted(.dateTime.weekday(.wide)))
-                    .font(.scaledBodyMedium())
-                    .foregroundStyle(secondaryTextColor)
             }
+            .buttonStyle(GlassIconButtonStyle())
             
             Spacer()
             
-            Button(action: goToToday) {
-                Text("今日")
-                    .font(.scaledLabelMedium())
+            Text(monthAnchor.formatted(.dateTime.month(.wide).year()))
+                .font(.scaledTitleSmall())
+                .foregroundStyle(textColor)
+            
+            Spacer()
+            
+            Button {
+                shiftMonth(1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(textColor)
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, Spacing.xs)
             }
-            .glassCard(.light, radius: Radius.pill)
+            .buttonStyle(GlassIconButtonStyle())
         }
     }
     
-    // MARK: - Week Strip
-    private var weekStrip: some View {
-        HStack(spacing: Spacing.sm) {
-            ForEach(weekDays, id: \.self) { date in
-                dayCell(date)
+    private var monthGrid: some View {
+        VStack(spacing: Spacing.sm) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
+                ForEach(weekdaySymbols, id: \.self) { sym in
+                    Text(sym)
+                        .font(.scaledCaption())
+                        .foregroundStyle(tertiaryTextColor)
+                        .frame(maxWidth: .infinity)
+                }
+                ForEach(Array(monthCells.enumerated()), id: \.offset) { _, cell in
+                    if let date = cell {
+                        dayCell(date)
+                    } else {
+                        Color.clear
+                            .frame(height: 40)
+                    }
+                }
+            }
+            .padding(Spacing.sm)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+        }
+    }
+    
+    private var weekdaySymbols: [String] {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "ja_JP")
+        return df.shortWeekdaySymbols ?? ["日", "月", "火", "水", "木", "金", "土"]
+    }
+    
+    private var monthCells: [Date?] {
+        guard let interval = calendar.dateInterval(of: .month, for: monthAnchor) else { return [] }
+        let first = interval.start
+        let daysInMonth = calendar.range(of: .day, in: .month, for: first)?.count ?? 30
+        let firstWeekday = calendar.component(.weekday, from: first)
+        let offset = (firstWeekday - calendar.firstWeekday + 7) % 7
+        var cells: [Date?] = Array(repeating: nil, count: offset)
+        for day in 1...daysInMonth {
+            if let d = calendar.date(byAdding: .day, value: day - 1, to: first) {
+                cells.append(d)
             }
         }
+        while cells.count % 7 != 0 {
+            cells.append(nil)
+        }
+        return cells
     }
     
     private func dayCell(_ date: Date) -> some View {
         let isSelected = calendar.isDate(date, inSameDayAs: selectedDate)
         let isToday = calendar.isDateInToday(date)
+        let dayEvents = events.filter { calendar.isDate($0.startTime, inSameDayAs: date) }
+        let count = dayEvents.count
         
-        return Button(action: { selectDate(date) }) {
-            VStack(spacing: Spacing.xxs) {
-                Text(date.formatted(.dateTime.weekday(.narrow)))
-                    .font(.scaledCaption())
-                    .foregroundStyle(isSelected ? textColor : tertiaryTextColor)
-                
-                Text(date.formatted(.dateTime.day()))
-                    .font(.scaledTitleSmall())
+        return Button {
+            selectDate(date)
+        } label: {
+            VStack(spacing: 2) {
+                Text("\(calendar.component(.day, from: date))")
+                    .font(.scaledBodyMedium())
                     .foregroundStyle(isSelected ? textColor : secondaryTextColor)
-                
-                if isToday && !isSelected {
-                    Circle()
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.4))
-                        .frame(width: 4, height: 4)
+                HStack(spacing: 2) {
+                    ForEach(0..<min(count, 3), id: \.self) { i in
+                        Circle()
+                            .fill(dayEvents[i].color)
+                            .frame(width: 4, height: 4)
+                    }
+                }
+                .frame(height: 6)
+                if isToday {
+                    Capsule()
+                        .fill(Color.accentColor.opacity(0.9))
+                        .frame(width: 14, height: 2)
                 } else {
-                    Spacer().frame(height: 4)
+                    Spacer().frame(height: 2)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, Spacing.sm)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .background(
                 RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
                     .fill(isSelected
-                          ? (colorScheme == .dark ? Color.white.opacity(0.14) : Color.black.opacity(0.08))
+                          ? (colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06))
                           : Color.clear)
             )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
     }
     
-    // MARK: - Today Events
     private var todayEvents: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Text("予定")
+            HStack(spacing: Spacing.sm) {
+                Text(selectedDate.formatted(date: .abbreviated, time: .omitted))
                     .font(.scaledLabelMedium())
                     .foregroundStyle(secondaryTextColor)
                 
                 Spacer()
                 
-                Text("\(todayEventCount)件")
+                Button("今日へ") { goToToday() }
                     .font(.scaledCaption())
-                    .foregroundStyle(tertiaryTextColor)
+                    .foregroundStyle(textColor)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xxs)
+                    .glassEffect(.regular.interactive(), in: .capsule)
             }
+            
+            Text("予定 \(todayEventCount)件")
+                .font(.scaledCaption())
+                .foregroundStyle(tertiaryTextColor)
             
             if todayEventCount == 0 {
                 emptyEventsState
             } else {
                 LazyVStack(spacing: Spacing.sm) {
-                    ForEach(eventsForSelectedDate) { event in
+                    ForEach(filteredEventsForDay) { event in
                         EventRow(event: event)
                     }
                 }
             }
         }
+    }
+    
+    private var filteredEventsForDay: [CalendarEvent] {
+        let day = eventsForSelectedDate
+        guard !searchText.isEmpty else { return day }
+        return day.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+    }
+    
+    private var createSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                TextField("タイトル", text: $draftTitle)
+                    .font(.scaledBodyLarge())
+                    .foregroundStyle(textColor)
+                
+                DatePicker("開始", selection: $draftStart, displayedComponents: [.date, .hourAndMinute])
+                DatePicker("終了", selection: $draftEnd, displayedComponents: [.date, .hourAndMinute])
+                
+                Text("カラー")
+                    .font(.scaledLabelMedium())
+                    .foregroundStyle(secondaryTextColor)
+                
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 52), spacing: Spacing.sm)], spacing: Spacing.sm) {
+                    ForEach(AccentSwatch.allCases) { sw in
+                        Button {
+                            draftSwatch = sw
+                        } label: {
+                            Circle()
+                                .fill(sw.color)
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(draftSwatch == sw ? Color.accentColor : Color.clear, lineWidth: 2)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                
+                Spacer(minLength: 0)
+            }
+            .padding(Spacing.lg)
+            .navigationTitle("予定を追加")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("閉じる") { showCreateSheet = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    ToolbarPrimarySheetActionButton("保存", action: saveEvent)
+                        .disabled(draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+    
+    private func openCreateSheet() {
+        draftTitle = ""
+        draftStart = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: selectedDate) ?? selectedDate
+        draftEnd = calendar.date(bySettingHour: 11, minute: 0, second: 0, of: selectedDate) ?? selectedDate.addingTimeInterval(3600)
+        draftSwatch = .sky
+        showCreateSheet = true
+    }
+    
+    private func saveEvent() {
+        let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        let ev = CalendarEvent(title: title, startTime: draftStart, endTime: draftEnd, swatch: draftSwatch)
+        withAnimation(.standard) {
+            events.append(ev)
+        }
+        showCreateSheet = false
     }
     
     private var emptyEventsState: some View {
@@ -142,15 +304,7 @@ struct CalendarTabView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.xl)
-        .glassCard(.light, radius: Radius.md)
-    }
-    
-    // MARK: - Helpers
-    private var weekDays: [Date] {
-        let today = Date()
-        return (-3...3).compactMap { offset in
-            calendar.date(byAdding: .day, value: offset, to: today)
-        }
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
     }
     
     private var eventsForSelectedDate: [CalendarEvent] {
@@ -171,6 +325,15 @@ struct CalendarTabView: View {
     private func goToToday() {
         withAnimation(.standard) {
             selectedDate = Date()
+            monthAnchor = Date()
+        }
+    }
+    
+    private func shiftMonth(_ delta: Int) {
+        if let d = calendar.date(byAdding: .month, value: delta, to: monthAnchor) {
+            withAnimation(.quick) {
+                monthAnchor = d
+            }
         }
     }
     
@@ -187,7 +350,7 @@ struct CalendarTabView: View {
     }
 }
 
-// MARK: - Event Row
+// MARK: - 予定を一行で表示する行
 private struct EventRow: View {
     @Environment(\.colorScheme) private var colorScheme
     let event: CalendarEvent
@@ -213,41 +376,42 @@ private struct EventRow: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.md)
-        .glassCard(.medium, radius: Radius.md)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
     }
 }
 
-// MARK: - Sample Data
+// MARK: - プレビュー用のダミーデータ
 extension CalendarEvent {
     static var sampleData: [CalendarEvent] {
         let today = Date()
-        let calendar = Calendar.current
+        let cal = Calendar.current
+        let y = cal.date(byAdding: .day, value: -1, to: today)!
         
         return [
             CalendarEvent(
                 title: "チームミーティング",
-                startTime: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: today)!,
-                endTime: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: today)!,
-                color: .white.opacity(0.9)
+                startTime: cal.date(bySettingHour: 10, minute: 0, second: 0, of: today)!,
+                endTime: cal.date(bySettingHour: 11, minute: 0, second: 0, of: today)!,
+                swatch: .sky
             ),
             CalendarEvent(
                 title: "ランチ",
-                startTime: calendar.date(bySettingHour: 12, minute: 30, second: 0, of: today)!,
-                endTime: calendar.date(bySettingHour: 13, minute: 30, second: 0, of: today)!,
-                color: .white.opacity(0.6)
+                startTime: cal.date(bySettingHour: 12, minute: 30, second: 0, of: today)!,
+                endTime: cal.date(bySettingHour: 13, minute: 30, second: 0, of: today)!,
+                swatch: .sage
             ),
             CalendarEvent(
-                title: "デザインレビュー",
-                startTime: calendar.date(bySettingHour: 15, minute: 0, second: 0, of: today)!,
-                endTime: calendar.date(bySettingHour: 16, minute: 0, second: 0, of: today)!,
-                color: .white.opacity(0.9)
+                title: "昨日の振り返り",
+                startTime: cal.date(bySettingHour: 18, minute: 0, second: 0, of: y)!,
+                endTime: cal.date(bySettingHour: 18, minute: 45, second: 0, of: y)!,
+                swatch: .coral
             ),
         ]
     }
 }
 
 #Preview {
-    CalendarTabView()
+    CalendarTabView(showCreateSheet: .constant(false))
         .ambientBackground()
         .preferredColorScheme(.dark)
 }

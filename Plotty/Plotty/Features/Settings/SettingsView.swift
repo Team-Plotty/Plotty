@@ -1,98 +1,153 @@
 import SwiftUI
 
+// MARK: - 設定内の遷移先（パンくずからのディープリンクなど）
+enum SettingsRoute: Hashable {
+    case account
+}
+
+// MARK: - 設定タブ（メモ / TODO などと同じスクロール＋ガラスカードのリズム）
 struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.appSettings) private var appSettings
     
+    @Binding var pendingRoute: SettingsRoute?
+    @State private var accountSheetPresented = false
+    
+    init(pendingRoute: Binding<SettingsRoute?> = .constant(nil)) {
+        _pendingRoute = pendingRoute
+    }
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                header
+                glassSection(title: "アカウント") {
+                    rowChevron(
+                        icon: "person.crop.circle",
+                        label: "アカウント"
+                    ) {
+                        accountSheetPresented = true
+                    }
+                }
                 
-                themeSection
+                glassSection(title: "外観") {
+                    ForEach(Array(AppTheme.allCases.enumerated()), id: \.offset) { index, theme in
+                        themeRow(theme)
+                        if index < AppTheme.allCases.count - 1 {
+                            insetDivider
+                        }
+                    }
+                }
                 
-                aboutSection
-            }
-            .padding(.horizontal, Spacing.screenEdge)
-            .padding(.top, Spacing.xl)
-            .padding(.bottom, 140)
-        }
-    }
-    
-    // MARK: - Header
-    private var header: some View {
-        Text("設定")
-            .font(.scaledDisplayMedium())
-            .titleTracking()
-            .foregroundStyle(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
-    }
-    
-    // MARK: - Theme Section
-    private var themeSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            sectionTitle("外観")
-            
-            VStack(spacing: Spacing.xs) {
-                ForEach(AppTheme.allCases, id: \.rawValue) { theme in
-                    themeRow(theme)
+                glassSection(title: "アプリ情報") {
+                    infoRow(title: "バージョン", value: "1.0.0")
+                    insetDivider
+                    infoRow(title: "ビルド", value: "1")
                 }
             }
-            .glassCard(.medium, radius: Radius.lg)
+            .padding(.horizontal, Spacing.screenEdge)
+            .padding(.top, Spacing.lg)
+            .padding(.bottom, Spacing.xl)
         }
+        .scrollContentBackground(.hidden)
+        .sheet(isPresented: $accountSheetPresented) {
+            NavigationStack {
+                AccountView()
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .onAppear { consumePendingRoute() }
+        .onChange(of: pendingRoute) { _, _ in consumePendingRoute() }
+    }
+    
+    private func consumePendingRoute() {
+        guard pendingRoute == .account else { return }
+        accountSheetPresented = true
+        pendingRoute = nil
+    }
+    
+    // MARK: - セクション（見出し＋ガラスカード）
+    private func glassSection<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(title)
+                .font(.scaledLabelMedium())
+                .foregroundStyle(secondaryTextColor)
+                .padding(.leading, Spacing.xs)
+            
+            VStack(spacing: 0) {
+                content()
+            }
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+        }
+    }
+    
+    private func rowChevron(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundStyle(iconColor)
+                    .frame(width: 28, alignment: .center)
+                
+                Text(label)
+                    .font(.scaledBodyLarge())
+                    .foregroundStyle(textColor)
+                
+                Spacer(minLength: 0)
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(secondaryTextColor)
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
     
     private func themeRow(_ theme: AppTheme) -> some View {
-        Button(action: {
-            withAnimation(.quick) {
+        Button {
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) {
                 appSettings.theme = theme
             }
-        }) {
+        } label: {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: theme.icon)
                     .font(.system(size: 18))
                     .foregroundStyle(iconColor)
-                    .frame(width: 28)
+                    .frame(width: 28, alignment: .center)
                 
                 Text(theme.displayName)
                     .font(.scaledBodyLarge())
                     .foregroundStyle(textColor)
                 
-                Spacer()
+                Spacer(minLength: 0)
                 
                 if appSettings.theme == theme {
                     Image(systemName: "checkmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
+                        .foregroundStyle(textColor)
                 }
             }
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
             .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
     }
     
-    // MARK: - About Section
-    private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            sectionTitle("アプリ情報")
-            
-            VStack(spacing: 0) {
-                infoRow(label: "バージョン", value: "1.0.0")
-                Divider()
-                    .background(dividerColor)
-                infoRow(label: "ビルド", value: "1")
-            }
-            .glassCard(.medium, radius: Radius.lg)
-        }
-    }
-    
-    private func infoRow(label: String, value: String) -> some View {
+    private func infoRow(title: String, value: String) -> some View {
         HStack {
-            Text(label)
+            Text(title)
                 .font(.scaledBodyLarge())
                 .foregroundStyle(textColor)
-            Spacer()
+            Spacer(minLength: 0)
             Text(value)
                 .font(.scaledBodyMedium())
                 .foregroundStyle(secondaryTextColor)
@@ -101,12 +156,10 @@ struct SettingsView: View {
         .padding(.vertical, Spacing.md)
     }
     
-    // MARK: - Helpers
-    private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(.scaledLabelMedium())
-            .foregroundStyle(secondaryTextColor)
-            .padding(.leading, Spacing.xs)
+    private var insetDivider: some View {
+        Divider()
+            .background(dividerColor)
+            .padding(.leading, Spacing.lg)
     }
     
     private var textColor: Color {
@@ -128,6 +181,7 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .environment(\.appSettings, AppSettings())
         .ambientBackground()
         .preferredColorScheme(.dark)
 }

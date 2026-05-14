@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - App Theme
+// MARK: - 外観テーマ（ライト / ダーク / システム）
 enum AppTheme: String, CaseIterable {
     case system = "system"
     case light = "light"
@@ -31,7 +31,7 @@ enum AppTheme: String, CaseIterable {
     }
 }
 
-// MARK: - App Settings
+// MARK: - アプリ設定（テーマの保存など）
 @Observable
 final class AppSettings {
     private let defaults = UserDefaults.standard
@@ -52,7 +52,7 @@ final class AppSettings {
     }
 }
 
-// MARK: - Environment Key
+// MARK: - SwiftUI 環境値への登録
 private struct AppSettingsKey: EnvironmentKey {
     static let defaultValue = AppSettings()
 }
