@@ -11,19 +11,26 @@ enum Spacing {
     static let xxl: CGFloat = 48
     
     /// 画面左右の余白（指で持ちやすい幅の目安）
-    static let screenEdge: CGFloat = 35
+    static let screenEdge: CGFloat = 25
     
-    /// タブバーの高さ（FooterTabBar で使用）
+    /// タブバーの高さ（FooterTabBar のタブ行で使用）
     static let tabBarHeight: CGFloat = 60
     
-    /// 右下 FAB（56pt）の下端からの余白。タブバーの上に配置されるよう調整。
-    static let floatingAddButtonBottomInset: CGFloat = tabBarHeight + md
+    /// HIG 推奨の最小タップ領域（44pt）
+    static let minTouchTarget: CGFloat = 44
     
-    /// スクロール末尾の干渉を避けるための追加下余白（FAB高＋下オフセット＋余白）
-    static let floatingAddButtonClearance: CGFloat = 56 + floatingAddButtonBottomInset + lg
+    /// ＋ボタンとタブ行のすき間（タブバー最下端基準）
+    static let floatingAddGapAboveTabBar: CGFloat = screenEdge
     
-    /// `ContentView` の `TabView` に付ける FAB 用の下余白（メインコンテンツを「上に寄せ」FAB と干渉しにくくする）
-    static let fabMainContentBottomInset: CGFloat = 56 + md + sm
+    /// チャット入力欄とタブ行のすき間（`ChatTabView` 下端はタブ inset 直上）
+    static let chatComposerGapAboveTabBar: CGFloat = 16
+    
+    /// メモ・TODO・カレンダー一覧のスクロール末尾に足す下余白（＋はタブ上にオーバーレイ）
+    static let tabbedScrollBottomInset: CGFloat = 56 + floatingAddGapAboveTabBar
+    
+    /// チャット入力ドック分のスクロール余白（タブバー高さは含めない・inset で確保済み）
+    static let chatComposerScrollClearance: CGFloat =
+        84 + minTouchTarget * 3 + sm + xs + xxs * 2
 }
 
 // MARK: - 余白用のショートカット（View 拡張）

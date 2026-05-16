@@ -203,6 +203,114 @@ extension View {
     func glassInput(radius: CGFloat = Radius.pill) -> some View {
         glassCard(.input, radius: radius)
     }
+    
+    /// 検索・メッセージ入力などカプセル型フィールド用（テーマの入力背景・枠線。文字が潰れないよう `glassEffect` は使わない）。
+    func plotInputCapsuleGlass() -> some View {
+        modifier(PlotInputCapsuleGlass())
+    }
+    
+    /// チャット入力欄（固定角丸。チップ追加時は縦に伸ばす。`Capsule` は高さ可変で形が崩れるため使わない）。
+    func plotChatComposerGlass(cornerRadius: CGFloat = PlotChatComposerMetrics.cornerRadius) -> some View {
+        modifier(PlotChatComposerGlass(cornerRadius: cornerRadius))
+    }
+    
+    /// カプセル型チップの Liquid Glass（チャット吹き出し内など。フィルタは `PlotFilterChip` を使う）。
+    func plotChipGlassCapsule(style: PlotChipGlassStyle = .standalone) -> some View {
+        background {
+            Capsule(style: .continuous)
+                .fill(Color.clear)
+                .glassEffect(style.glass, in: .capsule)
+        }
+    }
+    
+    /// 一覧カード（メモ・TODO・カレンダー予定で共通。`EventRow` と同じ Liquid Glass）。
+    func plotListCardGlass(cornerRadius: CGFloat = Radius.md) -> some View {
+        glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+// MARK: - チップ用 Liquid Glass（Apple HIG の functional layer）
+enum PlotChipGlassStyle {
+    /// フィルタ・カテゴリなど単独のチップ
+    case standalone
+    /// 吹き出しなど既に Liquid Glass な面の上に載せるチップ
+    case nestedInGlass
+    
+    /// 押下・ホバーは `ButtonStyle` 側で行い、ガラスは屈折のみに任せる（`.interactive()` はラベル全体に効いて不自然になりやすい）。
+    var glass: Glass {
+        switch self {
+        case .standalone:
+            return .regular
+        case .nestedInGlass:
+            return .clear
+        }
+    }
+}
+
+// MARK: - チップの押下フィードバック（システム `.glass` に近い軽いスケール＋不透明度）
+struct PlotChipPressButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    
+    @ViewBuilder
+    func makeBody(configuration: Configuration) -> some View {
+        if reduceMotion {
+            configuration.label
+                .opacity(configuration.isPressed ? 0.92 : 1)
+        } else {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                .opacity(configuration.isPressed ? 0.9 : 1)
+                .animation(.easeInOut(duration: 0.14), value: configuration.isPressed)
+        }
+    }
+}
+
+// MARK: - チャット入力欄の寸法
+enum PlotChatComposerMetrics {
+    /// 1 行時と同じ角丸（高さが増えても角の曲率は固定）
+    static let cornerRadius: CGFloat = 24
+    static let minHeightCompact: CGFloat = 48
+    static let minHeightWithChip: CGFloat = 84
+}
+
+// MARK: - チャット入力欄の背景（固定角丸の角丸矩形）
+private struct PlotChatComposerGlass: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    let cornerRadius: CGFloat
+    
+    func body(content: Content) -> some View {
+        content.background {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(colorScheme == .dark ? Color.darkInputBG : Color.lightInputBG)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(
+                            colorScheme == .dark ? Color.darkBorderDefault : Color.lightBorderDefault,
+                            lineWidth: 0.5
+                        )
+                )
+        }
+    }
+}
+
+// MARK: - カプセル型入力の背景（検索・チャット入力で共通）
+/// `glassEffect` は `TextField` の文字・アイコンが潰れやすいため、テーマの入力用ベタ塗り＋枠線を使う。
+private struct PlotInputCapsuleGlass: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    
+    func body(content: Content) -> some View {
+        content.background {
+            Capsule(style: .continuous)
+                .fill(colorScheme == .dark ? Color.darkInputBG : Color.lightInputBG)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(
+                            colorScheme == .dark ? Color.darkBorderDefault : Color.lightBorderDefault,
+                            lineWidth: 0.5
+                        )
+                )
+        }
+    }
 }
 
 // MARK: - チャット吹き出し専用のガラス背景（角だけユーザーと AI で違う）

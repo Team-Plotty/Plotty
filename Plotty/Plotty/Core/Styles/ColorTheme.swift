@@ -22,6 +22,9 @@ extension Color {
     static let darkTextTertiary = Color(hex: "#FFFCF8").opacity(0.33)
     static let darkTextDisabled = Color(hex: "#FFFCF8").opacity(0.20)
     
+    /// AI 応答待ちの画面枠グロー（Gemini 風の青）
+    static let plotAIBorderGlow = Color(hex: "#5EB3FF")
+    
     // チャット画面専用のテキスト・区切り線
     static let darkTextUser = Color(hex: "#FFFCF8").opacity(0.92)
     static let darkTextAI = Color(hex: "#FFFCF8").opacity(0.52)
@@ -29,6 +32,9 @@ extension Color {
     
     // 入力バー背景
     static let darkInputBG = Color(hex: "#3D3935").opacity(0.88)
+    
+    /// 検索・入力のプレースホルダ（ガラス上でも読めるコントラスト）
+    static let darkInputPlaceholder = Color(hex: "#FFFCF8").opacity(0.72)
 }
 
 // MARK: - ライトモード用カラー（暖かみのあるペーパー系）
@@ -63,6 +69,9 @@ extension Color {
     
     // 入力バー背景
     static let lightInputBG = Color(hex: "#F8F5F0").opacity(0.88)
+    
+    /// 検索・入力のプレースホルダ（ガラス上でも読めるコントラスト）
+    static let lightInputPlaceholder = Color.black.opacity(0.42)
 }
 
 // MARK: - 外観モードに応じて色を切り替えるラッパー
