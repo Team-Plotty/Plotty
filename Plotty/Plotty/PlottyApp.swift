@@ -11,11 +11,17 @@ import SwiftUI
 @main
 struct PlottyApp: App {
     @State private var appSettings = AppSettings()
+    @State private var accountSession = AccountSession()
+    @State private var plotDataStore = PlotDataStore()
+    @State private var connectivity = ConnectivityMonitor()
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .environment(\.appSettings, appSettings)
+                .environment(\.accountSession, accountSession)
+                .environment(\.plotDataStore, plotDataStore)
+                .environment(\.connectivity, connectivity)
         }
     }
 }

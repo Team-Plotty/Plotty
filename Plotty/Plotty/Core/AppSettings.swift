@@ -31,24 +31,63 @@ enum AppTheme: String, CaseIterable {
     }
 }
 
-// MARK: - アプリ設定（テーマの保存など）
+// MARK: - AI 人格設定（`ai_persona_config` 相当）
+struct AIPersonaConfig: Codable, Equatable {
+    var name: String
+    var tone: String
+    var identity: String
+    var prohibitedTopics: [String]
+    
+    static let `default` = AIPersonaConfig(
+        name: "Plotty",
+        tone: "friendly",
+        identity: "優秀な秘書",
+        prohibitedTopics: ["politics", "religion"]
+    )
+}
+
+// MARK: - アプリ設定（テーマ・タイムゾーン・AI人格）
 @Observable
 final class AppSettings {
     private let defaults = UserDefaults.standard
     
     private enum Keys {
         static let theme = "app_theme"
+        static let timezone = "app_timezone"
+        static let aiPersona = "app_ai_persona"
     }
     
     var theme: AppTheme {
+        didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
+    }
+    
+    var timezoneIdentifier: String {
+        didSet { defaults.set(timezoneIdentifier, forKey: Keys.timezone) }
+    }
+    
+    var aiPersona: AIPersonaConfig {
         didSet {
-            defaults.set(theme.rawValue, forKey: Keys.theme)
+            if let data = try? JSONEncoder().encode(aiPersona) {
+                defaults.set(data, forKey: Keys.aiPersona)
+            }
         }
+    }
+    
+    var timezone: TimeZone {
+        TimeZone(identifier: timezoneIdentifier) ?? .current
     }
     
     init() {
         let savedTheme = defaults.string(forKey: Keys.theme) ?? AppTheme.dark.rawValue
         self.theme = AppTheme(rawValue: savedTheme) ?? .dark
+        self.timezoneIdentifier = defaults.string(forKey: Keys.timezone)
+            ?? TimeZone.current.identifier
+        if let data = defaults.data(forKey: Keys.aiPersona),
+           let decoded = try? JSONDecoder().decode(AIPersonaConfig.self, from: data) {
+            self.aiPersona = decoded
+        } else {
+            self.aiPersona = .default
+        }
     }
 }
 
