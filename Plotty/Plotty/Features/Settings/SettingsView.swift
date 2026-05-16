@@ -1,17 +1,19 @@
 import SwiftUI
 
-// MARK: - 設定内の遷移先（パンくずからのディープリンクなど）
-enum SettingsRoute: Hashable {
-    case account
-}
-
 // MARK: - 設定タブ（メモ / TODO などと同じスクロール＋ガラスカードのリズム）
 struct SettingsView: View {
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.appSettings) private var appSettings
+    @Environment(\.accountSession) private var accountSession
     
     @Binding var pendingRoute: SettingsRoute?
     @State private var accountSheetPresented = false
+    @State private var accountSwitcherPresented = false
+    @State private var termsSheetPresented = false
+    @State private var privacySheetPresented = false
+    @State private var helpSheetPresented = false
+    @State private var ossSheetPresented = false
+    @State private var aiPersonaSheetPresented = false
+    @State private var logoutConfirmPresented = false
+    @State private var deleteAccountConfirmPresented = false
     
     init(pendingRoute: Binding<SettingsRoute?> = .constant(nil)) {
         _pendingRoute = pendingRoute
@@ -20,28 +22,83 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                glassSection(title: "アカウント") {
-                    rowChevron(
-                        icon: "person.crop.circle",
-                        label: "アカウント"
-                    ) {
+                SettingsGlassSection(title: "アカウント") {
+                    if let account = accountSession.currentAccount {
+                        SettingsSignedInSummary(account: account)
+                        SettingsInsetDivider()
+                    } else {
+                        SettingsSignedOutSummary()
+                        SettingsInsetDivider()
+                    }
+                    
+                    SettingsRowChevron(icon: "arrow.triangle.2.circlepath", label: "アカウントを切り替え") {
+                        accountSwitcherPresented = true
+                    }
+                    SettingsInsetDivider()
+                    
+                    SettingsRowChevron(icon: "person.crop.circle", label: "アカウント") {
                         accountSheetPresented = true
+                    }
+                    SettingsInsetDivider()
+                    
+                    SettingsDestructiveRow(
+                        icon: "rectangle.portrait.and.arrow.right",
+                        label: "ログアウト",
+                        isEnabled: accountSession.isLoggedIn
+                    ) {
+                        logoutConfirmPresented = true
                     }
                 }
                 
-                glassSection(title: "外観") {
+                SettingsGlassSection(title: "外観") {
                     ForEach(Array(AppTheme.allCases.enumerated()), id: \.offset) { index, theme in
-                        themeRow(theme)
+                        SettingsThemeRow(theme: theme)
                         if index < AppTheme.allCases.count - 1 {
-                            insetDivider
+                            SettingsInsetDivider()
                         }
                     }
                 }
                 
-                glassSection(title: "アプリ情報") {
-                    infoRow(title: "バージョン", value: "1.0.0")
-                    insetDivider
-                    infoRow(title: "ビルド", value: "1")
+                SettingsGlassSection(title: "AI・地域") {
+                    SettingsRowChevron(icon: "sparkles", label: "AI の口調") {
+                        aiPersonaSheetPresented = true
+                    }
+                    SettingsInsetDivider()
+                    SettingsTimezoneRow()
+                }
+                
+                SettingsGlassSection(title: "サポート") {
+                    SettingsRowChevron(icon: "questionmark.circle", label: "ヘルプ") {
+                        helpSheetPresented = true
+                    }
+                }
+                
+                SettingsGlassSection(title: "法的情報") {
+                    SettingsRowChevron(icon: "doc.text", label: "利用規約") {
+                        termsSheetPresented = true
+                    }
+                    SettingsInsetDivider()
+                    SettingsRowChevron(icon: "hand.raised", label: "プライバシーポリシー") {
+                        privacySheetPresented = true
+                    }
+                    SettingsInsetDivider()
+                    SettingsRowChevron(icon: "chevron.left.forwardslash.chevron.right", label: "オープンソースライセンス") {
+                        ossSheetPresented = true
+                    }
+                }
+                
+                SettingsGlassSection(title: "アプリ情報") {
+                    SettingsInfoRow(title: "バージョン", value: "1.0.0")
+                    SettingsInsetDivider()
+                    SettingsInfoRow(title: "ビルド", value: "1")
+                }
+                
+                if accountSession.isLoggedIn {
+                    SettingsGlassSection(title: "危険な操作") {
+                        SettingsDestructiveRow(icon: "trash", label: "アカウントを削除") {
+                            deleteAccountConfirmPresented = true
+                        }
+                    }
                 }
             }
             .padding(.horizontal, Spacing.screenEdge)
@@ -56,6 +113,64 @@ struct SettingsView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $accountSwitcherPresented) {
+            NavigationStack {
+                AccountSwitcherView()
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $termsSheetPresented) {
+            NavigationStack {
+                LegalDocumentView(kind: .termsOfService)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $privacySheetPresented) {
+            NavigationStack {
+                LegalDocumentView(kind: .privacyPolicy)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $helpSheetPresented) {
+            NavigationStack {
+                HelpView()
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $ossSheetPresented) {
+            NavigationStack {
+                OpenSourceLicensesView()
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $aiPersonaSheetPresented) {
+            NavigationStack {
+                AIPersonaSettingsView()
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .alert("ログアウトしますか？", isPresented: $logoutConfirmPresented) {
+            Button("キャンセル", role: .cancel) {}
+            Button("ログアウト", role: .destructive) {
+                accountSession.logout()
+            }
+        } message: {
+            Text("ログアウトすると、この端末でのログイン状態が解除されます。再度使うときはアカウントを選び直してください。")
+        }
+        .alert("アカウントを削除しますか？", isPresented: $deleteAccountConfirmPresented) {
+            Button("キャンセル", role: .cancel) {}
+            Button("削除", role: .destructive) {
+                accountSession.deleteAccount()
+            }
+        } message: {
+            Text("この端末のログイン状態が解除されます。クラウド上のデータ削除は API 接続後に有効になります。")
+        }
         .onAppear { consumePendingRoute() }
         .onChange(of: pendingRoute) { _, _ in consumePendingRoute() }
     }
@@ -65,123 +180,12 @@ struct SettingsView: View {
         accountSheetPresented = true
         pendingRoute = nil
     }
-    
-    // MARK: - セクション（見出し＋ガラスカード）
-    private func glassSection<Content: View>(
-        title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text(title)
-                .font(.scaledLabelMedium())
-                .foregroundStyle(secondaryTextColor)
-                .padding(.leading, Spacing.xs)
-            
-            VStack(spacing: 0) {
-                content()
-            }
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
-        }
-    }
-    
-    private func rowChevron(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: Spacing.sm) {
-                Image(systemName: icon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 28, alignment: .center)
-                
-                Text(label)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(textColor)
-                
-                Spacer(minLength: 0)
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(secondaryTextColor)
-            }
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.md)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-    
-    private func themeRow(_ theme: AppTheme) -> some View {
-        Button {
-            var t = Transaction()
-            t.disablesAnimations = true
-            withTransaction(t) {
-                appSettings.theme = theme
-            }
-        } label: {
-            HStack(spacing: Spacing.sm) {
-                Image(systemName: theme.icon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 28, alignment: .center)
-                
-                Text(theme.displayName)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(textColor)
-                
-                Spacer(minLength: 0)
-                
-                if appSettings.theme == theme {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(textColor)
-                }
-            }
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.md)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-    
-    private func infoRow(title: String, value: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.scaledBodyLarge())
-                .foregroundStyle(textColor)
-            Spacer(minLength: 0)
-            Text(value)
-                .font(.scaledBodyMedium())
-                .foregroundStyle(secondaryTextColor)
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, Spacing.md)
-    }
-    
-    private var insetDivider: some View {
-        Divider()
-            .background(dividerColor)
-            .padding(.leading, Spacing.lg)
-    }
-    
-    private var textColor: Color {
-        colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
-    }
-    
-    private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
-    }
-    
-    private var iconColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
-    }
-    
-    private var dividerColor: Color {
-        colorScheme == .dark ? Color.darkBorderSubtle : Color.lightBorderSubtle
-    }
 }
 
 #Preview {
     SettingsView()
         .environment(\.appSettings, AppSettings())
+        .environment(\.accountSession, AccountSession())
         .ambientBackground()
         .preferredColorScheme(.dark)
 }

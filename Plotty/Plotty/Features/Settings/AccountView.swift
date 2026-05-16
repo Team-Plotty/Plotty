@@ -4,22 +4,20 @@ import SwiftUI
 struct AccountView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accountSession) private var accountSession
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                Text("ログインやプロフィールは今後ここにまとめます。")
-                    .font(.scaledBodyMedium())
-                    .foregroundStyle(secondaryTextColor)
-                
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    Text("この画面は今後、ログイン状態やプロフィールなどをまとめる場所として使えます。")
-                        .font(.scaledBodyMedium())
-                        .foregroundStyle(secondaryTextColor)
+                if let account = accountSession.currentAccount {
+                    profileCard(account)
+                } else {
+                    signedOutCard
                 }
-                .padding(Spacing.lg)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+                
+                if let account = accountSession.currentAccount {
+                    infoCard(title: "ログイン方式", value: account.provider.title)
+                }
             }
             .padding(.horizontal, Spacing.screenEdge)
             .padding(.top, Spacing.lg)
@@ -44,6 +42,43 @@ struct AccountView: View {
         }
     }
     
+    private func profileCard(_ account: PlottyAccount) -> some View {
+        HStack(spacing: Spacing.md) {
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(iconColor)
+            
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(account.displayName)
+                    .font(.scaledTitleSmall())
+                    .foregroundStyle(primaryTextColor)
+                Text(account.email)
+                    .font(.scaledBodyMedium())
+                    .foregroundStyle(secondaryTextColor)
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .padding(Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+    
+    private var signedOutCard: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("ログインしていません")
+                .font(.scaledTitleSmall())
+                .foregroundStyle(primaryTextColor)
+            Text("設定の「アカウントを切り替え」から、使うアカウントを選んでください。")
+                .font(.scaledBodyMedium())
+                .foregroundStyle(secondaryTextColor)
+        }
+        .padding(Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+    }
+    
     private var primaryTextColor: Color {
         colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
     }
@@ -51,11 +86,30 @@ struct AccountView: View {
     private var secondaryTextColor: Color {
         colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
     }
+    
+    private var iconColor: Color {
+        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
+    }
+    
+    private func infoCard(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.scaledBodyMedium())
+                .foregroundStyle(secondaryTextColor)
+            Spacer()
+            Text(value)
+                .font(.scaledBodyMedium())
+                .foregroundStyle(primaryTextColor)
+        }
+        .padding(Spacing.lg)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+    }
 }
 
 #Preview {
     NavigationStack {
         AccountView()
+            .environment(\.accountSession, AccountSession())
             .ambientBackground()
     }
     .preferredColorScheme(.dark)
