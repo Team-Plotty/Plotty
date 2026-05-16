@@ -1,0 +1,80 @@
+import SwiftUI
+
+// MARK: - 選択日の予定一覧
+struct CalendarDayEventsSection: View {
+    @Environment(\.colorScheme) private var colorScheme
+    
+    let selectedDate: Date
+    let events: [CalendarEvent]
+    let onGoToToday: () -> Void
+    let onSelectEvent: (CalendarEvent) -> Void
+    let onDeleteEvent: (UUID) -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Text(selectedDate.formatted(date: .abbreviated, time: .omitted))
+                    .font(.scaledLabelMedium())
+                    .foregroundStyle(secondaryTextColor)
+                
+                Spacer()
+                
+                PlotFilterChip(title: "今日へ", isSelected: false, action: onGoToToday)
+            }
+            
+            Text("予定 \(events.count)件")
+                .font(.scaledCaption())
+                .foregroundStyle(tertiaryTextColor)
+            
+            if events.isEmpty {
+                CalendarEmptyEventsState()
+            } else {
+                LazyVStack(spacing: Spacing.sm) {
+                    ForEach(events) { event in
+                        Button {
+                            onSelectEvent(event)
+                        } label: {
+                            EventRow(event: event)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                onDeleteEvent(event.id)
+                            } label: {
+                                Label("削除", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
+    }
+    
+    private var tertiaryTextColor: Color {
+        colorScheme == .dark ? Color.darkTextTertiary : Color.lightTextTertiary
+    }
+}
+
+// MARK: - 予定なし
+struct CalendarEmptyEventsState: View {
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var body: some View {
+        VStack(spacing: Spacing.sm) {
+            Image(systemName: "calendar.badge.checkmark")
+                .font(.system(size: 36, weight: .light))
+                .foregroundStyle(colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary)
+            
+            Text("予定はありません")
+                .font(.scaledBodyMedium())
+                .foregroundStyle(colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Spacing.xl)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+    }
+}
