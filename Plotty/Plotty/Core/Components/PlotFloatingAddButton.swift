@@ -1,18 +1,28 @@
 import SwiftUI
 
-// MARK: - 右下の「＋」FAB（メモ / TODO / カレンダーで共通）
-/// 親画面の `ScrollView` 下に余白を足し、このボタンを `ZStack` の `bottomTrailing` に置く想定。
+// MARK: - メモ / TODO / カレンダー用の「＋」新規ボタン
+/// タブバー最下端を基準に、その上へ `Spacing.floatingAddGapAboveTabBar` だけ離して表示。
 struct PlotFloatingAddButton: View {
+    @Environment(\.colorScheme) private var colorScheme
+    
     var accessibilityLabel: String = "新規作成"
     let action: () -> Void
+    
+    private let diameter: CGFloat = 56
     
     var body: some View {
         Button(action: action) {
             Image(systemName: "plus")
                 .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(iconColor)
+                .frame(width: diameter, height: diameter)
         }
-        .buttonStyle(GlassIconButtonStyle(dimension: 56))
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: Circle())
         .accessibilityLabel(accessibilityLabel)
-        .zIndex(1000)
+    }
+    
+    private var iconColor: Color {
+        colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
     }
 }

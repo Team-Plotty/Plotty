@@ -15,70 +15,97 @@ struct ChatBubble: View {
     var chips: [String] = []
     
     var body: some View {
+        if role == .user {
+            userBubble
+        } else {
+            aiPlainMessage
+        }
+    }
+    
+    // MARK: - ユーザー（吹き出し）
+    
+    private var userBubble: some View {
         HStack(alignment: .bottom, spacing: 0) {
-            if role == .user {
-                Spacer(minLength: 60)
-            }
+            Spacer(minLength: 60)
             
-            if role == .ai {
-                aiLineIndicator
-            }
-            
-            VStack(alignment: role == .user ? .trailing : .leading, spacing: Spacing.xs) {
+            VStack(alignment: .trailing, spacing: Spacing.xs) {
                 Text(text)
                     .font(.scaledBodyLarge())
-                    .foregroundColor(textColor)
+                    .foregroundColor(userTextColor)
                     .bodyLineSpacing()
-                    .multilineTextAlignment(role == .user ? .trailing : .leading)
+                    .multilineTextAlignment(.trailing)
                 
                 if !chips.isEmpty {
-                    chipsView
+                    userChipsView
                 }
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
-            .glassEffect(.regular, in: bubbleShape)
-            
-            if role == .ai {
-                Spacer(minLength: 60)
+            .glassEffect(.regular, in: userBubbleShape)
+        }
+    }
+    
+    // MARK: - AI（背景なし・本文のみ）
+    
+    private var aiPlainMessage: some View {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(text)
+                    .font(.scaledBodyLarge())
+                    .foregroundColor(aiTextColor)
+                    .bodyLineSpacing()
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                if !chips.isEmpty {
+                    aiChipsView
+                }
             }
+            
+            Spacer(minLength: 60)
         }
     }
     
-    private var textColor: Color {
-        switch role {
-        case .user:
-            return colorScheme == .dark ? .darkTextUser : .lightTextUser
-        case .ai:
-            return colorScheme == .dark ? .darkTextAI : .lightTextAI
-        }
+    private var userTextColor: Color {
+        colorScheme == .dark ? .darkTextUser : .lightTextUser
     }
     
-    private var bubbleShape: some Shape {
+    private var aiTextColor: Color {
+        colorScheme == .dark ? .darkTextPrimary : .lightTextPrimary
+    }
+    
+    private var userBubbleShape: some Shape {
         UnevenRoundedRectangle(
-            topLeadingRadius: role == .user ? BubbleCorners.user.topLeading : BubbleCorners.ai.topLeading,
-            bottomLeadingRadius: role == .user ? BubbleCorners.user.bottomLeading : BubbleCorners.ai.bottomLeading,
-            bottomTrailingRadius: role == .user ? BubbleCorners.user.bottomTrailing : BubbleCorners.ai.bottomTrailing,
-            topTrailingRadius: role == .user ? BubbleCorners.user.topTrailing : BubbleCorners.ai.topTrailing,
+            topLeadingRadius: BubbleCorners.user.topLeading,
+            bottomLeadingRadius: BubbleCorners.user.bottomLeading,
+            bottomTrailingRadius: BubbleCorners.user.bottomTrailing,
+            topTrailingRadius: BubbleCorners.user.topTrailing,
             style: .continuous
         )
     }
     
     @ViewBuilder
-    private var aiLineIndicator: some View {
-        if role == .ai {
-            Rectangle()
-                .fill(colorScheme == .dark ? Color.darkAILine : Color.lightAILine)
-                .frame(width: 2)
-                .padding(.trailing, Spacing.xs)
+    private var userChipsView: some View {
+        FlowLayout(spacing: Spacing.xxs) {
+            ForEach(chips, id: \.self) { chip in
+                Chip(
+                    text: chip,
+                    resolvedColorScheme: colorScheme,
+                    glassStyle: .nestedInGlass
+                )
+            }
         }
     }
     
     @ViewBuilder
-    private var chipsView: some View {
+    private var aiChipsView: some View {
         FlowLayout(spacing: Spacing.xxs) {
             ForEach(chips, id: \.self) { chip in
-                Chip(text: chip, resolvedColorScheme: colorScheme)
+                Chip(
+                    text: chip,
+                    resolvedColorScheme: colorScheme,
+                    glassStyle: .standalone
+                )
             }
         }
     }

@@ -41,6 +41,7 @@ enum TabItem: Int, CaseIterable, Hashable {
 }
 
 // MARK: - 自作フッタータブバー（システムの TabBar を隠して使う）
+/// タブ行のガラス背景だけホームインジケータまで伸ばす（親全体の `ignoresSafeArea` は使わない）。
 struct FooterTabBar: View {
     @Environment(\.colorScheme) private var colorScheme
     
@@ -52,8 +53,8 @@ struct FooterTabBar: View {
                 tabButton(for: tab)
             }
         }
-        .frame(height: 60)
-        /// タップ領域の高さは 60pt のまま。背景だけホームインジケータの下まで伸ばし、下端の白抜けを防ぐ。
+        .frame(height: Spacing.tabBarHeight)
+        .frame(maxWidth: .infinity)
         .background {
             tabBarBackground
                 .ignoresSafeArea(edges: .bottom)

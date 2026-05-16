@@ -39,11 +39,13 @@ struct PlotRootBreadcrumb: View {
                 Image(systemName: "person.crop.circle")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(primary)
+                    .frame(width: 48, height: 48)
+                    .contentShape(Rectangle())
                     .accessibilityLabel("アカウント")
             }
-            .buttonStyle(GlassIconButtonStyle())
+            .buttonStyle(PlotAccountIconTapStyle())
         }
-        .padding(.leading, Spacing.screenEdge + Spacing.sm)
+        .padding(.leading, Spacing.screenEdge)
         .padding(.trailing, Spacing.screenEdge)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -60,5 +62,14 @@ struct PlotRootBreadcrumb: View {
     
     private var tertiary: Color {
         colorScheme == .dark ? Color.darkTextTertiary : Color.lightTextTertiary
+    }
+}
+
+// MARK: - アカウント導線（シンボルのみ・ガラス円なし、44pt 超のタップ領域）
+private struct PlotAccountIconTapStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.55 : 1)
+            .animation(.quick, value: configuration.isPressed)
     }
 }
