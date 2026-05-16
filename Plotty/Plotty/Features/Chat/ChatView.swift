@@ -1,69 +1,155 @@
 import SwiftUI
 
-// MARK: - チャットメッセージのデータモデル
-struct ChatMessage: Identifiable {
-    let id = UUID()
-    let role: MessageRole
-    let text: String
-    let chips: [String]
-    let timestamp: Date
+// MARK: - チャットタブ
+private enum ChatScrollAnchor {
+    static let bottom = "chatScrollBottom"
 }
 
-/// チャット画面で「日付ごと」に並べるための内部モデル（1日分のメッセージの束）
-private struct ChatDaySection: Identifiable {
-    let id: String
-    let day: Date
-    let messages: [ChatMessage]
+private struct ChatComposerDockHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
 }
 
-// MARK: - チャットタブの画面
 struct ChatTabView: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.connectivity) private var connectivity
+    @Environment(\.plotDataStore) private var dataStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
-    /// 親のタブ選択（チャット以外に切り替えたらキーボードを閉じる）
     var selectedTab: TabItem
+    @Binding var draftMessage: String
+    @Binding var selectedCategory: PlotChatCategory?
+    @FocusState.Binding var isComposerFocused: Bool
+    @Binding var isAIProcessing: Bool
+    @Binding var sendRequested: Bool
     
-    //---API やローカル DB に差し替える---//
     @State private var messages: [ChatMessage] = ChatMessage.sampleData
-    @State private var draftMessage = ""
-    @FocusState private var isComposerFocused: Bool
+    @State private var asyncPhase: PlotAsyncPhase = .idle
+    @State private var lastError: String?
+    @State private var composerDockHeight: CGFloat = 0
     
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: Spacing.md) {
-                ForEach(daySections) { section in
-                    dayHeader(section.day)
-                    
-                    ForEach(section.messages) { message in
-                        ChatBubble(
-                            role: message.role,
-                            text: message.text,
-                            chips: message.chips
-                        )
+        ZStack(alignment: .bottom) {
+            messageList
+            composerDock
+        }
+    }
+    
+    private var messageList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: Spacing.md) {
+                    if let errorMessage = lastError {
+                        PlotErrorBanner(message: errorMessage) {
+                            lastError = nil
+                        }
                     }
+                    
+                    ForEach(daySections) { section in
+                        ChatDayHeader(day: section.day)
+                        
+                        ForEach(section.messages) { message in
+                            ChatMessageBlock(message: message)
+                                .id(message.id)
+                        }
+                    }
+                    
+                    Color.clear
+                        .frame(height: 1)
+                        .id(ChatScrollAnchor.bottom)
+                }
+                .padding(.horizontal, Spacing.screenEdge)
+                .padding(.top, Spacing.lg)
+            }
+            .contentMargins(.bottom, scrollBottomInset, for: .scrollContent)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+            .onAppear {
+                scrollToLatestExchange(using: proxy, animated: false)
+            }
+            .onChange(of: selectedTab) { _, newTab in
+                if newTab != .chat {
+                    isComposerFocused = false
+                } else {
+                    scrollToLatestExchange(using: proxy, animated: false)
                 }
             }
-            .padding(.horizontal, Spacing.screenEdge)
-            .padding(.top, Spacing.lg)
-            .padding(.bottom, Spacing.md)
-        }
-        .scrollContentBackground(.hidden)
-        .scrollDismissesKeyboard(.interactively)
-        .simultaneousGesture(
-            TapGesture().onEnded { _ in
-                isComposerFocused = false
+            .onChange(of: messages.count) { _, _ in
+                scrollToLatestExchange(using: proxy)
             }
-        )
-        .onChange(of: selectedTab) { _, newTab in
-            if newTab != .chat {
-                isComposerFocused = false
+            .onChange(of: asyncPhase) { _, phase in
+                if phase == .idle {
+                    scrollToLatestExchange(using: proxy)
+                }
+            }
+            .onChange(of: composerDockHeight) { _, _ in
+                scrollToLatestExchange(using: proxy, animated: false)
+            }
+            .onChange(of: sendRequested) { _, requested in
+                guard requested else { return }
+                commitDraft()
+                sendRequested = false
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            ChatComposerBarInline(text: $draftMessage, isFocused: $isComposerFocused, onSend: commitDraft)
-                .padding(.horizontal, Spacing.screenEdge)
-                .padding(.top, Spacing.sm)
-                .padding(.bottom, Spacing.sm)
+    }
+    
+    /// 入力ドックぶん（タブバーは `ContentView` の inset で既に確保済み）
+    private var scrollBottomInset: CGFloat {
+        let dock = composerDockHeight > 0 ? composerDockHeight : Spacing.chatComposerScrollClearance
+        return dock + Spacing.chatComposerGapAboveTabBar
+    }
+    
+    /// クイックアクション＋入力欄（背景帯なし・入力ボックスのみ背景あり）
+    private var composerDock: some View {
+        VStack(spacing: 0) {
+            if !connectivity.isOnline {
+                PlotOfflineBanner()
+                    .padding(.bottom, Spacing.xs)
+            }
+            
+            ChatComposerBar(
+                text: $draftMessage,
+                selectedCategory: $selectedCategory,
+                isFocused: $isComposerFocused,
+                onSend: { sendRequested = true }
+            )
+        }
+        .padding(.horizontal, Spacing.screenEdge)
+        .padding(.top, Spacing.xs)
+        .padding(.bottom, Spacing.chatComposerGapAboveTabBar)
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .preference(key: ChatComposerDockHeightKey.self, value: geometry.size.height)
+            }
+        }
+        .onPreferenceChange(ChatComposerDockHeightKey.self) { composerDockHeight = $0 }
+    }
+    
+    /// 直近の送信と回答が表示領域の上端に来るようスクロールする
+    private func scrollToLatestExchange(using proxy: ScrollViewProxy, animated: Bool = true) {
+        guard selectedTab == .chat else { return }
+        
+        let scrollTarget = messages.last(where: { $0.role == .user })?.id ?? messages.last?.id
+        
+        let scroll = {
+            if let scrollTarget {
+                proxy.scrollTo(scrollTarget, anchor: .top)
+            } else {
+                proxy.scrollTo(ChatScrollAnchor.bottom, anchor: .top)
+            }
+        }
+        
+        DispatchQueue.main.async {
+            if animated, !reduceMotion {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    scroll()
+                }
+            } else {
+                scroll()
+            }
         }
     }
     
@@ -80,144 +166,64 @@ struct ChatTabView: View {
         }
     }
     
-    private func dayHeader(_ day: Date) -> some View {
-        Text(day.formatted(date: .long, time: .omitted))
-            .font(.scaledCaption())
-            .foregroundStyle(colorScheme == .dark ? Color.darkTextTertiary : Color.lightTextTertiary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, Spacing.sm)
-    }
-    
     private func commitDraft() {
+        guard connectivity.isOnline else {
+            lastError = "オフラインのため送信できません。"
+            return
+        }
+        
         let body = draftMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return }
-        let newMessage = ChatMessage(role: .user, text: body, chips: [], timestamp: Date())
-        messages.append(newMessage)
+        
+        let category = selectedCategory ?? ChatMockResponder.inferCategory(from: body)
+        let userMessage = ChatMessage(role: .user, text: body, chips: [], timestamp: Date())
+        messages.append(userMessage)
         draftMessage = ""
-    }
-}
-
-// MARK: - プレビュー用のダミーメッセージ
-extension ChatMessage {
-    static var sampleData: [ChatMessage] {
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
-        return [
-            ChatMessage(
-                role: .ai,
-                text: "昨日のタスクは完了していますか？",
-                chips: [],
-                timestamp: Calendar.current.date(bySettingHour: 21, minute: 0, second: 0, of: yesterday)!
-            ),
-            ChatMessage(
-                role: .user,
-                text: "まだ一部残ってる",
-                chips: [],
-                timestamp: Calendar.current.date(bySettingHour: 21, minute: 5, second: 0, of: yesterday)!
-            ),
-            ChatMessage(
-                role: .ai,
-                text: "こんにちは。予定の確認やメモの整理など、手伝いできることがあれば声をかけてください。",
-                chips: ["今日の重点", "カレンダー連携"],
-                timestamp: Date().addingTimeInterval(-300)
-            ),
-            ChatMessage(
-                role: .user,
-                text: "明日の午後に空きはある？",
-                chips: [],
-                timestamp: Date().addingTimeInterval(-240)
-            ),
-            ChatMessage(
-                role: .ai,
-                text: "明日は 14:00〜 にブロックが空いています。必要ならそこに仮押さえできます。",
-                chips: ["14:00 — 空き"],
-                timestamp: Date().addingTimeInterval(-180)
-            ),
-        ]
-    }
-}
-
-// MARK: - チャット下部の入力欄（iOS 26 Liquid Glass）
-private struct ChatComposerBarInline: View {
-    @Environment(\.colorScheme) private var colorScheme
-    
-    @Binding var text: String
-    @FocusState.Binding var isFocused: Bool
-    var onSend: () -> Void
-    
-    private var trimmed: String {
-        text.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    private var canSend: Bool {
-        !trimmed.isEmpty
-    }
-    
-    private var primaryColor: Color {
-        colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
-    }
-    
-    private var secondaryColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
-    }
-    
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Button {
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(secondaryColor)
+        selectedCategory = nil
+        isComposerFocused = false
+        
+        asyncPhase = .loading
+        isAIProcessing = true
+        lastError = nil
+        
+        Task {
+            try? await Task.sleep(for: .milliseconds(900))
+            await MainActor.run {
+                let aiMessage = ChatMockResponder.respond(body: body, category: category, dataStore: dataStore)
+                messages.append(aiMessage)
+                asyncPhase = .idle
+                isAIProcessing = false
             }
-            .buttonStyle(.plain)
-            .frame(width: 32, height: 32)
-            .accessibilityLabel("追加")
-            
-            TextField("", text: $text, prompt: Text("メッセージ").foregroundStyle(secondaryColor), axis: .vertical)
-                .font(.scaledBodyMedium())
-                .foregroundStyle(primaryColor)
-                .multilineTextAlignment(.leading)
-                .lineLimit(1...8)
-                .textFieldStyle(.plain)
-                .focused($isFocused)
-                .submitLabel(.send)
-                .frame(minHeight: 24, alignment: .center)
-                .onSubmit {
-                    if canSend { send() }
-                }
-            
-            Button {
-                send()
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(canSend ? primaryColor : secondaryColor.opacity(0.3))
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(canSend
-                            ? (colorScheme == .dark ? Color.darkBase : Color.lightBase)
-                            : secondaryColor.opacity(0.6))
-                }
-                .frame(width: 30, height: 30)
-            }
-            .buttonStyle(.plain)
-            .disabled(!canSend)
-            .accessibilityLabel("送信")
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 8)
-        .padding(.vertical, 10)
-        .glassEffect(.regular.interactive(), in: .capsule)
-    }
-    
-    private func send() {
-        guard canSend else { return }
-        onSend()
-        isFocused = false
     }
 }
 
 #Preview {
-    ChatTabView(selectedTab: .chat)
-        .ambientBackground()
+    struct Wrapper: View {
+        @State private var draft = ""
+        @State private var category: PlotChatCategory?
+        @State private var sendRequested = false
+        @State private var isAIProcessing = false
+        @FocusState private var focused: Bool
+        
+        var body: some View {
+            ChatTabView(
+                selectedTab: .chat,
+                draftMessage: $draft,
+                selectedCategory: $category,
+                isComposerFocused: $focused,
+                isAIProcessing: $isAIProcessing,
+                sendRequested: $sendRequested
+            )
+            .ambientBackground()
+            .environment(\.plotDataStore, PlotDataStore())
+            .environment(\.connectivity, ConnectivityMonitor())
+            .environment(\.appSettings, AppSettings())
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: Spacing.tabBarHeight)
+            }
+        }
+    }
+    return Wrapper()
         .preferredColorScheme(.dark)
 }
