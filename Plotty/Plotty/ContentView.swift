@@ -21,8 +21,10 @@ private extension View {
 struct ContentView: View {
     @Environment(\.appSettings) private var appSettings
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.connectivity) private var connectivity
     
     @State private var selectedTab: TabItem = .chat
+    @State private var chatCategory: PlotChatCategory?
     @State private var pendingSettingsRoute: SettingsRoute?
     
     // 各タブの新規作成シート表示状態
@@ -30,27 +32,34 @@ struct ContentView: View {
     @State private var showTodoCreate = false
     @State private var showCalendarCreate = false
     
-    /// FABを表示するタブかどうか
-    private var showFAB: Bool {
-        [.memo, .todo, .calendar].contains(selectedTab)
-    }
+    /// チャット入力（`TabView` の外に置き、キーボード・合成の不具合を避ける）
+    @State private var chatDraftMessage = ""
+    @State private var chatSendRequested = false
+    @FocusState private var isChatComposerFocused: Bool
+    @State private var isChatAIProcessing = false
     
     var body: some View {
-        GlassEffectContainer {
-            ZStack {
-                AmbientBackground()
-                
-                TabView(selection: $selectedTab) {
-                    MemoView(showCreateSheet: $showMemoCreate)
+        ZStack {
+            AmbientBackground()
+            
+            TabView(selection: $selectedTab) {
+                    MemoView(selectedTab: selectedTab, showCreateSheet: $showMemoCreate)
                         .tag(TabItem.memo)
                         .plottyHideSystemTabBar()
                     TodoView(selectedTab: selectedTab, showCreateSheet: $showTodoCreate)
                         .tag(TabItem.todo)
                         .plottyHideSystemTabBar()
-                    ChatTabView(selectedTab: selectedTab)
+                    ChatTabView(
+                        selectedTab: selectedTab,
+                        draftMessage: $chatDraftMessage,
+                        selectedCategory: $chatCategory,
+                        isComposerFocused: $isChatComposerFocused,
+                        isAIProcessing: $isChatAIProcessing,
+                        sendRequested: $chatSendRequested
+                    )
                         .tag(TabItem.chat)
                         .plottyHideSystemTabBar()
-                    CalendarTabView(selectedTab: selectedTab, showCreateSheet: $showCalendarCreate)
+                    CalendarTabView(showCreateSheet: $showCalendarCreate)
                         .tag(TabItem.calendar)
                         .plottyHideSystemTabBar()
                     SettingsView(pendingRoute: $pendingSettingsRoute)
@@ -61,31 +70,6 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.clear)
                 .plottyHideSystemTabBar()
-                /// FAB を `ZStack` で重ねているため、タブ内のスクロール領域の下に明示的に余白を確保する
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if showFAB {
-                        Color.clear.frame(height: Spacing.fabMainContentBottomInset)
-                    }
-                }
-                
-                // 右下のFAB（メモ/TODO/カレンダーでのみ表示）
-                if showFAB {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            Button(action: fabTapped) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 22, weight: .semibold))
-                            }
-                            .buttonStyle(GlassIconButtonStyle(dimension: 56))
-                            .accessibilityLabel(fabAccessibilityLabel)
-                            .padding(.trailing, Spacing.screenEdge)
-                            .padding(.bottom, Spacing.md)
-                        }
-                    }
-                }
-            }
         }
         .preferredColorScheme(appSettings.theme.colorScheme)
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -121,19 +105,57 @@ struct ContentView: View {
                 .ignoresSafeArea(edges: .top)
             }
         }
-        /// 下の余白（ホームインジケータ）をレイアウトに反映させる。画面全体を `overlay` で覆うと余白が 0 になりやすいので `safeAreaInset` を使う。
+        /// タブバーのみ inset。チャット入力は `ChatTabView` 内で重ねる（inset だと不透明な帯になる）。
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            FooterTabBar(selectedTab: $selectedTab)
-                .frame(maxWidth: .infinity)
+            ZStack(alignment: .bottomTrailing) {
+                FooterTabBar(selectedTab: $selectedTab)
+                
+                if showsFloatingAdd {
+                    PlotFloatingAddButton(
+                        accessibilityLabel: floatingAddAccessibilityLabel,
+                        action: fabTapped
+                    )
+                    .padding(.trailing, Spacing.screenEdge)
+                    .offset(y: -(Spacing.tabBarHeight + Spacing.floatingAddGapAboveTabBar))
+                }
+            }
+        }
+        .onAppear {
+            focusChatComposerIfNeeded()
+        }
+        .overlay {
+            if selectedTab == .chat, isChatAIProcessing {
+                PlotAIScreenBorder()
+            }
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == .chat {
+                focusChatComposerIfNeeded()
+            } else {
+                isChatComposerFocused = false
+                isChatAIProcessing = false
+            }
         }
     }
     
-    private var fabAccessibilityLabel: String {
+    private var showsFloatingAdd: Bool {
+        [.memo, .todo, .calendar].contains(selectedTab)
+    }
+    
+    private var floatingAddAccessibilityLabel: String {
         switch selectedTab {
         case .memo: return "新しいメモ"
         case .todo: return "新しいタスク"
         case .calendar: return "予定を追加"
         default: return "新規作成"
+        }
+    }
+    
+    /// チャットタブ表示時にキーボードを出してすぐ入力できるようにする
+    private func focusChatComposerIfNeeded() {
+        guard selectedTab == .chat else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            isChatComposerFocused = true
         }
     }
     
@@ -150,4 +172,7 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environment(\.appSettings, AppSettings())
+        .environment(\.accountSession, AccountSession())
+        .environment(\.plotDataStore, PlotDataStore())
+        .environment(\.connectivity, ConnectivityMonitor())
 }
