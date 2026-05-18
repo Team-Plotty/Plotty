@@ -6,11 +6,25 @@ struct AccountView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accountSession) private var accountSession
     
+    @State private var profileEditPresented = false
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 if let account = accountSession.currentAccount {
                     profileCard(account)
+                    
+                    Button {
+                        profileEditPresented = true
+                    } label: {
+                        Label("表示名を編集", systemImage: "pencil")
+                            .font(.scaledBodyMedium().weight(.semibold))
+                            .foregroundStyle(primaryTextColor)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(Spacing.lg)
+                            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
                 } else {
                     signedOutCard
                 }
@@ -39,6 +53,11 @@ struct AccountView: View {
                 .accessibilityLabel("閉じる")
             }
             .sharedBackgroundVisibility(.hidden)
+        }
+        .sheet(isPresented: $profileEditPresented) {
+            ProfileEditSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
     }
     

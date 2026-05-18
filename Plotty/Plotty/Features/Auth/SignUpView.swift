@@ -5,6 +5,7 @@ struct SignUpView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accountSession) private var accountSession
     @Environment(\.appSettings) private var appSettings
+    @Environment(\.connectivity) private var connectivity
     @Environment(\.dismiss) private var dismiss
     
     @State private var displayName = ""
@@ -14,6 +15,15 @@ struct SignUpView: View {
     @State private var showPrivacy = false
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var selectedTimezoneID: String = ""
+    
+    private let timezoneOptions: [String] = [
+        "Asia/Tokyo",
+        "America/Los_Angeles",
+        "America/New_York",
+        "Europe/London",
+        "UTC",
+    ]
     
     var body: some View {
         ZStack {
@@ -25,41 +35,59 @@ struct SignUpView: View {
                         .font(.scaledTitleLarge())
                         .foregroundStyle(primaryColor)
                     
+                    if !connectivity.isOnline {
+                        PlotOfflineBanner()
+                    }
+                    
                     if let errorMessage {
                         PlotErrorBanner(message: errorMessage, onRetry: nil)
                     }
                     
-                    TextField("表示名（任意）", text: $displayName)
-                        .font(.scaledBodyLarge())
-                        .foregroundStyle(primaryColor)
-                        .padding(Spacing.md)
-                        .plotInputCapsuleGlass()
+                    PlotFormCard(title: "プロフィール（任意）") {
+                        TextField("表示名", text: $displayName)
+                            .font(.scaledBodyLarge())
+                            .foregroundStyle(primaryColor)
+                            .onChange(of: displayName) { _, newValue in
+                                displayName = PlotInputLimits.clamp(newValue, max: PlotInputLimits.displayName)
+                            }
+                        PlotCharacterCountFooter(
+                            current: displayName.count,
+                            maximum: PlotInputLimits.displayName
+                        )
+                    }
                     
-                    TextField("メールアドレス", text: $email)
-                        .font(.scaledBodyLarge())
-                        .foregroundStyle(primaryColor)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.emailAddress)
-                        .padding(Spacing.md)
-                        .plotInputCapsuleGlass()
+                    PlotFormCard(title: "アカウント") {
+                        TextField("メールアドレス", text: $email)
+                            .font(.scaledBodyLarge())
+                            .foregroundStyle(primaryColor)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
+                            .onChange(of: email) { _, newValue in
+                                email = PlotInputLimits.clamp(newValue, max: PlotInputLimits.title)
+                            }
+                        
+                        Picker("タイムゾーン", selection: $selectedTimezoneID) {
+                            ForEach(timezoneOptions, id: \.self) { id in
+                                Text(timezoneLabel(id)).tag(id)
+                            }
+                        }
+                    }
                     
-                    Text("タイムゾーン: \(appSettings.timezone.identifier)")
+                    PlotFormCard {
+                        Toggle(isOn: $agreedToTerms) {
+                            Text("利用規約とプライバシーポリシーに同意する")
+                                .font(.scaledBodySmall())
+                                .foregroundStyle(primaryColor)
+                        }
+                        .tint(.accentColor)
+                        
+                        HStack(spacing: Spacing.md) {
+                            Button("利用規約") { showTerms = true }
+                            Button("プライバシー") { showPrivacy = true }
+                        }
                         .font(.scaledCaption())
                         .foregroundStyle(secondaryColor)
-                    
-                    Toggle(isOn: $agreedToTerms) {
-                        Text("利用規約とプライバシーポリシーに同意する")
-                            .font(.scaledBodySmall())
-                            .foregroundStyle(primaryColor)
                     }
-                    .tint(.accentColor)
-                    
-                    HStack(spacing: Spacing.md) {
-                        Button("利用規約") { showTerms = true }
-                        Button("プライバシー") { showPrivacy = true }
-                    }
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
                     
                     VStack(spacing: Spacing.sm) {
                         ForEach(AuthProvider.allCases) { provider in
@@ -71,7 +99,7 @@ struct SignUpView: View {
                                     .frame(maxWidth: .infinity)
                             }
                             .filledButtonStyle()
-                            .disabled(!canSubmit)
+                            .disabled(!canSubmit || isLoading || !connectivity.isOnline)
                         }
                     }
                 }
@@ -80,6 +108,11 @@ struct SignUpView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if selectedTimezoneID.isEmpty {
+                selectedTimezoneID = appSettings.timezoneIdentifier
+            }
+        }
         .sheet(isPresented: $showTerms) {
             NavigationStack { LegalDocumentView(kind: .termsOfService) }
                 .presentationDetents([.medium, .large])
@@ -106,20 +139,32 @@ struct SignUpView: View {
         }
         errorMessage = nil
         isLoading = true
+        appSettings.timezoneIdentifier = selectedTimezoneID
+        
         Task {
-            try? await Task.sleep(for: .milliseconds(700))
+            let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+            let result = await accountSession.performSignUp(
+                displayName: name.isEmpty ? "新規ユーザー" : name,
+                email: mail,
+                provider: provider,
+                isOnline: connectivity.isOnline
+            )
             await MainActor.run {
-                let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-                accountSession.signUp(
-                    displayName: name.isEmpty ? "新規ユーザー" : name,
-                    email: mail,
-                    provider: provider
-                )
                 isLoading = false
-                dismiss()
+                switch result {
+                case .success:
+                    dismiss()
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                }
             }
         }
+    }
+    
+    private func timezoneLabel(_ id: String) -> String {
+        let tz = TimeZone(identifier: id) ?? .current
+        return "\(id.replacingOccurrences(of: "_", with: " ")) (\(tz.secondsFromGMT() / 3600)h)"
     }
     
     private var primaryColor: Color {
@@ -136,5 +181,6 @@ struct SignUpView: View {
         SignUpView()
             .environment(\.accountSession, AccountSession())
             .environment(\.appSettings, AppSettings())
+            .environment(\.connectivity, ConnectivityMonitor())
     }
 }

@@ -4,10 +4,12 @@ import SwiftUI
 struct LoginView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accountSession) private var accountSession
+    @Environment(\.connectivity) private var connectivity
     
     @State private var email = ""
     @State private var showTerms = false
     @State private var showPrivacy = false
+    @State private var showRelayHelp = false
     @State private var errorMessage: String?
     @State private var isLoading = false
     
@@ -19,6 +21,10 @@ struct LoginView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.xl) {
                         header
+                        
+                        if !connectivity.isOnline {
+                            PlotOfflineBanner()
+                        }
                         
                         if let errorMessage {
                             PlotErrorBanner(message: errorMessage, onRetry: nil)
@@ -58,6 +64,12 @@ struct LoginView: View {
             .sheet(isPresented: $showPrivacy) {
                 NavigationStack {
                     LegalDocumentView(kind: .privacyPolicy)
+                }
+                .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showRelayHelp) {
+                NavigationStack {
+                    HelpView(highlightRelay: true)
                 }
                 .presentationDetents([.medium, .large])
             }
@@ -102,6 +114,7 @@ struct LoginView: View {
                     .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .disabled(isLoading || !connectivity.isOnline)
             }
         }
     }
@@ -121,11 +134,26 @@ struct LoginView: View {
                 .padding(.vertical, Spacing.sm)
                 .plotInputCapsuleGlass()
             
+            PlotCharacterCountFooter(
+                current: email.count,
+                maximum: PlotInputLimits.title
+            )
+            
             Button("メールでログイン") {
                 login(with: .email)
             }
             .filledButtonStyle()
-            .disabled(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(
+                isLoading
+                || !connectivity.isOnline
+                || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            )
+            
+            Button("Hide My Email について") {
+                showRelayHelp = true
+            }
+            .font(.scaledCaption())
+            .foregroundStyle(secondaryColor)
         }
     }
     
@@ -142,12 +170,25 @@ struct LoginView: View {
     private func login(with provider: AuthProvider) {
         errorMessage = nil
         isLoading = true
+        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         Task {
-            try? await Task.sleep(for: .milliseconds(600))
+            let result = await accountSession.performLogin(
+                provider: provider,
+                email: mail.isEmpty ? nil : mail,
+                isOnline: connectivity.isOnline
+            )
             await MainActor.run {
-                let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-                accountSession.login(provider: provider, email: mail.isEmpty ? nil : mail)
                 isLoading = false
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                    if error == .appleRelayHint {
+                        showRelayHelp = true
+                    }
+                }
             }
         }
     }
@@ -168,4 +209,5 @@ struct LoginView: View {
 #Preview {
     LoginView()
         .environment(\.accountSession, AccountSession())
+        .environment(\.connectivity, ConnectivityMonitor())
 }

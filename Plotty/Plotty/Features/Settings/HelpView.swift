@@ -5,9 +5,15 @@ struct HelpView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     
+    var highlightRelay: Bool = false
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
+                if highlightRelay {
+                    relaySection
+                }
+                
                 faqSection(
                     title: "認証",
                     items: [
@@ -46,6 +52,22 @@ struct HelpView: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("閉じる") { dismiss() }
             }
+        }
+    }
+    
+    private var relaySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("Apple の非公開メール（Hide My Email）")
+                .font(.scaledLabelMedium())
+                .foregroundStyle(secondaryColor)
+                .padding(.leading, Spacing.xs)
+            
+            Text("初回登録時と同じ Apple ID・同じメール設定でログインしてください。別のメールに見える場合は、設定のアカウント切り替えか、登録時に使ったメールアドレスをお試しください。")
+                .font(.scaledBodySmall())
+                .foregroundStyle(secondaryColor)
+                .padding(Spacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
         }
     }
     

@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var helpSheetPresented = false
     @State private var ossSheetPresented = false
     @State private var aiPersonaSheetPresented = false
+    @State private var profileEditSheetPresented = false
     @State private var logoutConfirmPresented = false
     @State private var deleteAccountConfirmPresented = false
     
@@ -25,6 +26,10 @@ struct SettingsView: View {
                 SettingsGlassSection(title: "アカウント") {
                     if let account = accountSession.currentAccount {
                         SettingsSignedInSummary(account: account)
+                        SettingsInsetDivider()
+                        SettingsRowChevron(icon: "pencil", label: "プロフィールを編集") {
+                            profileEditSheetPresented = true
+                        }
                         SettingsInsetDivider()
                     } else {
                         SettingsSignedOutSummary()
@@ -154,6 +159,11 @@ struct SettingsView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $profileEditSheetPresented) {
+            ProfileEditSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .alert("ログアウトしますか？", isPresented: $logoutConfirmPresented) {
             Button("キャンセル", role: .cancel) {}

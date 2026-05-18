@@ -1,5 +1,26 @@
 import SwiftUI
 
+// MARK: - 認証エラー
+enum AuthError: LocalizedError, Equatable {
+    case invalidEmail
+    case offline
+    case providerUnavailable(String)
+    case appleRelayHint
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidEmail:
+            return "メールアドレスの形式を確認してください。"
+        case .offline:
+            return "インターネットに接続してから、もう一度お試しください。"
+        case .providerUnavailable(let provider):
+            return "\(provider)でのログインに失敗しました。しばらくしてから再試行してください。"
+        case .appleRelayHint:
+            return "Hide My Email を使っている場合、既存アカウントと紐づいていないことがあります。別のメールアドレスでログインするか、ヘルプをご確認ください。"
+        }
+    }
+}
+
 // MARK: - 認証プロバイダ（Supabase 接続前の UI 用）
 enum AuthProvider: String, CaseIterable, Identifiable, Codable {
     case google
@@ -57,15 +78,13 @@ struct PlottyAccount: Identifiable, Hashable, Codable {
 // MARK: - ログイン状態とアカウント管理
 @Observable
 final class AccountSession {
-    /// デモ用: 起動時にログイン画面を出さず、サンプルアカウントでホームへ
-    private static let demoSkipsLoginOnLaunch = true
-    
     private let defaults = UserDefaults.standard
     
     private enum Keys {
         static let isAuthenticated = "plotty_is_authenticated"
         static let currentAccountID = "plotty_current_account_id"
         static let lastProvider = "plotty_last_provider"
+        static let displayNameOverrides = "plotty_display_name_overrides"
     }
     
     let availableAccounts: [PlottyAccount] = PlottyAccount.samples
@@ -73,10 +92,15 @@ final class AccountSession {
     private(set) var isAuthenticated: Bool
     private(set) var currentAccountID: UUID?
     private(set) var lastUsedProvider: AuthProvider?
+    private var displayNameOverrides: [String: String] = [:]
     
     var currentAccount: PlottyAccount? {
-        guard let currentAccountID else { return nil }
-        return availableAccounts.first { $0.id == currentAccountID }
+        guard let currentAccountID,
+              var account = availableAccounts.first(where: { $0.id == currentAccountID }) else { return nil }
+        if let override = displayNameOverrides[currentAccountID.uuidString] {
+            account.displayName = override
+        }
+        return account
     }
     
     var isLoggedIn: Bool { isAuthenticated && currentAccount != nil }
@@ -91,8 +115,12 @@ final class AccountSession {
            let provider = AuthProvider(rawValue: p) {
             lastUsedProvider = provider
         }
+        if let data = defaults.data(forKey: Keys.displayNameOverrides),
+           let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
+            displayNameOverrides = decoded
+        }
         
-        if Self.demoSkipsLoginOnLaunch, !isAuthenticated || currentAccount == nil {
+        if !PlotDebug.requireLoginOnLaunch, !isAuthenticated || currentAccount == nil {
             bootstrapDemoSession()
         }
     }
@@ -103,6 +131,47 @@ final class AccountSession {
         isAuthenticated = true
         lastUsedProvider = account.provider
         persist()
+    }
+    
+    @MainActor
+    func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
+        guard isOnline else { return .failure(.offline) }
+        
+        try? await Task.sleep(for: .milliseconds(550))
+        
+        if provider == .apple, email?.lowercased().contains("privaterelay") == true {
+            return .failure(.appleRelayHint)
+        }
+        
+        if provider == .email {
+            let mail = (email ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isValidEmail(mail) else { return .failure(.invalidEmail) }
+        }
+        
+        login(provider: provider, email: email)
+        return .success(())
+    }
+    
+    @MainActor
+    func performSignUp(
+        displayName: String,
+        email: String,
+        provider: AuthProvider,
+        isOnline: Bool
+    ) async -> Result<Void, AuthError> {
+        guard isOnline else { return .failure(.offline) }
+        
+        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(mail) else { return .failure(.invalidEmail) }
+        
+        try? await Task.sleep(for: .milliseconds(650))
+        
+        login(provider: provider, email: mail)
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty, let id = currentAccountID {
+            updateDisplayName(name, for: id)
+        }
+        return .success(())
     }
     
     func login(provider: AuthProvider, email: String? = nil) {
@@ -122,6 +191,10 @@ final class AccountSession {
     
     func signUp(displayName: String, email: String, provider: AuthProvider) {
         login(provider: provider, email: email)
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty, let id = currentAccountID {
+            updateDisplayName(name, for: id)
+        }
     }
     
     func switchAccount(to account: PlottyAccount) {
@@ -142,8 +215,23 @@ final class AccountSession {
     }
     
     func updateDisplayName(_ name: String) {
-        // API 接続前: ローカル表示のみ（サンプルは不変）
-        _ = name
+        guard let currentAccountID else { return }
+        updateDisplayName(name, for: currentAccountID)
+    }
+    
+    private func updateDisplayName(_ name: String, for accountID: UUID) {
+        let trimmed = PlotInputLimits.clamp(
+            name.trimmingCharacters(in: .whitespacesAndNewlines),
+            max: PlotInputLimits.displayName
+        )
+        guard !trimmed.isEmpty else { return }
+        displayNameOverrides[accountID.uuidString] = trimmed
+        persist()
+    }
+    
+    private func isValidEmail(_ email: String) -> Bool {
+        let pattern = #"^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
+        return email.range(of: pattern, options: .regularExpression) != nil
     }
     
     private func persist() {
@@ -155,6 +243,9 @@ final class AccountSession {
         }
         if let lastUsedProvider {
             defaults.set(lastUsedProvider.rawValue, forKey: Keys.lastProvider)
+        }
+        if let data = try? JSONEncoder().encode(displayNameOverrides) {
+            defaults.set(data, forKey: Keys.displayNameOverrides)
         }
     }
 }
