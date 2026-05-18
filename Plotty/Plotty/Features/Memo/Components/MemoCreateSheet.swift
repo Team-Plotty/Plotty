@@ -2,7 +2,6 @@ import SwiftUI
 
 // MARK: - 新規メモ作成シート
 struct MemoCreateSheet: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Binding var isPresented: Bool
     @Binding var draftTitle: String
     @Binding var draftContent: String
@@ -11,43 +10,30 @@ struct MemoCreateSheet: View {
     
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                TextField("タイトル", text: $draftTitle)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(textColor)
-                
-                TextField("本文（任意）", text: $draftContent, axis: .vertical)
-                    .font(.scaledBodyMedium())
-                    .foregroundStyle(textColor)
-                    .lineLimit(3...8)
-                
-                Text("カラー")
-                    .font(.scaledLabelMedium())
-                    .foregroundStyle(secondaryTextColor)
-                
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 56), spacing: Spacing.sm)], spacing: Spacing.sm) {
-                    ForEach(AccentSwatch.allCases) { swatch in
-                        Button {
-                            draftAccent = swatch
-                        } label: {
-                            Circle()
-                                .fill(swatch.color)
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Circle()
-                                        .strokeBorder(
-                                            draftAccent == swatch ? Color.accentColor : Color.clear,
-                                            lineWidth: 2
-                                        )
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
+            Form {
+                Section {
+                    TextField("タイトル", text: $draftTitle)
+                    TextField("本文（任意）", text: $draftContent, axis: .vertical)
+                        .lineLimit(3...8)
+                } header: {
+                    Text("内容")
                 }
                 
-                Spacer(minLength: 0)
+                Section {
+                    Picker("カラー", selection: $draftAccent) {
+                        ForEach(AccentSwatch.allCases) { swatch in
+                            Label {
+                                Text(swatch.title)
+                            } icon: {
+                                Circle()
+                                    .fill(swatch.color)
+                                    .frame(width: 12, height: 12)
+                            }
+                            .tag(swatch)
+                        }
+                    }
+                }
             }
-            .padding(Spacing.lg)
             .navigationTitle("新しいメモ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -60,13 +46,5 @@ struct MemoCreateSheet: View {
                 }
             }
         }
-    }
-    
-    private var textColor: Color {
-        colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
-    }
-    
-    private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
     }
 }

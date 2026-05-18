@@ -4,51 +4,64 @@ import SwiftUI
 struct MemoListSection: View {
     @Environment(\.plotDataStore) private var dataStore
     
-    let pinnedMemos: [MemoItem]
-    let unpinnedMemos: [MemoItem]
+    /// 検索・色フィルタ済みの表示順 ID（カード表示はストアから最新を参照）
+    let filteredMemoIDs: [UUID]
     let onEdit: (MemoItem) -> Void
     let onDelete: (UUID) -> Void
     
     var body: some View {
         LazyVStack(spacing: Spacing.md) {
-            if !pinnedMemos.isEmpty {
-                MemoSectionHeader(title: "ピン留め", count: pinnedMemos.count)
-                ForEach(pinnedMemos) { memo in
-                    memoRow(memo)
+            if !pinnedIDs.isEmpty {
+                MemoSectionHeader(title: "ピン留め", count: pinnedIDs.count)
+                ForEach(pinnedIDs, id: \.self) { id in
+                    memoRow(id: id)
                 }
             }
             
-            if !unpinnedMemos.isEmpty {
-                if !pinnedMemos.isEmpty {
-                    MemoSectionHeader(title: "その他", count: unpinnedMemos.count)
+            if !unpinnedIDs.isEmpty {
+                if !pinnedIDs.isEmpty {
+                    MemoSectionHeader(title: "その他", count: unpinnedIDs.count)
                 }
-                ForEach(unpinnedMemos) { memo in
-                    memoRow(memo)
+                ForEach(unpinnedIDs, id: \.self) { id in
+                    memoRow(id: id)
                 }
             }
         }
     }
     
-    private func memoRow(_ memo: MemoItem) -> some View {
-        Button {
-            onEdit(memo)
-        } label: {
-            MemoCard(memo: memo)
+    private var pinnedIDs: [UUID] {
+        filteredMemoIDs.filter { id in
+            dataStore.memos.first(where: { $0.id == id })?.isPinned == true
         }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button {
-                dataStore.toggleMemoPin(id: memo.id)
-            } label: {
-                Label(
-                    memo.isPinned ? "ピン留めを外す" : "ピン留め",
-                    systemImage: memo.isPinned ? "pin.slash" : "pin"
+    }
+    
+    private var unpinnedIDs: [UUID] {
+        filteredMemoIDs.filter { id in
+            dataStore.memos.first(where: { $0.id == id })?.isPinned != true
+        }
+    }
+    
+    private func memo(for id: UUID) -> MemoItem? {
+        dataStore.memos.first(where: { $0.id == id })
+    }
+    
+    @ViewBuilder
+    private func memoRow(id: UUID) -> some View {
+        if let memo = memo(for: id) {
+            PlotCardActionRow(
+                onEdit: { onEdit(memo) },
+                onDelete: { onDelete(id) },
+                pinAction: PlotCardMenuButton.PinAction(
+                    title: memo.isPinned ? "ピン留めを外す" : "ピン留め",
+                    systemImage: memo.isPinned ? "pin.slash" : "pin",
+                    handler: {
+                        withAnimation(.standard) {
+                            dataStore.toggleMemoPin(id: id)
+                        }
+                    }
                 )
-            }
-            Button(role: .destructive) {
-                onDelete(memo.id)
-            } label: {
-                Label("削除", systemImage: "trash")
+            ) {
+                MemoCard(memo: memo)
             }
         }
     }

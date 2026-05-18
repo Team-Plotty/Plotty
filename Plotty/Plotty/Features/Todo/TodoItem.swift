@@ -7,6 +7,7 @@ struct TodoItem: Identifiable {
     var isCompleted: Bool
     var dueDate: Date?
     var priority: Priority
+    var createdAt: Date = Date()
     
     enum Priority: Int, CaseIterable, Hashable {
         case low = 0
@@ -41,12 +42,13 @@ extension TodoItem {
         let cal = Calendar.current
         let today = Date()
         let tomorrow = cal.date(byAdding: .day, value: 1, to: today)!
+        let weekAgo = cal.date(byAdding: .day, value: -7, to: today)!
         return [
-            TodoItem(title: "デザインシステムのレビュー", isCompleted: true, dueDate: nil, priority: .high),
-            TodoItem(title: "チャット機能の実装", isCompleted: false, dueDate: tomorrow, priority: .high),
-            TodoItem(title: "カレンダー連携のテスト", isCompleted: false, dueDate: today, priority: .medium),
-            TodoItem(title: "ドキュメント更新", isCompleted: false, dueDate: nil, priority: .low),
-            TodoItem(title: "バグ修正 #123", isCompleted: true, dueDate: nil, priority: .medium),
+            TodoItem(title: "デザインシステムのレビュー", isCompleted: true, dueDate: nil, priority: .high, createdAt: weekAgo),
+            TodoItem(title: "チャット機能の実装", isCompleted: false, dueDate: tomorrow, priority: .high, createdAt: today),
+            TodoItem(title: "カレンダー連携のテスト", isCompleted: false, dueDate: today, priority: .medium, createdAt: today),
+            TodoItem(title: "ドキュメント更新", isCompleted: false, dueDate: nil, priority: .low, createdAt: weekAgo),
+            TodoItem(title: "バグ修正 #123", isCompleted: true, dueDate: nil, priority: .medium, createdAt: weekAgo),
         ]
     }
 }

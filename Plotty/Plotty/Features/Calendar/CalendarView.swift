@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - スケジュール（カレンダー）タブの画面
 struct CalendarTabView: View {
     @Environment(\.plotDataStore) private var dataStore
+    @Environment(\.connectivity) private var connectivity
     
     @Binding var showCreateSheet: Bool
     
@@ -15,12 +16,21 @@ struct CalendarTabView: View {
     @State private var draftStart = Date()
     @State private var draftEnd = Date().addingTimeInterval(3600)
     @State private var draftSwatch: AccentSwatch = .sky
+    @State private var draftLocation = ""
+    @State private var draftNotes = ""
+    @State private var draftIsAllDay = false
     
     private let calendar = Calendar.current
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
+                PlotScreenStatusSection(
+                    isOffline: !connectivity.isOnline,
+                    errorMessage: dataStore.errorMessage(for: .events),
+                    onRetry: { Task { await reloadEvents() } }
+                )
+                
                 CalendarMonthNavigation(
                     monthAnchor: monthAnchor,
                     onPrevious: { shiftMonth(-1) },
@@ -39,6 +49,7 @@ struct CalendarTabView: View {
                     events: eventsForSelectedDate,
                     onGoToToday: goToToday,
                     onSelectEvent: { selectedEvent = $0 },
+                    onEditEvent: { editingEvent = $0 },
                     onDeleteEvent: removeEvent
                 )
             }
@@ -47,6 +58,12 @@ struct CalendarTabView: View {
             .padding(.bottom, Spacing.tabbedScrollBottomInset)
         }
         .scrollContentBackground(.hidden)
+        .plotListLoading(dataStore.isLoading(.events))
+        .task { await reloadEvents() }
+        .refreshable { await reloadEvents() }
+        .onChange(of: connectivity.isOnline) { _, _ in
+            if connectivity.isOnline { Task { await reloadEvents() } }
+        }
         .sheet(isPresented: $showCreateSheet) {
             CalendarCreateSheet(
                 isPresented: $showCreateSheet,
@@ -54,6 +71,9 @@ struct CalendarTabView: View {
                 draftStart: $draftStart,
                 draftEnd: $draftEnd,
                 draftSwatch: $draftSwatch,
+                draftLocation: $draftLocation,
+                draftNotes: $draftNotes,
+                draftIsAllDay: $draftIsAllDay,
                 onSave: saveEvent
             )
             .presentationDetents([.medium, .large])
@@ -86,14 +106,20 @@ struct CalendarTabView: View {
     private func saveEvent() {
         let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
+        var start = draftStart
+        var end = draftEnd
+        if draftIsAllDay {
+            start = calendar.startOfDay(for: draftStart)
+            end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? draftEnd
+        }
         let ev = CalendarEvent(
             title: title,
-            startTime: draftStart,
-            endTime: draftEnd,
+            startTime: start,
+            endTime: end,
             swatch: draftSwatch,
-            location: "",
-            notes: "",
-            isAllDay: false
+            location: draftLocation.trimmingCharacters(in: .whitespacesAndNewlines),
+            notes: draftNotes.trimmingCharacters(in: .whitespacesAndNewlines),
+            isAllDay: draftIsAllDay
         )
         withAnimation(.standard) {
             dataStore.addEvent(ev)
@@ -124,6 +150,10 @@ struct CalendarTabView: View {
             selectedDate = Date()
             monthAnchor = Date()
         }
+    }
+    
+    private func reloadEvents() async {
+        await dataStore.reload(.events, isOnline: connectivity.isOnline)
     }
     
     private func shiftMonth(_ delta: Int) {

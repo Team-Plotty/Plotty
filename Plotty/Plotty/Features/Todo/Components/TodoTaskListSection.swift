@@ -23,19 +23,12 @@ struct TodoTaskListSection: View {
             
             LazyVStack(spacing: Spacing.sm) {
                 ForEach(todos) { todo in
-                    TodoCard(todo: todo) {
-                        onToggle(todo.id)
-                    }
-                    .contextMenu {
-                        Button {
-                            onEdit(todo)
-                        } label: {
-                            Label("編集", systemImage: "pencil")
-                        }
-                        Button(role: .destructive) {
-                            onDelete(todo.id)
-                        } label: {
-                            Label("削除", systemImage: "trash")
+                    PlotCardActionRow(
+                        onEdit: { onEdit(todo) },
+                        onDelete: { onDelete(todo.id) }
+                    ) {
+                        TodoCard(todo: todo) {
+                            onToggle(todo.id)
                         }
                     }
                 }

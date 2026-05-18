@@ -12,20 +12,24 @@ struct MemoCard: View {
                 .frame(width: 4)
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                HStack {
+                HStack(spacing: Spacing.xs) {
                     Text(memo.title)
                         .font(.scaledBodyLarge())
                         .foregroundStyle(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
                         .lineLimit(1)
                     
-                    Spacer()
-                    
                     if memo.isPinned {
                         Image(systemName: "pin.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(memo.accent.color)
+                            .accessibilityLabel("ピン留め済み")
+                            .transition(.scale.combined(with: .opacity))
                     }
+                    
+                    Spacer(minLength: 0)
                 }
+                .padding(.trailing, Spacing.minTouchTarget - Spacing.xs)
+                .animation(.standard, value: memo.isPinned)
                 
                 if !memo.content.isEmpty {
                     Text(memo.content)
@@ -41,7 +45,5 @@ struct MemoCard: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .plotListCardGlass()
     }
 }

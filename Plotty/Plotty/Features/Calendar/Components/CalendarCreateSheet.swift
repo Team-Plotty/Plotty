@@ -8,42 +8,84 @@ struct CalendarCreateSheet: View {
     @Binding var draftStart: Date
     @Binding var draftEnd: Date
     @Binding var draftSwatch: AccentSwatch
+    @Binding var draftLocation: String
+    @Binding var draftNotes: String
+    @Binding var draftIsAllDay: Bool
     let onSave: () -> Void
     
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                TextField("タイトル", text: $draftTitle)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(textColor)
-                
-                DatePicker("開始", selection: $draftStart, displayedComponents: [.date, .hourAndMinute])
-                DatePicker("終了", selection: $draftEnd, displayedComponents: [.date, .hourAndMinute])
-                
-                Text("カラー")
-                    .font(.scaledLabelMedium())
-                    .foregroundStyle(secondaryTextColor)
-                
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 52), spacing: Spacing.sm)], spacing: Spacing.sm) {
-                    ForEach(AccentSwatch.allCases) { sw in
-                        Button {
-                            draftSwatch = sw
-                        } label: {
-                            Circle()
-                                .fill(sw.color)
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    Circle()
-                                        .strokeBorder(draftSwatch == sw ? Color.accentColor : Color.clear, lineWidth: 2)
-                                )
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    PlotFormCard(title: "内容") {
+                        TextField("タイトル", text: $draftTitle)
+                            .font(.scaledBodyLarge())
+                            .foregroundStyle(textColor)
+                            .onChange(of: draftTitle) { _, newValue in
+                                draftTitle = PlotInputLimits.clamp(newValue, max: PlotInputLimits.title)
+                            }
+                        PlotCharacterCountFooter(
+                            current: draftTitle.count,
+                            maximum: PlotInputLimits.title
+                        )
+                        
+                        TextField("場所（任意）", text: $draftLocation)
+                            .font(.scaledBodyMedium())
+                            .foregroundStyle(textColor)
+                            .onChange(of: draftLocation) { _, newValue in
+                                draftLocation = PlotInputLimits.clamp(newValue, max: PlotInputLimits.location)
+                            }
+                        
+                        Toggle("終日", isOn: $draftIsAllDay)
+                    }
+                    
+                    PlotFormCard(title: "日時") {
+                        if draftIsAllDay {
+                            DatePicker("日付", selection: $draftStart, displayedComponents: [.date])
+                        } else {
+                            DatePicker("開始", selection: $draftStart, displayedComponents: [.date, .hourAndMinute])
+                            DatePicker("終了", selection: $draftEnd, displayedComponents: [.date, .hourAndMinute])
                         }
-                        .buttonStyle(.plain)
+                    }
+                    
+                    PlotFormCard(title: "メモ") {
+                        TextField("メモ（任意）", text: $draftNotes, axis: .vertical)
+                            .font(.scaledBodyMedium())
+                            .foregroundStyle(textColor)
+                            .lineLimit(3...6)
+                            .onChange(of: draftNotes) { _, newValue in
+                                draftNotes = PlotInputLimits.clamp(newValue, max: PlotInputLimits.eventNotes)
+                            }
+                        PlotCharacterCountFooter(
+                            current: draftNotes.count,
+                            maximum: PlotInputLimits.eventNotes
+                        )
+                    }
+                    
+                    PlotFormCard(title: "カラー") {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 52), spacing: Spacing.sm)], spacing: Spacing.sm) {
+                            ForEach(AccentSwatch.allCases) { sw in
+                                Button {
+                                    draftSwatch = sw
+                                } label: {
+                                    Circle()
+                                        .fill(sw.color)
+                                        .frame(width: 36, height: 36)
+                                        .overlay(
+                                            Circle()
+                                                .strokeBorder(draftSwatch == sw ? Color.accentColor : Color.clear, lineWidth: 2)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(sw.title)
+                                .accessibilityAddTraits(draftSwatch == sw ? .isSelected : [])
+                            }
+                        }
                     }
                 }
-                
-                Spacer(minLength: 0)
+                .padding(Spacing.lg)
             }
-            .padding(Spacing.lg)
+            .scrollContentBackground(.hidden)
             .navigationTitle("予定を追加")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -60,9 +102,5 @@ struct CalendarCreateSheet: View {
     
     private var textColor: Color {
         colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
-    }
-    
-    private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
     }
 }

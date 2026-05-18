@@ -29,7 +29,7 @@ struct MemoEditSheet: View {
                     Button("キャンセル", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
+                    ToolbarPrimarySheetActionButton("保存") {
                         draft.updatedAt = Date()
                         onSave(draft)
                     }

@@ -22,10 +22,10 @@ struct EventRow: View {
                     .foregroundStyle(colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary)
             }
             
-            Spacer()
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.md)
-        .plotListCardGlass()
+        .padding(.trailing, Spacing.minTouchTarget - Spacing.xs)
     }
 }

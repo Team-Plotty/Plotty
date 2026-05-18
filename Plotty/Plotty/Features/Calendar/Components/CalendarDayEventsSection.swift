@@ -8,6 +8,7 @@ struct CalendarDayEventsSection: View {
     let events: [CalendarEvent]
     let onGoToToday: () -> Void
     let onSelectEvent: (CalendarEvent) -> Void
+    let onEditEvent: (CalendarEvent) -> Void
     let onDeleteEvent: (UUID) -> Void
     
     var body: some View {
@@ -19,7 +20,10 @@ struct CalendarDayEventsSection: View {
                 
                 Spacer()
                 
-                PlotFilterChip(title: "今日へ", isSelected: false, action: onGoToToday)
+                PlotHIGBorderedButton("今日へ", systemImage: "calendar") {
+                    onGoToToday()
+                }
+                .accessibilityLabel("今日の日付へ移動")
             }
             
             Text("予定 \(events.count)件")
@@ -31,18 +35,16 @@ struct CalendarDayEventsSection: View {
             } else {
                 LazyVStack(spacing: Spacing.sm) {
                     ForEach(events) { event in
-                        Button {
-                            onSelectEvent(event)
-                        } label: {
-                            EventRow(event: event)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                onDeleteEvent(event.id)
+                        PlotCardActionRow(
+                            onEdit: { onEditEvent(event) },
+                            onDelete: { onDeleteEvent(event.id) }
+                        ) {
+                            Button {
+                                onSelectEvent(event)
                             } label: {
-                                Label("削除", systemImage: "trash")
+                                EventRow(event: event)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
