@@ -8,16 +8,7 @@
 
 import SwiftUI
 
-private extension View {
-    /// システムの TabBar を非表示にする。`TabView` 直下だけでは効かないことがあるため各タブのルートにも付ける。
-    func plottyHideSystemTabBar() -> some View {
-        toolbar(.hidden, for: .tabBar)
-            .toolbarBackground(.hidden, for: .tabBar)
-    }
-}
-
-/// 標準の `TabView` で画面を切り替え、システムの下タブは隠して自作の `FooterTabBar` を出す構成。
-/// 参考記事: [Custom Tab Bars in SwiftUI — Beyond the Default](https://21zerixpm.medium.com/custom-tab-bars-in-swiftui-beyond-the-default-1236071028c5)
+/// 自作フッタータブで画面を切り替える（`TabView` のページスタイルは TextField のキーボードと相性が悪い）。
 struct ContentView: View {
     @Environment(\.appSettings) private var appSettings
     @Environment(\.colorScheme) private var colorScheme
@@ -32,7 +23,6 @@ struct ContentView: View {
     @State private var showTodoCreate = false
     @State private var showCalendarCreate = false
     
-    /// チャット入力（`TabView` の外に置き、キーボード・合成の不具合を避ける）
     @State private var chatDraftMessage = ""
     @State private var chatSendRequested = false
     @FocusState private var isChatComposerFocused: Bool
@@ -42,42 +32,24 @@ struct ContentView: View {
         ZStack {
             AmbientBackground()
             
-            TabView(selection: $selectedTab) {
-                    MemoView(selectedTab: selectedTab, showCreateSheet: $showMemoCreate)
-                        .tag(TabItem.memo)
-                        .plottyHideSystemTabBar()
-                    TodoView(selectedTab: selectedTab, showCreateSheet: $showTodoCreate)
-                        .tag(TabItem.todo)
-                        .plottyHideSystemTabBar()
-                    ChatTabView(
-                        selectedTab: selectedTab,
-                        draftMessage: $chatDraftMessage,
-                        selectedCategory: $chatCategory,
-                        isComposerFocused: $isChatComposerFocused,
-                        isAIProcessing: $isChatAIProcessing,
-                        sendRequested: $chatSendRequested
-                    )
-                        .tag(TabItem.chat)
-                        .plottyHideSystemTabBar()
-                    CalendarTabView(showCreateSheet: $showCalendarCreate)
-                        .tag(TabItem.calendar)
-                        .plottyHideSystemTabBar()
-                    SettingsView(pendingRoute: $pendingSettingsRoute)
-                        .tag(TabItem.settings)
-                        .plottyHideSystemTabBar()
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+            tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.clear)
-                .plottyHideSystemTabBar()
         }
         .preferredColorScheme(appSettings.theme.colorScheme)
         .safeAreaInset(edge: .top, spacing: 0) {
             PlotRootBreadcrumb(
                 screenTitle: selectedTab.rootBreadcrumbTitle,
                 onAccountTapped: {
+                    PlotTextInputDismiss.postNotification()
+                    isChatComposerFocused = false
                     selectedTab = .settings
                     pendingSettingsRoute = .account
+                }
+            )
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    dismissTextInputForCurrentTab()
                 }
             )
             .padding(.bottom, Spacing.md)
@@ -105,8 +77,68 @@ struct ContentView: View {
                 .ignoresSafeArea(edges: .top)
             }
         }
-        /// タブバーのみ inset。チャット入力は `ChatTabView` 内で重ねる（inset だと不透明な帯になる）。
+        /// 入力＋タブバーをまとめた下端。キーボード表示時は塊ごと上に押し上げる。
         .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomChrome
+        }
+        .overlay {
+            if selectedTab == .chat, isChatAIProcessing {
+                PlotAIScreenBorder()
+            }
+        }
+        .onAppear {
+            focusChatComposerIfNeeded()
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            dismissTextInputForCurrentTab()
+            if newTab == .chat {
+                focusChatComposerIfNeeded()
+            } else {
+                isChatComposerFocused = false
+                isChatAIProcessing = false
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .memo:
+            MemoView(selectedTab: selectedTab, showCreateSheet: $showMemoCreate)
+        case .todo:
+            TodoView(selectedTab: selectedTab, showCreateSheet: $showTodoCreate)
+        case .chat:
+            ChatTabView(
+                selectedTab: selectedTab,
+                draftMessage: $chatDraftMessage,
+                selectedCategory: $chatCategory,
+                isComposerFocused: $isChatComposerFocused,
+                isAIProcessing: $isChatAIProcessing,
+                sendRequested: $chatSendRequested
+            )
+        case .calendar:
+            CalendarTabView(showCreateSheet: $showCalendarCreate)
+        case .settings:
+            SettingsView(pendingRoute: $pendingSettingsRoute)
+        }
+    }
+    
+    private var showsFloatingAdd: Bool {
+        [.memo, .todo, .calendar].contains(selectedTab)
+    }
+    
+    private var bottomChrome: some View {
+        VStack(spacing: Spacing.chatComposerGapAboveTabBar) {
+            if selectedTab == .chat {
+                ChatComposerDock(
+                    draftMessage: $chatDraftMessage,
+                    selectedCategory: $chatCategory,
+                    isComposerFocused: $isChatComposerFocused,
+                    sendRequested: $chatSendRequested,
+                    isAIProcessing: isChatAIProcessing
+                )
+            }
+            
             ZStack(alignment: .bottomTrailing) {
                 FooterTabBar(selectedTab: $selectedTab)
                 
@@ -120,26 +152,6 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear {
-            focusChatComposerIfNeeded()
-        }
-        .overlay {
-            if selectedTab == .chat, isChatAIProcessing {
-                PlotAIScreenBorder()
-            }
-        }
-        .onChange(of: selectedTab) { _, newTab in
-            if newTab == .chat {
-                focusChatComposerIfNeeded()
-            } else {
-                isChatComposerFocused = false
-                isChatAIProcessing = false
-            }
-        }
-    }
-    
-    private var showsFloatingAdd: Bool {
-        [.memo, .todo, .calendar].contains(selectedTab)
     }
     
     private var floatingAddAccessibilityLabel: String {
@@ -151,15 +163,21 @@ struct ContentView: View {
         }
     }
     
-    /// チャットタブ表示時にキーボードを出してすぐ入力できるようにする
+    /// チャットタブ表示時に入力欄へフォーカス（起動直後はレイアウト確定を待つ）
     private func focusChatComposerIfNeeded() {
         guard selectedTab == .chat else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             isChatComposerFocused = true
         }
     }
     
+    private func dismissTextInputForCurrentTab() {
+        PlotTextInputDismiss.postNotification()
+        isChatComposerFocused = false
+    }
+    
     private func fabTapped() {
+        dismissTextInputForCurrentTab()
         switch selectedTab {
         case .memo: showMemoCreate = true
         case .todo: showTodoCreate = true

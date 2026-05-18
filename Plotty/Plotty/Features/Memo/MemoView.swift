@@ -4,6 +4,7 @@ import SwiftUI
 struct MemoView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.plotDataStore) private var dataStore
+    @Environment(\.connectivity) private var connectivity
     
     var selectedTab: TabItem = .memo
     @Binding var showCreateSheet: Bool
@@ -19,14 +20,19 @@ struct MemoView: View {
     @FocusState private var isSearchFocused: Bool
     
     var body: some View {
-        ScrollView {
+        PlotSearchableTabLayout(
+            searchText: $searchText,
+            isSearchFocused: $isSearchFocused,
+            onRefresh: { await reloadMemos() }
+        ) {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                PlotTopSearchRow(text: $searchText, isFocused: $isSearchFocused)
-                
-                MemoAccentFilterToolbar(
-                    selectedAccents: $selectedAccentFilters,
-                    resolvedColorScheme: colorScheme
+                PlotScreenStatusSection(
+                    isOffline: !connectivity.isOnline,
+                    errorMessage: dataStore.errorMessage(for: .memos),
+                    onRetry: { Task { await reloadMemos() } }
                 )
+                
+                MemoAccentFilterToolbar(selectedAccents: $selectedAccentFilters)
                 
                 if dataStore.memos.isEmpty {
                     MemoEmptyState(isCompletelyEmpty: true, hint: "")
@@ -40,22 +46,18 @@ struct MemoView: View {
                     }
                 } else {
                     MemoListSection(
-                        pinnedMemos: pinnedMemos,
-                        unpinnedMemos: unpinnedMemos,
+                        filteredMemoIDs: filteredMemos.map(\.id),
                         onEdit: { editingMemo = $0 },
                         onDelete: removeMemo
                     )
                 }
             }
-            .padding(.horizontal, Spacing.screenEdge)
-            .padding(.top, Spacing.lg)
-            .padding(.bottom, Spacing.tabbedScrollBottomInset)
         }
-        .scrollContentBackground(.hidden)
-        .scrollDismissesKeyboard(.interactively)
-        .simultaneousGesture(
-            TapGesture().onEnded { _ in isSearchFocused = false }
-        )
+        .plotListLoading(dataStore.isLoading(.memos))
+        .task { await reloadMemos() }
+        .onChange(of: connectivity.isOnline) { _, _ in
+            if connectivity.isOnline { Task { await reloadMemos() } }
+        }
         .onChange(of: selectedTab) { _, newTab in
             if newTab != .memo { isSearchFocused = false }
         }
@@ -72,7 +74,9 @@ struct MemoView: View {
         }
         .sheet(item: $editingMemo) { memo in
             MemoEditSheet(memo: memo) { updated in
-                dataStore.updateMemo(updated)
+                withAnimation(.standard) {
+                    dataStore.updateMemo(updated)
+                }
                 editingMemo = nil
             } onCancel: {
                 editingMemo = nil
@@ -113,17 +117,13 @@ struct MemoView: View {
         return list.filter(matchesSearch)
     }
     
-    private var pinnedMemos: [MemoItem] {
-        filteredMemos.filter(\.isPinned)
-    }
-    
-    private var unpinnedMemos: [MemoItem] {
-        filteredMemos.filter { !$0.isPinned }
-    }
-    
     private func matchesSearch(_ memo: MemoItem) -> Bool {
         memo.title.localizedCaseInsensitiveContains(searchText)
             || memo.content.localizedCaseInsensitiveContains(searchText)
+    }
+    
+    private func reloadMemos() async {
+        await dataStore.reload(.memos, isOnline: connectivity.isOnline)
     }
     
     private var emptyStateHint: String {

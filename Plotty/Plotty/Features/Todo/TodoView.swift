@@ -6,6 +6,7 @@ struct TodoView: View {
     @Binding var showCreateSheet: Bool
     
     @Environment(\.plotDataStore) private var dataStore
+    @Environment(\.connectivity) private var connectivity
     
     @State private var searchText = ""
     @State private var priorityFilter: TodoItem.Priority?
@@ -14,13 +15,23 @@ struct TodoView: View {
     
     @State private var draftTitle = ""
     @State private var draftPriority: TodoItem.Priority = .medium
+    @State private var draftHasDueDate = false
+    @State private var draftDueDate = Date()
     
     @FocusState private var isSearchFocused: Bool
     
     var body: some View {
-        ScrollView {
+        PlotSearchableTabLayout(
+            searchText: $searchText,
+            isSearchFocused: $isSearchFocused,
+            onRefresh: { await reloadTodos() }
+        ) {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                PlotTopSearchRow(text: $searchText, isFocused: $isSearchFocused)
+                PlotScreenStatusSection(
+                    isOffline: !connectivity.isOnline,
+                    errorMessage: dataStore.errorMessage(for: .todos),
+                    onRetry: { Task { await reloadTodos() } }
+                )
                 
                 TodoProgressBlock(
                     completedCount: completedCount,
@@ -66,15 +77,12 @@ struct TodoView: View {
                     }
                 }
             }
-            .padding(.horizontal, Spacing.screenEdge)
-            .padding(.top, Spacing.lg)
-            .padding(.bottom, Spacing.tabbedScrollBottomInset)
         }
-        .scrollContentBackground(.hidden)
-        .scrollDismissesKeyboard(.interactively)
-        .simultaneousGesture(
-            TapGesture().onEnded { _ in isSearchFocused = false }
-        )
+        .plotListLoading(dataStore.isLoading(.todos))
+        .task { await reloadTodos() }
+        .onChange(of: connectivity.isOnline) { _, _ in
+            if connectivity.isOnline { Task { await reloadTodos() } }
+        }
         .onChange(of: selectedTab) { _, newTab in
             if newTab != .todo { isSearchFocused = false }
         }
@@ -83,6 +91,8 @@ struct TodoView: View {
                 isPresented: $showCreateSheet,
                 draftTitle: $draftTitle,
                 draftPriority: $draftPriority,
+                draftHasDueDate: $draftHasDueDate,
+                draftDueDate: $draftDueDate,
                 onAdd: addTodoFromSheet
             )
             .presentationDetents([.medium, .large])
@@ -103,7 +113,8 @@ struct TodoView: View {
     private func addTodoFromSheet() {
         let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        let newTodo = TodoItem(title: title, isCompleted: false, dueDate: nil, priority: draftPriority)
+        let due = draftHasDueDate ? draftDueDate : nil
+        let newTodo = TodoItem(title: title, isCompleted: false, dueDate: due, priority: draftPriority)
         withAnimation(.standard) {
             dataStore.addTodo(newTodo)
         }
@@ -137,7 +148,9 @@ struct TodoView: View {
                 let r = rhs.dueDate ?? .distantFuture
                 if l != r { return l < r }
             case .created:
-                break
+                if lhs.createdAt != rhs.createdAt {
+                    return lhs.createdAt > rhs.createdAt
+                }
             }
             if lhs.priority.rawValue != rhs.priority.rawValue {
                 return lhs.priority.rawValue > rhs.priority.rawValue
@@ -161,6 +174,10 @@ struct TodoView: View {
     
     private var completedCount: Int {
         dataStore.todos.filter(\.isCompleted).count
+    }
+    
+    private func reloadTodos() async {
+        await dataStore.reload(.todos, isOnline: connectivity.isOnline)
     }
 }
 

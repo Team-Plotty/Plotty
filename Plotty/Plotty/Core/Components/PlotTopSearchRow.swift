@@ -1,8 +1,7 @@
 import SwiftUI
 
 // MARK: - メモ / TODO 用・一覧直上の検索行
-/// スクロール内容の先頭に置く検索欄。ガラスは `plotInputCapsuleGlass`（背景のみ）。
-/// `FocusState` は親でタブ切替・空きタップと連動させる。
+/// チャット入力と同様、フォーカス時に右外へ円形 ×（Search fields HIG 準拠の角丸）
 struct PlotTopSearchRow: View {
     @Environment(\.colorScheme) private var colorScheme
     
@@ -17,8 +16,34 @@ struct PlotTopSearchRow: View {
         colorScheme == .dark ? Color.darkInputPlaceholder : Color.lightInputPlaceholder
     }
     
+    private var expansionAnimation: Animation {
+        .easeOut(duration: PlotChatComposerMetrics.expansionDuration)
+    }
+    
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        let trailingInset = isFocused
+            ? PlotChatComposerMetrics.clearButtonHitSize + PlotChatComposerMetrics.trailingControlSpacing
+            : 0
+        
+        ZStack(alignment: .bottomTrailing) {
+            searchFieldBox
+                .padding(.trailing, trailingInset)
+            
+            PlotGlassCardIconButton(
+                systemName: "xmark",
+                accessibilityLabel: "検索を終了",
+                action: dismissSearch,
+                shape: .circle,
+                size: PlotChatComposerMetrics.clearButtonHitSize
+            )
+            .opacity(isFocused ? 1 : 0)
+            .allowsHitTesting(isFocused)
+        }
+        .animation(expansionAnimation, value: isFocused)
+    }
+    
+    private var searchFieldBox: some View {
+        HStack(alignment: .center, spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 17, weight: .medium))
                 .symbolRenderingMode(.monochrome)
@@ -40,12 +65,18 @@ struct PlotTopSearchRow: View {
             .focused($isFocused)
             .submitLabel(.search)
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 14)
-        .padding(.vertical, 10)
-        .plotInputCapsuleGlass()
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+        .frame(minHeight: PlotChatComposerMetrics.searchFieldHeight)
+        .plotChatComposerGlass()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("検索")
+    }
+    
+    private func dismissSearch() {
+        withAnimation(expansionAnimation) {
+            isFocused = false
+        }
     }
 }
 
@@ -61,19 +92,4 @@ struct PlotTopSearchRow: View {
         }
     }
     return Wrapper()
-}
-
-#Preview("ライト") {
-    struct Wrapper: View {
-        @State private var q = ""
-        @FocusState private var focused: Bool
-        var body: some View {
-            PlotTopSearchRow(text: $q, isFocused: $focused)
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(AmbientBackground())
-        }
-    }
-    return Wrapper()
-        .preferredColorScheme(.light)
 }
