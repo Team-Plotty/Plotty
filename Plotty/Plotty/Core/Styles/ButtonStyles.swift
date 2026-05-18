@@ -320,6 +320,74 @@ struct ToolbarPrimarySheetActionButtonStyle: ButtonStyle {
     }
 }
 
+// MARK: - 一覧カードと同じ Liquid Glass の補助ボタン（44pt・青塗りなし）
+// https://developer.apple.com/design/human-interface-guidelines/buttons
+
+/// 単発アクション・フィルタ向け（例: 「すべて」「今日へ」）。
+struct PlotHIGBorderedButton: View {
+    @Environment(\.plotColorScheme) private var plotColorScheme
+    
+    let title: String
+    var systemImage: String? = nil
+    var isSelected: Bool = false
+    let action: () -> Void
+    
+    init(
+        _ title: String,
+        systemImage: String? = nil,
+        isSelected: Bool = false,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.isSelected = isSelected
+        self.action = action
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            label
+                .font(.scaledCaption().weight(isSelected ? .semibold : .medium))
+                .foregroundStyle(labelColor)
+                .symbolRenderingMode(.monochrome)
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.xs)
+                .frame(minHeight: Spacing.minTouchTarget)
+                .plotChipGlassCapsule()
+                .overlay {
+                    if isSelected {
+                        Capsule(style: .continuous)
+                            .strokeBorder(selectedBorderColor, lineWidth: 1)
+                    }
+                }
+                .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(PlotChipPressButtonStyle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+    
+    @ViewBuilder
+    private var label: some View {
+        if let systemImage {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.titleAndIcon)
+        } else {
+            Text(title)
+        }
+    }
+    
+    private var labelColor: Color {
+        if isSelected {
+            return PlotColors.textPrimary(plotColorScheme)
+        }
+        return PlotColors.textSecondary(plotColorScheme)
+    }
+    
+    private var selectedBorderColor: Color {
+        PlotColors.selectedBorder(plotColorScheme)
+    }
+}
+
 /// ナビゲーションバー右側の確定ボタン向け（「保存」「追加」など）。
 struct ToolbarPrimarySheetActionButton: View {
     let title: String

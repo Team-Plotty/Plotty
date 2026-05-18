@@ -20,6 +20,17 @@ enum AccentSwatch: String, CaseIterable, Identifiable {
         }
     }
     
+    /// セグメントコントロール用の短いラベル
+    var segmentTitle: String {
+        switch self {
+        case .graphite: return "グレー"
+        case .paper: return "ペーパ"
+        case .sage: return "セージ"
+        case .sky: return "スカイ"
+        case .coral: return "コーラ"
+        }
+    }
+    
     var color: Color {
         switch self {
         case .graphite:

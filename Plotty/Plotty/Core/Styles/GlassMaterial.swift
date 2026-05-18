@@ -204,17 +204,30 @@ extension View {
         glassCard(.input, radius: radius)
     }
     
-    /// 検索・メッセージ入力などカプセル型フィールド用（テーマの入力背景・枠線。文字が潰れないよう `glassEffect` は使わない）。
+    /// 認証フォームなど・ベタ塗りカプセル（一覧カードとは別系統）
     func plotInputCapsuleGlass() -> some View {
         modifier(PlotInputCapsuleGlass())
     }
     
-    /// チャット入力欄（固定角丸。チップ追加時は縦に伸ばす。`Capsule` は高さ可変で形が崩れるため使わない）。
-    func plotChatComposerGlass(cornerRadius: CGFloat = PlotChatComposerMetrics.cornerRadius) -> some View {
-        modifier(PlotChatComposerGlass(cornerRadius: cornerRadius))
+    /// 検索欄（メモ / TODO）。一覧カードと同じ Liquid Glass。
+    func plotListSearchGlass() -> some View {
+        background {
+            Capsule(style: .continuous)
+                .fill(Color.clear)
+                .glassEffect(.regular, in: .capsule)
+        }
     }
     
-    /// カプセル型チップの Liquid Glass（チャット吹き出し内など。フィルタは `PlotFilterChip` を使う）。
+    /// チャット入力欄。一覧カードと同じ Liquid Glass（固定角丸）。
+    func plotChatComposerGlass(cornerRadius: CGFloat = PlotChatComposerMetrics.cornerRadius) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.clear)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        }
+    }
+    
+    /// カプセル型チップの Liquid Glass（フィルタチップ・チャット内タグなど）。
     func plotChipGlassCapsule(style: PlotChipGlassStyle = .standalone) -> some View {
         background {
             Capsule(style: .continuous)
@@ -265,35 +278,33 @@ struct PlotChipPressButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - チャット入力欄の寸法
+// MARK: - チャット入力欄の寸法（Search fields HIG 準拠）
+/// https://developer.apple.com/design/human-interface-guidelines/search-fields
 enum PlotChatComposerMetrics {
-    /// 1 行時と同じ角丸（高さが増えても角の曲率は固定）
-    static let cornerRadius: CGFloat = 24
-    static let minHeightCompact: CGFloat = 48
-    static let minHeightWithChip: CGFloat = 84
-}
-
-// MARK: - チャット入力欄の背景（固定角丸の角丸矩形）
-private struct PlotChatComposerGlass: ViewModifier {
-    @Environment(\.colorScheme) private var colorScheme
-    let cornerRadius: CGFloat
+    /// システム検索フィールドの標準高さ（ツールバー内 `UISearchBar` 相当）
+    static let searchFieldHeight: CGFloat = 36
+    /// 角丸は高さの半分でカプセル化（連続角丸の検索フィールド）
+    static var searchFieldCornerRadius: CGFloat { searchFieldHeight / 2 }
     
-    func body(content: Content) -> some View {
-        content.background {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(colorScheme == .dark ? Color.darkInputBG : Color.lightInputBG)
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(
-                            colorScheme == .dark ? Color.darkBorderDefault : Color.lightBorderDefault,
-                            lineWidth: 0.5
-                        )
-                )
-        }
-    }
+    /// 入力ボックスの角丸（検索フィールドと同じ 18pt）
+    static let cornerRadius: CGFloat = searchFieldCornerRadius
+    
+    /// 閉じるボタン（円形ガラス・HIG 44pt）
+    static let clearButtonHitSize: CGFloat = Spacing.minTouchTarget
+    
+    /// 検索フィールドと横並びコントロールのすき間
+    static let trailingControlSpacing: CGFloat = Spacing.xs
+    
+    /// 入力欄と閉じるボタンの展開／収納（同一値で同期）
+    static let expansionDuration: TimeInterval = 0.22
+    
+    /// 1 行時の最小高さ（検索フィールド基準。送信ボタン行は内側で確保）
+    static let minHeightCompact: CGFloat = searchFieldHeight
+    /// 登録先チップあり（角丸曲率は `cornerRadius` 固定のまま縦に伸長）
+    static let minHeightWithChip: CGFloat = 72
 }
 
-// MARK: - カプセル型入力の背景（検索・チャット入力で共通）
+// MARK: - カプセル型入力の背景（認証フォームなど）
 /// `glassEffect` は `TextField` の文字・アイコンが潰れやすいため、テーマの入力用ベタ塗り＋枠線を使う。
 private struct PlotInputCapsuleGlass: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme

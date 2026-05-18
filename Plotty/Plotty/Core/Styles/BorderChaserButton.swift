@@ -111,11 +111,40 @@ struct BorderChaserButton<Label: View>: View {
     }
 }
 
-// MARK: - 円形の枠線チェイサー（送信ボタンの処理中表示用）
+// MARK: - 枠線チェイサーの色（送信ボタン / AI 枠で共用）
+enum PlotBorderChaserPalette: Equatable {
+    case subtle
+    case aiGlow
+    
+    func gradientStops(colorScheme: ColorScheme) -> [Gradient.Stop] {
+        switch self {
+        case .subtle:
+            return [
+                .init(color: .clear, location: 0.0),
+                .init(color: Color.white.opacity(colorScheme == .dark ? 0.95 : 0.80), location: 0.15),
+                .init(color: Color.white.opacity(colorScheme == .dark ? 0.40 : 0.30), location: 0.35),
+                .init(color: .clear, location: 0.5)
+            ]
+        case .aiGlow:
+            return [
+                .init(color: Color.plotAIBorderGlow.opacity(0.15), location: 0.0),
+                .init(color: Color.plotAIBorderGlow.opacity(0.98), location: 0.14),
+                .init(color: Color.cyan.opacity(0.85), location: 0.28),
+                .init(color: Color.plotAIBorderGlow.opacity(0.12), location: 0.5),
+                .init(color: Color.plotAIBorderGlow.opacity(0.95), location: 0.72),
+                .init(color: Color.plotAIBorderGlow.opacity(0.2), location: 1.0)
+            ]
+        }
+    }
+}
+
+// MARK: - 円形の枠線チェイサー（送信ボタンの border sweep）
 struct CircleBorderChaser: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     var speed: BorderChaserSpeed = .fast
+    var palette: PlotBorderChaserPalette = .subtle
     var lineWidth: CGFloat = 2
     
     @State private var rotation: Double = 0
@@ -124,22 +153,22 @@ struct CircleBorderChaser: View {
         Circle()
             .strokeBorder(
                 AngularGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: .clear, location: 0.0),
-                        .init(color: Color.white.opacity(colorScheme == .dark ? 0.95 : 0.80), location: 0.15),
-                        .init(color: Color.white.opacity(colorScheme == .dark ? 0.40 : 0.30), location: 0.35),
-                        .init(color: .clear, location: 0.5)
-                    ]),
+                    gradient: Gradient(stops: palette.gradientStops(colorScheme: colorScheme)),
                     center: .center,
                     startAngle: .degrees(rotation),
                     endAngle: .degrees(rotation + 360)
                 ),
                 lineWidth: lineWidth
             )
-            .onAppear {
-                withAnimation(.linear(duration: speed.duration).repeatForever(autoreverses: false)) {
-                    rotation = 360
-                }
-            }
+            .shadow(color: palette == .aiGlow ? Color.plotAIBorderGlow.opacity(0.55) : .clear, radius: 4)
+            .onAppear(perform: startAnimation)
+    }
+    
+    private func startAnimation() {
+        guard !reduceMotion else { return }
+        rotation = 0
+        withAnimation(.linear(duration: speed.duration).repeatForever(autoreverses: false)) {
+            rotation = 360
+        }
     }
 }

@@ -10,23 +10,15 @@ enum PlotAsyncPhase: Equatable {
 struct PlotOfflineBanner: View {
     @Environment(\.colorScheme) private var colorScheme
     
+    var message: String = "オフラインです。送信や同期にはインターネット接続が必要です。"
+    
     var body: some View {
-        HStack(spacing: Spacing.sm) {
-            Image(systemName: "wifi.slash")
-                .font(.system(size: 14, weight: .semibold))
-            Text("オフラインです。送信にはインターネット接続が必要です。")
-                .font(.scaledCaption())
-                .multilineTextAlignment(.leading)
-        }
-        .foregroundStyle(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
-        .padding(.horizontal, Spacing.md)
-        .padding(.vertical, Spacing.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                .fill(Color.orange.opacity(colorScheme == .dark ? 0.22 : 0.15))
+        statusCard(
+            icon: "wifi.slash",
+            iconColor: .orange,
+            message: message,
+            accessibilityLabel: "オフライン。\(message)"
         )
-        .accessibilityLabel("オフライン。送信にはインターネット接続が必要です。")
     }
 }
 
@@ -36,30 +28,71 @@ struct PlotErrorBanner: View {
     var onRetry: (() -> Void)?
     
     var body: some View {
+        statusCard(
+            icon: "exclamationmark.triangle.fill",
+            iconColor: .red,
+            message: message,
+            accessibilityLabel: message
+        ) {
+            if let onRetry {
+                Button("再試行", action: onRetry)
+                    .font(.scaledCaption().weight(.semibold))
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+        }
+    }
+}
+
+// MARK: - 状態カード共通面（リキッドグラス）
+private struct PlotStatusCardContent<Accessory: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let icon: String
+    let iconColor: Color
+    let message: String
+    let accessibilityLabel: String
+    @ViewBuilder let accessory: () -> Accessory
+    
+    var body: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 16))
-                .foregroundStyle(.red)
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(iconColor)
+                .accessibilityHidden(true)
             
-            VStack(alignment: .leading, spacing: Spacing.xs) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(message)
                     .font(.scaledCaption())
                     .foregroundStyle(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
                     .multilineTextAlignment(.leading)
                 
-                if let onRetry {
-                    Button("再試行", action: onRetry)
-                        .font(.scaledCaption().weight(.semibold))
-                }
+                accessory()
             }
             
             Spacer(minLength: 0)
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                .fill(Color.red.opacity(colorScheme == .dark ? 0.18 : 0.1))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+private extension View {
+    func statusCard<Accessory: View>(
+        icon: String,
+        iconColor: Color,
+        message: String,
+        accessibilityLabel: String,
+        @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }
+    ) -> some View {
+        PlotStatusCardContent(
+            icon: icon,
+            iconColor: iconColor,
+            message: message,
+            accessibilityLabel: accessibilityLabel,
+            accessory: accessory
         )
     }
 }
@@ -89,16 +122,17 @@ struct PlotLoadingOverlay: View {
 
 // MARK: - AI 応答待ちの画面枠（背景は暗くしない・枠のみ）
 struct PlotAIScreenBorder: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     @State private var rotation: Double = 0
     
-    private let cornerRadius: CGFloat = 40
-    private let edgeInset: CGFloat = 2
+    private let edgeInset: CGFloat = 1.5
     private let lineWidth: CGFloat = 3.5
     
     var body: some View {
         GeometryReader { geometry in
+            let cornerRadius = PlotDeviceDisplayMetrics.displayCornerRadius(for: geometry.size)
             let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             
             shape
@@ -119,14 +153,7 @@ struct PlotAIScreenBorder: View {
     
     private var borderGradient: AngularGradient {
         AngularGradient(
-            gradient: Gradient(stops: [
-                .init(color: Color.plotAIBorderGlow.opacity(0.2), location: 0.0),
-                .init(color: Color.plotAIBorderGlow.opacity(0.95), location: 0.14),
-                .init(color: Color.cyan.opacity(0.75), location: 0.28),
-                .init(color: Color.plotAIBorderGlow.opacity(0.15), location: 0.5),
-                .init(color: Color.plotAIBorderGlow.opacity(0.92), location: 0.64),
-                .init(color: Color.plotAIBorderGlow.opacity(0.25), location: 1.0)
-            ]),
+            gradient: Gradient(stops: PlotBorderChaserPalette.aiGlow.gradientStops(colorScheme: colorScheme)),
             center: .center,
             startAngle: .degrees(rotation),
             endAngle: .degrees(rotation + 360)
@@ -135,6 +162,7 @@ struct PlotAIScreenBorder: View {
     
     private func startAnimation() {
         guard !reduceMotion else { return }
+        rotation = 0
         withAnimation(.linear(duration: BorderChaserSpeed.normal.duration).repeatForever(autoreverses: false)) {
             rotation = 360
         }

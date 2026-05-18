@@ -154,3 +154,39 @@ extension EnvironmentValues {
         set { self[AppColorsKey.self] = newValue }
     }
 }
+
+// MARK: - アプリ外観の実効カラースキーム（`glassEffect` 内でも親の値を使う）
+private struct PlotColorSchemeKey: EnvironmentKey {
+    static let defaultValue: ColorScheme = .dark
+}
+
+extension EnvironmentValues {
+    /// `preferredColorScheme` と同期した Plotty のライト/ダーク。ガラス内の誤判定回避用。
+    var plotColorScheme: ColorScheme {
+        get { self[PlotColorSchemeKey.self] }
+        set { self[PlotColorSchemeKey.self] = newValue }
+    }
+}
+
+/// テーマトークンを `ColorScheme` から取得（`Color.white` / `.primary` は使わない）。
+enum PlotColors {
+    static func textPrimary(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .darkTextPrimary : .lightTextPrimary
+    }
+    
+    static func textSecondary(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .darkTextSecondary : .lightTextSecondary
+    }
+    
+    static func textUser(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .darkTextUser : .lightTextUser
+    }
+    
+    static func textAI(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .darkTextAI : .lightTextAI
+    }
+    
+    static func selectedBorder(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.14)
+    }
+}

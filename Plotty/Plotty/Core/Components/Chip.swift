@@ -1,18 +1,27 @@
 import SwiftUI
 
+// MARK: - チップの文字色コンテキスト
+enum ChipTextStyle {
+    /// 通常（AI 吹き出し下・一覧など）
+    case standard
+    /// ユーザー送信吹き出し内
+    case onUserBubble
+}
+
 // MARK: - チップ（短文ラベル。チャット内のタグなど）
 struct Chip: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     
     var text: String
     var icon: String? = nil
     var onTap: (() -> Void)? = nil
-    /// `glassEffect` の内側などで `@Environment(\.colorScheme)` が誤ることがあるため、親から正しい外観を渡せるようにする。
+    /// `glassEffect` 内で環境がずれる場合の上書き（未指定時は `plotColorScheme`）
     var resolvedColorScheme: ColorScheme? = nil
     var glassStyle: PlotChipGlassStyle = .standalone
+    var textStyle: ChipTextStyle = .standard
     
     private var scheme: ColorScheme {
-        resolvedColorScheme ?? colorScheme
+        resolvedColorScheme ?? plotColorScheme
     }
     
     var body: some View {
@@ -36,19 +45,25 @@ struct Chip: View {
                 .font(.scaledCaption().weight(.medium))
         }
         .foregroundStyle(labelColor)
+        .symbolRenderingMode(.monochrome)
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
         .plotChipGlassCapsule(style: glassStyle)
     }
     
     private var labelColor: Color {
-        scheme == .dark ? Color.white : Color.primary
+        switch textStyle {
+        case .standard:
+            return PlotColors.textPrimary(scheme)
+        case .onUserBubble:
+            return PlotColors.textUser(scheme)
+        }
     }
 }
 
 // MARK: - 閉じる付きチップ
 struct DismissableChip: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     
     var text: String
     var onDismiss: () -> Void
@@ -64,7 +79,7 @@ struct DismissableChip: View {
             }
             .buttonStyle(PlainButtonStyle())
         }
-        .foregroundStyle(colorScheme == .dark ? Color.white : Color.primary)
+        .foregroundStyle(PlotColors.textPrimary(plotColorScheme))
         .padding(.leading, Spacing.sm)
         .padding(.trailing, Spacing.xs)
         .frame(minHeight: Spacing.minTouchTarget)
@@ -82,13 +97,9 @@ struct DismissableChip: View {
             DismissableChip(text: "フィルター", onDismiss: {})
             DismissableChip(text: "タグ", onDismiss: {})
         }
-        HStack(spacing: 8) {
-            PlotFilterChip(title: "すべて", isSelected: true, action: {})
-            PlotFilterChip(title: "今日", isSelected: false, action: {})
-            PlotFilterChip(title: "今週", isSelected: false, action: {})
-        }
     }
     .padding(40)
     .background(AmbientBackground())
+    .environment(\.plotColorScheme, .dark)
     .preferredColorScheme(.dark)
 }
