@@ -2,12 +2,13 @@ import SwiftUI
 
 // MARK: - チャット下部の入力欄
 struct ChatComposerBar: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     @Environment(\.connectivity) private var connectivity
     
     @Binding var text: String
     @Binding var selectedCategory: PlotChatCategory?
     @FocusState.Binding var isFocused: Bool
+    var isAIProcessing: Bool = false
     var onSend: () -> Void
     
     private var hasCategoryChip: Bool {
@@ -23,21 +24,25 @@ struct ChatComposerBar: View {
     }
     
     private var primaryColor: Color {
-        colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
+        PlotColors.textPrimary(plotColorScheme)
     }
     
     private var secondaryColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
+        PlotColors.textSecondary(plotColorScheme)
     }
     
     private var placeholderColor: Color {
-        colorScheme == .dark ? Color.darkInputPlaceholder : Color.lightInputPlaceholder
+        plotColorScheme == .dark ? Color.darkInputPlaceholder : Color.lightInputPlaceholder
     }
     
     private var composerMinHeight: CGFloat {
         hasCategoryChip
             ? PlotChatComposerMetrics.minHeightWithChip
             : PlotChatComposerMetrics.minHeightCompact
+    }
+    
+    private var composerExpansionAnimation: Animation {
+        .easeOut(duration: PlotChatComposerMetrics.expansionDuration)
     }
     
     var body: some View {
@@ -49,11 +54,27 @@ struct ChatComposerBar: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             
-            composerField
+            composerBottomRow
         }
         .background(Color.clear)
-        .animation(.easeOut(duration: 0.2), value: isFocused)
-        .animation(.easeOut(duration: 0.2), value: hasCategoryChip)
+        .animation(composerExpansionAnimation, value: isFocused)
+        .animation(composerExpansionAnimation, value: hasCategoryChip)
+    }
+    
+    /// 入力ボックス＋閉じるボタン（padding と × の opacity を同一アニメで同期）
+    private var composerBottomRow: some View {
+        let trailingInset = isFocused
+            ? PlotChatComposerMetrics.clearButtonHitSize + PlotChatComposerMetrics.trailingControlSpacing
+            : 0
+        
+        return ZStack(alignment: .bottomTrailing) {
+            composerField
+                .padding(.trailing, trailingInset)
+            
+            composerCancelButton
+                .opacity(isFocused ? 1 : 0)
+                .allowsHitTesting(isFocused)
+        }
     }
     
     /// チップ＋入力行を包むフィールド（角丸固定・縦だけ伸縮）
@@ -69,18 +90,7 @@ struct ChatComposerBar: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
-            HStack(alignment: .center, spacing: 12) {
-                Button {
-                    isFocused = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(secondaryColor)
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("登録先を選ぶ")
-                
+            HStack(alignment: .center, spacing: Spacing.sm) {
                 TextField(
                     "",
                     text: $text,
@@ -92,41 +102,80 @@ struct ChatComposerBar: View {
                 .textFieldStyle(.plain)
                 .focused($isFocused)
                 .submitLabel(.send)
-                .disabled(!connectivity.isOnline)
                 .frame(minHeight: 24)
                 .onSubmit {
                     if canSend { send() }
                 }
                 
-                Button {
-                    send()
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(canSend ? primaryColor : secondaryColor.opacity(0.3))
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(canSend
-                                ? (colorScheme == .dark ? Color.darkBase : Color.lightBase)
-                                : secondaryColor.opacity(0.6))
-                    }
-                    .frame(width: 30, height: 30)
-                }
-                .buttonStyle(.plain)
-                .disabled(!canSend)
-                .accessibilityLabel("送信")
+                sendButton
             }
         }
-        .padding(.leading, Spacing.md)
-        .padding(.trailing, Spacing.sm)
-        .padding(.vertical, Spacing.sm)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
         .frame(maxWidth: .infinity, minHeight: composerMinHeight, alignment: .leading)
         .plotChatComposerGlass()
     }
     
+    /// 入力ボックス外・右端（円形ガラス・44×44。入力行と同一アニメーションで幅を同期）
+    private var composerCancelButton: some View {
+        PlotGlassCardIconButton(
+            systemName: "xmark",
+            accessibilityLabel: "入力を閉じる",
+            action: dismissComposer,
+            shape: .circle,
+            size: PlotChatComposerMetrics.clearButtonHitSize
+        )
+    }
+    
+    private var sendButton: some View {
+        Button {
+            send()
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(sendFillColor)
+                
+                if isAIProcessing {
+                    CircleBorderChaser(speed: .fast, palette: .aiGlow, lineWidth: 2.5)
+                }
+                
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(sendIconColor)
+            }
+            .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSend || isAIProcessing)
+        .accessibilityLabel(isAIProcessing ? "AI が応答を作成中" : "送信")
+    }
+    
+    private var sendFillColor: Color {
+        if isAIProcessing {
+            return primaryColor.opacity(0.85)
+        }
+        return canSend ? primaryColor : secondaryColor.opacity(0.3)
+    }
+    
+    private var sendIconColor: Color {
+        if isAIProcessing {
+            return plotColorScheme == .dark ? Color.darkBase : Color.lightBase
+        }
+        return canSend
+            ? (plotColorScheme == .dark ? Color.darkBase : Color.lightBase)
+            : secondaryColor.opacity(0.6)
+    }
+    
     private func send() {
-        guard canSend else { return }
+        guard canSend, !isAIProcessing else { return }
         onSend()
+    }
+    
+    private func dismissComposer() {
+        withAnimation(composerExpansionAnimation) {
+            selectedCategory = nil
+            isFocused = false
+        }
     }
 }
 

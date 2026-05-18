@@ -4,10 +4,10 @@ import Foundation
 struct ChatMessage: Identifiable {
     let id = UUID()
     let role: MessageRole
-    let text: String
+    var text: String
     let chips: [String]
     let timestamp: Date
-    var registrationSummary: ChatRegistrationSummary?
+    var registrationSummary: ChatRegistrationSummary? = nil
 }
 
 extension ChatMessage {

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - 入力欄内の登録先チップ（参考: Safari の Search チップ）
 struct ChatCategoryInputChip: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     
     let category: PlotChatCategory
     let onDismiss: () -> Void
@@ -37,12 +37,12 @@ struct ChatCategoryInputChip: View {
     }
     
     private var foregroundColor: Color {
-        colorScheme == .dark
+        plotColorScheme == .dark
             ? category.chipTintDark
             : category.chipTintLight
     }
     
     private var backgroundColor: Color {
-        foregroundColor.opacity(colorScheme == .dark ? 0.22 : 0.14)
+        foregroundColor.opacity(plotColorScheme == .dark ? 0.22 : 0.14)
     }
 }

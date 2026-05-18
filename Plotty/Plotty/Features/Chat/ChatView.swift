@@ -5,11 +5,42 @@ private enum ChatScrollAnchor {
     static let bottom = "chatScrollBottom"
 }
 
-private struct ChatComposerDockHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+private enum ChatSendError: Error {
+    case timeout
+}
+
+private struct PendingChatRetry: Equatable {
+    let body: String
+    let category: PlotChatCategory
+}
+
+/// チャット入力ドック（`ContentView` でタブバー直上の inset に載せる）
+struct ChatComposerDock: View {
+    @Environment(\.connectivity) private var connectivity
     
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
+    @Binding var draftMessage: String
+    @Binding var selectedCategory: PlotChatCategory?
+    @FocusState.Binding var isComposerFocused: Bool
+    @Binding var sendRequested: Bool
+    var isAIProcessing: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            if !connectivity.isOnline {
+                PlotOfflineBanner()
+                    .padding(.bottom, Spacing.xs)
+            }
+            
+            ChatComposerBar(
+                text: $draftMessage,
+                selectedCategory: $selectedCategory,
+                isFocused: $isComposerFocused,
+                isAIProcessing: isAIProcessing,
+                onSend: { sendRequested = true }
+            )
+        }
+        .padding(.horizontal, Spacing.screenEdge)
+        .padding(.top, Spacing.xs)
     }
 }
 
@@ -25,25 +56,35 @@ struct ChatTabView: View {
     @Binding var isAIProcessing: Bool
     @Binding var sendRequested: Bool
     
-    @State private var messages: [ChatMessage] = ChatMessage.sampleData
+    @State private var messages: [ChatMessage] = []
     @State private var asyncPhase: PlotAsyncPhase = .idle
     @State private var lastError: String?
-    @State private var composerDockHeight: CGFloat = 0
+    @State private var pendingRetry: PendingChatRetry?
+    @State private var reclassifyingMessageID: UUID?
+    @State private var aiTask: Task<Void, Never>?
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            messageList
-            composerDock
-        }
+        messageList
+            .onDisappear {
+                aiTask?.cancel()
+            }
     }
     
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Spacing.md) {
+                    if showsEmptyGuide {
+                        ChatEmptyGuideCard()
+                    }
+                    
                     if let errorMessage = lastError {
                         PlotErrorBanner(message: errorMessage) {
-                            lastError = nil
+                            if let pendingRetry {
+                                retryPendingSend(pendingRetry)
+                            } else {
+                                lastError = nil
+                            }
                         }
                     }
                     
@@ -51,8 +92,14 @@ struct ChatTabView: View {
                         ChatDayHeader(day: section.day)
                         
                         ForEach(section.messages) { message in
-                            ChatMessageBlock(message: message)
-                                .id(message.id)
+                            ChatMessageBlock(
+                                message: message,
+                                isReclassifying: reclassifyingMessageID == message.id,
+                                onReclassify: message.registrationSummary != nil
+                                    ? { category in reclassify(messageID: message.id, to: category) }
+                                    : nil
+                            )
+                            .id(message.id)
                         }
                     }
                     
@@ -66,6 +113,8 @@ struct ChatTabView: View {
             .contentMargins(.bottom, scrollBottomInset, for: .scrollContent)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
+            .plotDismissTextInputWhenTappingOutside(isFocused: $isComposerFocused)
+            .plotDismissTextInputOnNotification(isFocused: $isComposerFocused)
             .onAppear {
                 scrollToLatestExchange(using: proxy, animated: false)
             }
@@ -84,8 +133,10 @@ struct ChatTabView: View {
                     scrollToLatestExchange(using: proxy)
                 }
             }
-            .onChange(of: composerDockHeight) { _, _ in
-                scrollToLatestExchange(using: proxy, animated: false)
+            .onChange(of: isComposerFocused) { _, focused in
+                if focused {
+                    scrollToLatestExchange(using: proxy, animated: false)
+                }
             }
             .onChange(of: sendRequested) { _, requested in
                 guard requested else { return }
@@ -95,40 +146,14 @@ struct ChatTabView: View {
         }
     }
     
-    /// 入力ドックぶん（タブバーは `ContentView` の inset で既に確保済み）
+    private var showsEmptyGuide: Bool {
+        !messages.contains(where: { $0.role == .user })
+    }
+    
     private var scrollBottomInset: CGFloat {
-        let dock = composerDockHeight > 0 ? composerDockHeight : Spacing.chatComposerScrollClearance
-        return dock + Spacing.chatComposerGapAboveTabBar
+        Spacing.md
     }
     
-    /// クイックアクション＋入力欄（背景帯なし・入力ボックスのみ背景あり）
-    private var composerDock: some View {
-        VStack(spacing: 0) {
-            if !connectivity.isOnline {
-                PlotOfflineBanner()
-                    .padding(.bottom, Spacing.xs)
-            }
-            
-            ChatComposerBar(
-                text: $draftMessage,
-                selectedCategory: $selectedCategory,
-                isFocused: $isComposerFocused,
-                onSend: { sendRequested = true }
-            )
-        }
-        .padding(.horizontal, Spacing.screenEdge)
-        .padding(.top, Spacing.xs)
-        .padding(.bottom, Spacing.chatComposerGapAboveTabBar)
-        .background {
-            GeometryReader { geometry in
-                Color.clear
-                    .preference(key: ChatComposerDockHeightKey.self, value: geometry.size.height)
-            }
-        }
-        .onPreferenceChange(ChatComposerDockHeightKey.self) { composerDockHeight = $0 }
-    }
-    
-    /// 直近の送信と回答が表示領域の上端に来るようスクロールする
     private func scrollToLatestExchange(using proxy: ScrollViewProxy, animated: Bool = true) {
         guard selectedTab == .chat else { return }
         
@@ -172,7 +197,10 @@ struct ChatTabView: View {
             return
         }
         
-        let body = draftMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = PlotInputLimits.clamp(
+            draftMessage.trimmingCharacters(in: .whitespacesAndNewlines),
+            max: PlotInputLimits.chatMessage
+        )
         guard !body.isEmpty else { return }
         
         let category = selectedCategory ?? ChatMockResponder.inferCategory(from: body)
@@ -182,18 +210,108 @@ struct ChatTabView: View {
         selectedCategory = nil
         isComposerFocused = false
         
+        requestAIResponse(body: body, category: category)
+    }
+    
+    private func requestAIResponse(body: String, category: PlotChatCategory) {
         asyncPhase = .loading
         isAIProcessing = true
         lastError = nil
+        pendingRetry = nil
         
-        Task {
-            try? await Task.sleep(for: .milliseconds(900))
-            await MainActor.run {
-                let aiMessage = ChatMockResponder.respond(body: body, category: category, dataStore: dataStore)
-                messages.append(aiMessage)
-                asyncPhase = .idle
-                isAIProcessing = false
+        aiTask?.cancel()
+        aiTask = Task {
+            do {
+                let aiMessage = try await fetchAIResponse(body: body, category: category)
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    messages.append(aiMessage)
+                    asyncPhase = .idle
+                    isAIProcessing = false
+                    pendingRetry = nil
+                }
+            } catch is CancellationError {
+                return
+            } catch ChatSendError.timeout {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    handleTimeout(body: body, category: category)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    lastError = "応答の取得に失敗しました。"
+                    pendingRetry = PendingChatRetry(body: body, category: category)
+                    asyncPhase = .idle
+                    isAIProcessing = false
+                }
             }
+        }
+    }
+    
+    private func fetchAIResponse(body: String, category: PlotChatCategory) async throws -> ChatMessage {
+        if PlotDebug.forceChatTimeout {
+            try await Task.sleep(for: ChatMockResponder.responseTimeout)
+            throw ChatSendError.timeout
+        }
+        
+        return try await withThrowingTaskGroup(of: ChatMessage.self) { group in
+            group.addTask { @MainActor in
+                try await Task.sleep(for: .milliseconds(900))
+                if Task.isCancelled { throw CancellationError() }
+                return ChatMockResponder.respond(body: body, category: category, dataStore: dataStore)
+            }
+            group.addTask {
+                try await Task.sleep(for: ChatMockResponder.responseTimeout)
+                throw ChatSendError.timeout
+            }
+            
+            guard let result = try await group.next() else {
+                throw ChatSendError.timeout
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+    
+    private func handleTimeout(body: String, category: PlotChatCategory) {
+        lastError = "AI の応答がタイムアウトしました（10秒）。もう一度送信できます。"
+        pendingRetry = PendingChatRetry(body: body, category: category)
+        asyncPhase = .idle
+        isAIProcessing = false
+    }
+    
+    private func retryPendingSend(_ pending: PendingChatRetry) {
+        lastError = nil
+        requestAIResponse(body: pending.body, category: pending.category)
+    }
+    
+    private func reclassify(messageID: UUID, to category: PlotChatCategory) {
+        guard let index = messages.firstIndex(where: { $0.id == messageID }),
+              let summary = messages[index].registrationSummary,
+              summary.category != category else { return }
+        
+        reclassifyingMessageID = messageID
+        
+        Task { @MainActor in
+            let newSummary = ChatMockResponder.reclassify(
+                summary: summary,
+                to: category,
+                dataStore: dataStore
+            )
+            var updated = messages[index]
+            updated.registrationSummary = newSummary
+            updated.text = reclassifyConfirmationText(for: category)
+            messages[index] = updated
+            reclassifyingMessageID = nil
+        }
+    }
+    
+    private func reclassifyConfirmationText(for category: PlotChatCategory) -> String {
+        switch category {
+        case .schedule: return "予定として登録し直したよ！"
+        case .task: return "タスクに登録し直したよ！"
+        case .memo: return "メモに登録し直したよ！"
         }
     }
 }

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - キーボード表示時の登録先クイックアクション（ChatGPT 風の縦リスト）
 struct ChatCategoryQuickActions: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     
     let onSelect: (PlotChatCategory) -> Void
     
@@ -33,16 +33,16 @@ struct ChatCategoryQuickActions: View {
             }
         }
         .padding(.vertical, Spacing.xxs)
-        .background(Color.clear)
+        .plotListCardGlass(cornerRadius: PlotChatComposerMetrics.cornerRadius)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("登録先を選ぶ")
     }
     
     private var textColor: Color {
-        colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
+        PlotColors.textPrimary(plotColorScheme)
     }
     
     private var iconColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
+        PlotColors.textSecondary(plotColorScheme)
     }
 }

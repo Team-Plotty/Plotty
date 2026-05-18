@@ -8,7 +8,7 @@ enum MessageRole {
 
 // MARK: - チャットの吹き出し（テキスト＋任意のチップ行）
 struct ChatBubble: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     
     var role: MessageRole
     var text: String
@@ -42,6 +42,7 @@ struct ChatBubble: View {
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
             .glassEffect(.regular, in: userBubbleShape)
+            .environment(\.plotColorScheme, plotColorScheme)
         }
     }
     
@@ -67,11 +68,11 @@ struct ChatBubble: View {
     }
     
     private var userTextColor: Color {
-        colorScheme == .dark ? .darkTextUser : .lightTextUser
+        PlotColors.textUser(plotColorScheme)
     }
     
     private var aiTextColor: Color {
-        colorScheme == .dark ? .darkTextPrimary : .lightTextPrimary
+        PlotColors.textPrimary(plotColorScheme)
     }
     
     private var userBubbleShape: some Shape {
@@ -90,8 +91,9 @@ struct ChatBubble: View {
             ForEach(chips, id: \.self) { chip in
                 Chip(
                     text: chip,
-                    resolvedColorScheme: colorScheme,
-                    glassStyle: .nestedInGlass
+                    resolvedColorScheme: plotColorScheme,
+                    glassStyle: .nestedInGlass,
+                    textStyle: .onUserBubble
                 )
             }
         }
@@ -103,7 +105,7 @@ struct ChatBubble: View {
             ForEach(chips, id: \.self) { chip in
                 Chip(
                     text: chip,
-                    resolvedColorScheme: colorScheme,
+                    resolvedColorScheme: plotColorScheme,
                     glassStyle: .standalone
                 )
             }
