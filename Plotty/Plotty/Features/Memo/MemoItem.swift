@@ -10,7 +10,7 @@ struct MemoItem: Identifiable {
     var accent: AccentSwatch = .graphite
 }
 
-// MARK: - プレビュー用のダミーデータ
+// MARK: - 本実装時削除（開発用サンプルデータ）
 extension MemoItem {
     static var sampleData: [MemoItem] {
         [

@@ -7,9 +7,10 @@ enum PlotDataResource: String, CaseIterable {
     case events
 }
 
-// MARK: - アプリ内データ（API 接続前の共有ストア）
+// MARK: - アプリ内データ（本実装時: API / 永続化ストアに置き換え）
 @Observable
 final class PlotDataStore {
+    // 本実装時削除: 開発用サンプルデータで初期化（API 接続後は空配列 + fetch に置き換え）
     var memos: [MemoItem] = MemoItem.sampleData
     var todos: [TodoItem] = TodoItem.sampleData
     var events: [CalendarEvent] = CalendarEvent.sampleData
@@ -43,8 +44,10 @@ final class PlotDataStore {
         }
         
         syncPhase[resource] = .loading
+        // 本実装時削除: API 呼び出しの疑似遅延
         try? await Task.sleep(for: .milliseconds(400))
         
+        // 本実装時削除: デバッグ用の意図的失敗（PlotDebug ごと削除可）
         if PlotDebug.simulateDataLoadFailure {
             syncPhase[resource] = .error("データの取得に失敗しました。")
             return

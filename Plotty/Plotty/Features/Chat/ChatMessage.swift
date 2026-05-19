@@ -10,6 +10,7 @@ struct ChatMessage: Identifiable {
     var registrationSummary: ChatRegistrationSummary? = nil
 }
 
+// MARK: - 本実装時削除（開発用サンプルデータ）
 extension ChatMessage {
     static var sampleData: [ChatMessage] {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - キーボード切り分け（TextField のみ・inset / タブバー / ガラスなし）
+// MARK: - 本実装時削除（キーボード切り分け用デバッグ画面）
 struct KeyboardProbeView: View {
     @State private var text = ""
     @FocusState private var isFocused: Bool

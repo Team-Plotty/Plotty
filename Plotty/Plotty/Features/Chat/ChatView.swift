@@ -203,7 +203,7 @@ struct ChatTabView: View {
         )
         guard !body.isEmpty else { return }
         
-        let category = selectedCategory ?? ChatMockResponder.inferCategory(from: body)
+        let category = selectedCategory ?? ChatMockResponder.inferCategory(from: body) // 本実装時削除: モック推論
         let userMessage = ChatMessage(role: .user, text: body, chips: [], timestamp: Date())
         messages.append(userMessage)
         draftMessage = ""
@@ -249,7 +249,9 @@ struct ChatTabView: View {
         }
     }
     
+    // 本実装時削除: ChatMockResponder を本番 AI API 呼び出しに置き換え
     private func fetchAIResponse(body: String, category: PlotChatCategory) async throws -> ChatMessage {
+        // 本実装時削除: デバッグ用タイムアウト強制
         if PlotDebug.forceChatTimeout {
             try await Task.sleep(for: ChatMockResponder.responseTimeout)
             throw ChatSendError.timeout
@@ -257,6 +259,7 @@ struct ChatTabView: View {
         
         return try await withThrowingTaskGroup(of: ChatMessage.self) { group in
             group.addTask { @MainActor in
+                // 本実装時削除: モック応答の疑似遅延
                 try await Task.sleep(for: .milliseconds(900))
                 if Task.isCancelled { throw CancellationError() }
                 return ChatMockResponder.respond(body: body, category: category, dataStore: dataStore)
@@ -294,6 +297,7 @@ struct ChatTabView: View {
         reclassifyingMessageID = messageID
         
         Task { @MainActor in
+            // 本実装時削除: モック再分類
             let newSummary = ChatMockResponder.reclassify(
                 summary: summary,
                 to: category,

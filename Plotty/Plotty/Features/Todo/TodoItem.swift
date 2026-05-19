@@ -37,6 +37,7 @@ enum TodoSortOrder: String, CaseIterable {
     case created = "作成順"
 }
 
+// MARK: - 本実装時削除（開発用サンプルデータ）
 extension TodoItem {
     static var sampleData: [TodoItem] {
         let cal = Calendar.current

@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - 一時的な切り分け用フラグ（調査が終わったら `false` に戻す）
+// MARK: - 本実装時削除（開発・切り分け用フラグ）
 enum PlotDebug {
     /// `true` のとき `ContentView` の代わりに TextField だけの画面を出す（キーボード切り分け）
     static let keyboardProbeOnly = false

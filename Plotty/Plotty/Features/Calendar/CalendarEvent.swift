@@ -14,6 +14,7 @@ struct CalendarEvent: Identifiable {
     var color: Color { swatch.color }
 }
 
+// MARK: - 本実装時削除（開発用サンプルデータ）
 extension CalendarEvent {
     static var sampleData: [CalendarEvent] {
         let today = Date()

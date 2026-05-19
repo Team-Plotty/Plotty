@@ -21,7 +21,7 @@ enum AuthError: LocalizedError, Equatable {
     }
 }
 
-// MARK: - 認証プロバイダ（Supabase 接続前の UI 用）
+// MARK: - 認証プロバイダ（本実装時: Supabase Auth と連携）
 enum AuthProvider: String, CaseIterable, Identifiable, Codable {
     case google
     case apple
@@ -53,6 +53,7 @@ struct PlottyAccount: Identifiable, Hashable, Codable {
     var email: String
     var provider: AuthProvider
     
+    // 本実装時削除: 開発用サンプルアカウント（Supabase 接続後は API から取得）
     static let samples: [PlottyAccount] = [
         PlottyAccount(
             id: UUID(uuidString: "A1000001-0000-4000-8000-000000000001")!,
@@ -87,6 +88,7 @@ final class AccountSession {
         static let displayNameOverrides = "plotty_display_name_overrides"
     }
     
+    // 本実装時削除: 上記 samples への参照をやめ、セッション/API 由来のアカウントに置き換え
     let availableAccounts: [PlottyAccount] = PlottyAccount.samples
     
     private(set) var isAuthenticated: Bool
@@ -120,11 +122,13 @@ final class AccountSession {
             displayNameOverrides = decoded
         }
         
+        // 本実装時削除: デモ用の自動ログイン（PlotDebug.requireLoginOnLaunch ごと削除可）
         if !PlotDebug.requireLoginOnLaunch, !isAuthenticated || currentAccount == nil {
             bootstrapDemoSession()
         }
     }
     
+    // 本実装時削除: デモ用の自動ログイン
     private func bootstrapDemoSession() {
         guard let account = availableAccounts.first else { return }
         currentAccountID = account.id
@@ -137,6 +141,7 @@ final class AccountSession {
     func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
         guard isOnline else { return .failure(.offline) }
         
+        // 本実装時削除: 認証 API 呼び出しの疑似遅延
         try? await Task.sleep(for: .milliseconds(550))
         
         if provider == .apple, email?.lowercased().contains("privaterelay") == true {
@@ -164,6 +169,7 @@ final class AccountSession {
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidEmail(mail) else { return .failure(.invalidEmail) }
         
+        // 本実装時削除: サインアップ API 呼び出しの疑似遅延
         try? await Task.sleep(for: .milliseconds(650))
         
         login(provider: provider, email: mail)
@@ -174,6 +180,7 @@ final class AccountSession {
         return .success(())
     }
     
+    // 本実装時削除: samples からアカウントを選ぶ仮ログイン（本番は OAuth / Supabase セッション）
     func login(provider: AuthProvider, email: String? = nil) {
         let account: PlottyAccount
         if let email, let match = availableAccounts.first(where: { $0.email == email }) {

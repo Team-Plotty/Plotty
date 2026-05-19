@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - モック AI 応答（API 接続前のローカル登録）
+// MARK: - 本実装時削除（モック AI 応答・API 接続前のローカル登録）
 enum ChatMockResponder {
     static let responseTimeout: Duration = .seconds(10)
     
