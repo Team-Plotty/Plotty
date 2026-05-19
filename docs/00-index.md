@@ -16,11 +16,9 @@
 10. `10-api-rls-design-detailed.md`
 11. `11-screen-ui-requirements.md`
 12. `12-ai-persona-and-extraction-spec.md`
-13. `13-database-ddl.md`
 
 ## ドキュメント運用ルール
 
 - 新しい意思決定は、まず該当番号ファイルに追記する。
 - 複数ファイルに跨る変更は、最後に `08-roadmap-and-open-items.md` へメモを残す。
 - 詳細仕様を修正する場合は、`09` と `10` を正本として扱う。
-- スキーマの正本 SQL は **`edge/sql/plotty_schema.sql`**。説明は `13-database-ddl.md`。

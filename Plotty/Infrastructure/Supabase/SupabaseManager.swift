@@ -1,27 +1,5 @@
 import Foundation
-import Supabase
 
 /// Supabase クライアントの初期化・共有アクセス。
-/// Xcode でパッケージ `https://github.com/supabase/supabase-swift` を追加すること。
-enum SupabaseManager {
-    /// `SupabaseSecrets.plist` を Copy Bundle Resources に含め、値を設定してから参照する。
-    static let client: SupabaseClient = {
-        let secrets: SupabaseConfig.Values
-        do {
-            secrets = try SupabaseConfig.load()
-        } catch {
-            preconditionFailure(
-                "SupabaseSecrets.plist を用意し SUPABASE_URL / SUPABASE_ANON_KEY を設定してください。"
-            )
-        }
-        return SupabaseClient(
-            supabaseURL: secrets.supabaseURL,
-            supabaseKey: secrets.anonKey,
-            options: SupabaseClientOptions(
-                auth: SupabaseClientOptions.AuthOptions(
-                    redirectToURL: PlottyAuthRedirect.callbackURL
-                )
-            )
-        )
-    }()
-}
+/// Xcode ターゲットに `https://github.com/supabase/supabase-swift` を追加し、`import Supabase` で `SupabaseClient` を保持する。
+enum SupabaseManager {}
