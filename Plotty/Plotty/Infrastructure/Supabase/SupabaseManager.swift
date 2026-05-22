@@ -23,4 +23,9 @@ enum SupabaseManager {
             )
         )
     }()
+
+    /// OAuth コールバック URL を Supabase Auth に渡す。
+    static func handleOpenURL(_ url: URL) {
+        client.handle(url)
+    }
 }

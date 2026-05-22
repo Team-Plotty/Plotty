@@ -23,7 +23,7 @@ struct PlottyApp: App {
                 .environment(\.plotDataStore, plotDataStore)
                 .environment(\.connectivity, connectivity)
                 .onOpenURL { url in
-                    SupabaseManager.client.handle(url)
+                    SupabaseManager.handleOpenURL(url)
                 }
         }
     }
