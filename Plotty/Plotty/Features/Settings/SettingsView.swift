@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - 設定タブ（メモ / TODO などと同じスクロール＋ガラスカードのリズム）
 struct SettingsView: View {
     @Environment(\.accountSession) private var accountSession
+    @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     @Binding var pendingRoute: SettingsRoute?
     @State private var accountSheetPresented = false
@@ -111,6 +112,7 @@ struct SettingsView: View {
             .padding(.bottom, Spacing.xl)
         }
         .scrollContentBackground(.hidden)
+        .scrollDisabled(plotTabHorizontalPaging)
         .sheet(isPresented: $accountSheetPresented) {
             NavigationStack {
                 AccountView()

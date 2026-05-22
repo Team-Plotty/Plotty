@@ -8,7 +8,7 @@
 
 import SwiftUI
 
-/// 自作フッタータブで画面を切り替える（`TabView` のページスタイルは TextField のキーボードと相性が悪い）。
+/// 自作フッタータブで画面を切り替える。横スワイプでページをスライド（`TabView` ページスタイルはキーボードと相性が悪いため未使用）。
 struct ContentView: View {
     @Environment(\.appSettings) private var appSettings
     @Environment(\.colorScheme) private var colorScheme
@@ -27,13 +27,22 @@ struct ContentView: View {
     @State private var chatSendRequested = false
     @FocusState private var isChatComposerFocused: Bool
     @State private var isChatAIProcessing = false
+    @State private var isChatComposerPageVisible = true
     
     var body: some View {
         ZStack {
             AmbientBackground()
             
-            tabContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            PlotTabPager(selectedTab: $selectedTab) { tab in
+                tabPage(for: tab)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onPreferenceChange(PlotChatComposerVisiblePreferenceKey.self) { visible in
+            if isChatComposerPageVisible, !visible {
+                dismissChatComposerImmediately()
+            }
+            isChatComposerPageVisible = visible
         }
         .preferredColorScheme(appSettings.theme.colorScheme)
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -77,7 +86,7 @@ struct ContentView: View {
                 .ignoresSafeArea(edges: .top)
             }
         }
-        /// 入力＋タブバーをまとめた下端。キーボード表示時は塊ごと上に押し上げる。
+        /// 下端はタブバーのみ inset。チャット入力は `ChatTabView` 内オーバーレイ（inset に載せると背面がベージュの板に見える）。
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomChrome
         }
@@ -90,26 +99,25 @@ struct ContentView: View {
             focusChatComposerIfNeeded()
         }
         .onChange(of: selectedTab) { _, newTab in
-            dismissTextInputForCurrentTab()
             if newTab == .chat {
                 focusChatComposerIfNeeded()
             } else {
-                isChatComposerFocused = false
+                dismissChatComposerImmediately()
                 isChatAIProcessing = false
             }
         }
     }
     
     @ViewBuilder
-    private var tabContent: some View {
-        switch selectedTab {
+    private func tabPage(for tab: TabItem) -> some View {
+        switch tab {
         case .memo:
-            MemoView(selectedTab: selectedTab, showCreateSheet: $showMemoCreate)
+            MemoView(selectedTab: tab, showCreateSheet: $showMemoCreate)
         case .todo:
-            TodoView(selectedTab: selectedTab, showCreateSheet: $showTodoCreate)
+            TodoView(selectedTab: tab, showCreateSheet: $showTodoCreate)
         case .chat:
             ChatTabView(
-                selectedTab: selectedTab,
+                selectedTab: tab,
                 draftMessage: $chatDraftMessage,
                 selectedCategory: $chatCategory,
                 isComposerFocused: $isChatComposerFocused,
@@ -128,28 +136,16 @@ struct ContentView: View {
     }
     
     private var bottomChrome: some View {
-        VStack(spacing: Spacing.chatComposerGapAboveTabBar) {
-            if selectedTab == .chat {
-                ChatComposerDock(
-                    draftMessage: $chatDraftMessage,
-                    selectedCategory: $chatCategory,
-                    isComposerFocused: $isChatComposerFocused,
-                    sendRequested: $chatSendRequested,
-                    isAIProcessing: isChatAIProcessing
-                )
-            }
+        ZStack(alignment: .bottomTrailing) {
+            FooterTabBar(selectedTab: $selectedTab)
             
-            ZStack(alignment: .bottomTrailing) {
-                FooterTabBar(selectedTab: $selectedTab)
-                
-                if showsFloatingAdd {
-                    PlotFloatingAddButton(
-                        accessibilityLabel: floatingAddAccessibilityLabel,
-                        action: fabTapped
-                    )
-                    .padding(.trailing, Spacing.screenEdge)
-                    .offset(y: -(Spacing.tabBarHeight + Spacing.floatingAddGapAboveTabBar))
-                }
+            if showsFloatingAdd {
+                PlotFloatingAddButton(
+                    accessibilityLabel: floatingAddAccessibilityLabel,
+                    action: fabTapped
+                )
+                .padding(.trailing, Spacing.screenEdge)
+                .offset(y: -(Spacing.tabBarHeight + Spacing.floatingAddGapAboveTabBar))
             }
         }
     }
@@ -174,6 +170,17 @@ struct ContentView: View {
     private func dismissTextInputForCurrentTab() {
         PlotTextInputDismiss.postNotification()
         isChatComposerFocused = false
+    }
+    
+    /// タブ切替時に入力ドックをアニメなしで即閉じる（ページスライドの残像を防ぐ）。
+    private func dismissChatComposerImmediately() {
+        PlotTextInputDismiss.postNotification()
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            isChatComposerFocused = false
+            chatCategory = nil
+        }
     }
     
     private func fabTapped() {

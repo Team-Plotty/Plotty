@@ -14,7 +14,7 @@ private struct PendingChatRetry: Equatable {
     let category: PlotChatCategory
 }
 
-/// チャット入力ドック（`ContentView` でタブバー直上の inset に載せる）
+/// チャット入力ドック（`ChatTabView` でスクロール上に重ねる。背景は付けない）
 struct ChatComposerDock: View {
     @Environment(\.connectivity) private var connectivity
     
@@ -48,6 +48,7 @@ struct ChatTabView: View {
     @Environment(\.connectivity) private var connectivity
     @Environment(\.plotDataStore) private var dataStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     var selectedTab: TabItem
     @Binding var draftMessage: String
@@ -64,10 +65,21 @@ struct ChatTabView: View {
     @State private var aiTask: Task<Void, Never>?
     
     var body: some View {
-        messageList
-            .onDisappear {
-                aiTask?.cancel()
-            }
+        ZStack(alignment: .bottom) {
+            messageList
+            
+            ChatComposerDock(
+                draftMessage: $draftMessage,
+                selectedCategory: $selectedCategory,
+                isComposerFocused: $isComposerFocused,
+                sendRequested: $sendRequested,
+                isAIProcessing: isAIProcessing
+            )
+            .padding(.bottom, Spacing.chatComposerGapAboveTabBar)
+        }
+        .onDisappear {
+            aiTask?.cancel()
+        }
     }
     
     private var messageList: some View {
@@ -113,6 +125,7 @@ struct ChatTabView: View {
             .contentMargins(.bottom, scrollBottomInset, for: .scrollContent)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
+            .scrollDisabled(plotTabHorizontalPaging)
             .plotDismissTextInputWhenTappingOutside(isFocused: $isComposerFocused)
             .plotDismissTextInputOnNotification(isFocused: $isComposerFocused)
             .onAppear {
@@ -150,8 +163,17 @@ struct ChatTabView: View {
         !messages.contains(where: { $0.role == .user })
     }
     
+    /// 入力ドック（オーバーレイ）の高さ分だけ末尾余白を確保する。
     private var scrollBottomInset: CGFloat {
-        Spacing.md
+        var height = PlotChatComposerMetrics.minHeightCompact + Spacing.xs * 2
+        if selectedCategory != nil {
+            height += PlotChatComposerMetrics.minHeightWithChip - PlotChatComposerMetrics.minHeightCompact
+        }
+        if isComposerFocused {
+            let rowCount = CGFloat(PlotChatCategory.quickActionOrder.count)
+            height += rowCount * Spacing.minTouchTarget + Spacing.xxs * 2 + Spacing.xs
+        }
+        return height + Spacing.chatComposerGapAboveTabBar + Spacing.md
     }
     
     private func scrollToLatestExchange(using proxy: ScrollViewProxy, animated: Bool = true) {
@@ -313,8 +335,8 @@ struct ChatTabView: View {
     
     private func reclassifyConfirmationText(for category: PlotChatCategory) -> String {
         switch category {
-        case .schedule: return "予定として登録し直したよ！"
-        case .task: return "タスクに登録し直したよ！"
+        case .schedule: return "カレンダーに登録し直したよ！"
+        case .task: return "ToDoに登録し直したよ！"
         case .memo: return "メモに登録し直したよ！"
         }
     }

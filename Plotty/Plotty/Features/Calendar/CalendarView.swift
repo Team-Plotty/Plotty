@@ -4,6 +4,7 @@ import SwiftUI
 struct CalendarTabView: View {
     @Environment(\.plotDataStore) private var dataStore
     @Environment(\.connectivity) private var connectivity
+    @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     @Binding var showCreateSheet: Bool
     
@@ -58,6 +59,7 @@ struct CalendarTabView: View {
             .padding(.bottom, Spacing.tabbedScrollBottomInset)
         }
         .scrollContentBackground(.hidden)
+        .scrollDisabled(plotTabHorizontalPaging)
         .plotListLoading(dataStore.isLoading(.events))
         .task { await reloadEvents() }
         .refreshable { await reloadEvents() }

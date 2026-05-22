@@ -51,14 +51,12 @@ struct ChatComposerBar: View {
                 ChatCategoryQuickActions { category in
                     selectedCategory = category
                 }
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .transition(.identity)
             }
             
             composerBottomRow
         }
-        .background(Color.clear)
-        .animation(composerExpansionAnimation, value: isFocused)
-        .animation(composerExpansionAnimation, value: hasCategoryChip)
+        .animation(isFocused ? composerExpansionAnimation : nil, value: isFocused)
     }
     
     /// 入力ボックス＋閉じるボタン（padding と × の opacity を同一アニメで同期）
@@ -73,6 +71,7 @@ struct ChatComposerBar: View {
             
             composerCancelButton
                 .opacity(isFocused ? 1 : 0)
+                .animation(isFocused ? composerExpansionAnimation : nil, value: isFocused)
                 .allowsHitTesting(isFocused)
         }
     }
@@ -82,12 +81,10 @@ struct ChatComposerBar: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             if let category = selectedCategory {
                 ChatCategoryInputChip(category: category) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        selectedCategory = nil
-                    }
+                    selectedCategory = nil
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(.identity)
             }
             
             HStack(alignment: .center, spacing: Spacing.sm) {
@@ -113,6 +110,7 @@ struct ChatComposerBar: View {
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
         .frame(maxWidth: .infinity, minHeight: composerMinHeight, alignment: .leading)
+        .animation(composerExpansionAnimation, value: composerMinHeight)
         .plotChatComposerGlass()
     }
     
@@ -172,8 +170,8 @@ struct ChatComposerBar: View {
     }
     
     private func dismissComposer() {
+        selectedCategory = nil
         withAnimation(composerExpansionAnimation) {
-            selectedCategory = nil
             isFocused = false
         }
     }

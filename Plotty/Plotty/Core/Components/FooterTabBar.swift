@@ -67,9 +67,9 @@ struct FooterTabBar: View {
         
         Button(action: {
             PlotTextInputDismiss.postNotification()
-            var t = Transaction()
-            t.disablesAnimations = true
-            withTransaction(t) {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
                 selectedTab = tab
             }
         }) {

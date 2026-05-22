@@ -2,6 +2,8 @@ import SwiftUI
 
 // MARK: - 検索欄固定＋一覧タップでフォーカス解除（メモ / TODO）
 struct PlotSearchableTabLayout<Content: View>: View {
+    @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
+    
     @Binding var searchText: String
     @FocusState.Binding var isSearchFocused: Bool
     var onRefresh: (() async -> Void)?
@@ -35,6 +37,7 @@ struct PlotSearchableTabLayout<Content: View>: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
+        .scrollDisabled(plotTabHorizontalPaging)
         .plotDismissTextInputWhenTappingOutside(isFocused: $isSearchFocused)
         
         if let onRefresh {
