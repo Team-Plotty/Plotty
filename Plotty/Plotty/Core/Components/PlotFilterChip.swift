@@ -58,24 +58,17 @@ struct PlotAccentSwatchButton: View {
     
     var body: some View {
         Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(Color.clear)
-                    .frame(width: diameter, height: diameter)
-                    .glassEffect(.regular, in: .circle)
-                
-                Circle()
-                    .fill(swatch.color)
-                    .frame(width: dotDiameter, height: dotDiameter)
-            }
-            .overlay {
-                if isSelected {
-                    Circle()
-                        .strokeBorder(PlotColors.selectedBorder(plotColorScheme), lineWidth: 2.5)
-                        .frame(width: diameter, height: diameter)
+            Circle()
+                .fill(swatch.color)
+                .frame(width: dotDiameter, height: dotDiameter)
+                .frame(width: diameter, height: diameter)
+                .overlay {
+                    if isSelected {
+                        Circle()
+                            .strokeBorder(PlotColors.selectedBorder(plotColorScheme), lineWidth: 2.5)
+                    }
                 }
-            }
-            .contentShape(Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(PlotChipPressButtonStyle())
         .accessibilityLabel("\(swatch.title)で絞り込み")
@@ -84,13 +77,26 @@ struct PlotAccentSwatchButton: View {
     }
 }
 
-#Preview("フィルタチップ") {
-    HStack(spacing: Spacing.sm) {
-        PlotFilterChip(title: "すべて", isSelected: true, action: {})
-        PlotFilterChip(title: "低", isSelected: false, action: {})
-        PlotFilterChip(title: "中", isSelected: false, action: {})
+#Preview("フィルタ・ダーク") {
+    PlotFilterToolbarPreview()
+        .preferredColorScheme(.dark)
+        .environment(\.plotColorScheme, .dark)
+}
+
+#Preview("フィルタ・ライト") {
+    PlotFilterToolbarPreview()
+        .preferredColorScheme(.light)
+        .environment(\.plotColorScheme, .light)
+}
+
+private struct PlotFilterToolbarPreview: View {
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            PlotFilterChip(title: "すべて", isSelected: true, action: {})
+            PlotAccentSwatchButton(swatch: .sage, isSelected: false, action: {})
+            PlotAccentSwatchButton(swatch: .sky, isSelected: true, action: {})
+        }
+        .padding()
+        .background(AmbientBackground())
     }
-    .padding()
-    .background(AmbientBackground())
-    .preferredColorScheme(.dark)
 }

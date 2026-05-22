@@ -136,12 +136,7 @@ struct PremiumGlass<S: Shape>: View {
                     lineWidth: 0.5
                 )
         }
-        .shadow(
-            color: Color.black.opacity(glassType.shadowOpacity * 0.6),
-            radius: glassType.shadowRadius,
-            x: 0,
-            y: glassType.shadowRadius * 0.25
-        )
+        // ライトはチップ・小ボタンと同様、ドロップシャドーは付けない（浮き上がりすぎる）
     }
 }
 
@@ -219,26 +214,43 @@ extension View {
     }
     
     /// チャット入力欄。一覧カードと同じ Liquid Glass（固定角丸）。
+    /// `background { }` で二重に敷くと下に不透明な板が乗り、チャット本文と重なって見えなくなるため、直接 `glassEffect` のみ適用する。
     func plotChatComposerGlass(cornerRadius: CGFloat = PlotChatComposerMetrics.cornerRadius) -> some View {
-        background {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color.clear)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        }
+        glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
     
-    /// カプセル型チップの Liquid Glass（フィルタチップ・チャット内タグなど）。
+    /// カプセル型チップ（フィルタ・「すべて」など）。ライトはフラット、ダークは Liquid Glass。
     func plotChipGlassCapsule(style: PlotChipGlassStyle = .standalone) -> some View {
         background {
-            Capsule(style: .continuous)
-                .fill(Color.clear)
-                .glassEffect(style.glass, in: .capsule)
+            PlotChipCapsuleFace(style: style)
         }
     }
     
     /// 一覧カード（メモ・TODO・カレンダー予定で共通。`EventRow` と同じ Liquid Glass）。
     func plotListCardGlass(cornerRadius: CGFloat = Radius.md) -> some View {
         glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+// MARK: - チップ用の面（ライト＝フラット、ダーク＝Liquid Glass）
+private struct PlotChipCapsuleFace: View {
+    @Environment(\.plotColorScheme) private var plotColorScheme
+    
+    var style: PlotChipGlassStyle
+    
+    var body: some View {
+        if plotColorScheme == .dark {
+            Capsule(style: .continuous)
+                .fill(Color.clear)
+                .glassEffect(style.glass, in: .capsule)
+        } else {
+            Capsule(style: .continuous)
+                .fill(Color.lightSurface)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(Color.lightBorderDefault, lineWidth: 0.5)
+                )
+        }
     }
 }
 
