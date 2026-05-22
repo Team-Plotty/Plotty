@@ -74,4 +74,4 @@ node_modules/
 edge/dist/
 
 # Supabase（anon key は公開前提だがリポジトリに混ぜない運用）
-Plotty/Resources/SupabaseSecrets.plist
+Plotty/Plotty/Resources/SupabaseSecrets.plist
