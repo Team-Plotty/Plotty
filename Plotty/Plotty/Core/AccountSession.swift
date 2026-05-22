@@ -141,7 +141,17 @@ final class AccountSession {
     func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
         guard isOnline else { return .failure(.offline) }
         
-        // 本実装時削除: 認証 API 呼び出しの疑似遅延
+        if provider == .google {
+            do {
+                try await AuthService.signInWithGoogle()
+            } catch {
+                return .failure(.providerUnavailable(provider.title))
+            }
+            login(provider: provider, email: email)
+            return .success(())
+        }
+        
+        // 本実装時削除: 認証 API 呼び出しの疑似遅延（Apple / メールはモック）
         try? await Task.sleep(for: .milliseconds(550))
         
         if provider == .apple, email?.lowercased().contains("privaterelay") == true {

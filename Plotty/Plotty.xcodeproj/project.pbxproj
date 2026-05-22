@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		SUPA00032FB0316D00EC3170 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = SUPA00022FB0316D00EC3170 /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		014630EF2FB0316D00EC3170 /* Plotty.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Plotty.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				SUPA00032FB0316D00EC3170 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = Plotty;
 			packageProductDependencies = (
+				SUPA00022FB0316D00EC3170 /* Supabase */,
 			);
 			productName = Plotty;
 			productReference = 014630EF2FB0316D00EC3170 /* Plotty.app */;
@@ -95,6 +101,9 @@
 			mainGroup = 014630E62FB0316C00EC3170;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			packageReferences = (
+				SUPA00012FB0316D00EC3170 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			productRefGroup = 014630F02FB0316D00EC3170 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -253,6 +262,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plotty/Resources/Info-OAuth.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -284,6 +294,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plotty/Resources/Info-OAuth.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -328,6 +339,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		SUPA00012FB0316D00EC3170 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		SUPA00022FB0316D00EC3170 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SUPA00012FB0316D00EC3170 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 014630E72FB0316D00EC3170 /* Project object */;
 }

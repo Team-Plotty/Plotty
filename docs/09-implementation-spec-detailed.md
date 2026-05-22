@@ -86,7 +86,7 @@
 | `related_entities` | jsonb | `[{type,id}]` の生成先参照 |
 | `analysis_results_encrypted` | jsonb | `{"iv":"...","data":"..."}` |
 | `created_at` | timestamptz | 作成日時（UTC） |
-| `expires_at` | timestamptz | 削除判定用 |
+| `expires_at` | timestamptz | 削除判定用（`created_at + 720時間`。DB は **GENERATED 列ではなく INSERT 前トリガー**で値を設定する。※`timestamptz` の生成列式が immutable と見なされず失敗するため） |
 
 `related_entities` 例:
 
