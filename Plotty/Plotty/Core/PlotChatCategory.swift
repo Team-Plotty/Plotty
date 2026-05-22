@@ -8,10 +8,16 @@ enum PlotChatCategory: String, CaseIterable, Identifiable {
     
     var id: String { rawValue }
     
+    /// 登録確認カードのカテゴリ変更ボタン（左からメモ → ToDo → カレンダー）
+    static let reclassifyButtonOrder: [PlotChatCategory] = [.memo, .task, .schedule]
+    
+    /// キーボードのクイックアクション（上からカレンダー → ToDo → メモ）
+    static let quickActionOrder: [PlotChatCategory] = [.schedule, .task, .memo]
+    
     var label: String {
         switch self {
-        case .schedule: return "予定"
-        case .task: return "タスク"
+        case .schedule: return "カレンダー"
+        case .task: return "ToDo"
         case .memo: return "メモ"
         }
     }
@@ -20,7 +26,7 @@ enum PlotChatCategory: String, CaseIterable, Identifiable {
     var quickActionTitle: String {
         switch self {
         case .schedule: return "カレンダー"
-        case .task: return "Todo"
+        case .task: return "ToDo"
         case .memo: return "メモ"
         }
     }
@@ -35,8 +41,8 @@ enum PlotChatCategory: String, CaseIterable, Identifiable {
     
     var detail: String {
         switch self {
-        case .schedule: return "カレンダーの予定として登録"
-        case .task: return "TODO のタスクとして登録"
+        case .schedule: return "カレンダーに登録"
+        case .task: return "ToDo に登録"
         case .memo: return "メモに保存"
         }
     }

@@ -110,8 +110,8 @@ enum ChatMockResponder {
     
     private static func confirmationText(for category: PlotChatCategory) -> String {
         switch category {
-        case .schedule: return "予定として登録したよ！"
-        case .task: return "タスクに追加したよ！"
+        case .schedule: return "カレンダーに登録したよ！"
+        case .task: return "ToDoに追加したよ！"
         case .memo: return "メモに残しておいたよ！"
         }
     }

@@ -8,7 +8,7 @@ struct ChatCategoryQuickActions: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(PlotChatCategory.allCases) { category in
+            ForEach(PlotChatCategory.quickActionOrder) { category in
                 Button {
                     onSelect(category)
                 } label: {

@@ -59,7 +59,7 @@ struct ChatConfirmationCard: View {
                         .foregroundStyle(.secondary)
                     
                     HStack(alignment: .top, spacing: Spacing.sm) {
-                        ForEach(PlotChatCategory.allCases) { category in
+                        ForEach(PlotChatCategory.reclassifyButtonOrder) { category in
                             PlotCategoryChoiceCard(
                                 category: category,
                                 isSelected: summary.category == category
