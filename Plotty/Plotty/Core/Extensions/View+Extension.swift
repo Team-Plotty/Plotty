@@ -52,40 +52,39 @@ private struct SideSlideEditorLayoutModifier<Editor: View>: ViewModifier {
             }
             .overlay {
                 if isPresented {
-                    ZStack(alignment: .trailing) {
-                        Color.black.opacity(0.35)
-                            .ignoresSafeArea()
-                            .onTapGesture(perform: closePanel)
+                    GeometryReader { geometry in
+                        ZStack(alignment: .trailing) {
+                            Color.black.opacity(0.35)
+                                .ignoresSafeArea()
+                                .onTapGesture(perform: closePanel)
 
-                        editor()
-                            .frame(
-                                idealWidth: nil,
-                                maxWidth: panelWidth,
-                                maxHeight: .infinity,
-                                alignment: .top
-                            )
-                            .background(.regularMaterial)
-                            .clipShape(
-                                UnevenRoundedRectangle(
-                                    topLeadingRadius: CornerRadius.lg,
-                                    bottomLeadingRadius: CornerRadius.lg,
-                                    bottomTrailingRadius: 0,
-                                    topTrailingRadius: 0
+                            editor()
+                                .frame(
+                                    idealWidth: nil,
+                                    maxWidth: panelWidth(for: geometry.size.width),
+                                    maxHeight: .infinity,
+                                    alignment: .top
                                 )
-                            )
-                            .shadow(color: .black.opacity(0.2), radius: 16, x: -4, y: 0)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                                .background(.regularMaterial)
+                                .clipShape(
+                                    UnevenRoundedRectangle(
+                                        topLeadingRadius: Radius.lg,
+                                        bottomLeadingRadius: Radius.lg,
+                                        bottomTrailingRadius: 0,
+                                        topTrailingRadius: 0
+                                    )
+                                )
+                                .shadow(color: .black.opacity(0.2), radius: 16, x: -4, y: 0)
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                        }
                     }
                 }
             }
             .animation(panelAnimation, value: isPresented)
     }
 
-    private var panelWidth: CGFloat {
-        min(
-            UIScreen.main.bounds.width * panelIdealWidthFraction,
-            panelMaxWidth
-        )
+    private func panelWidth(for containerWidth: CGFloat) -> CGFloat {
+        min(containerWidth * panelIdealWidthFraction, panelMaxWidth)
     }
 
     private var panelAnimation: Animation? {
