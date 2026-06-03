@@ -100,24 +100,6 @@ struct FooterTabBar: View {
     
     @ViewBuilder
     private var tabBarBackground: some View {
-        ZStack {
-            Rectangle()
-                .glassEffect(.regular, in: Rectangle())
-            
-            VStack(spacing: 0) {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: colorScheme == .dark
-                                ? [Color.white.opacity(0.18), Color.white.opacity(0.04)]
-                                : [Color.white.opacity(0.7), Color.black.opacity(0.06)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 0.6)
-                Spacer()
-            }
-        }
+        PlotRootChromeGlass()
     }
 }
