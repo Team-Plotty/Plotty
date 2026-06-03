@@ -65,6 +65,15 @@ struct SettingsView: View {
                     }
                 }
                 
+                SettingsGlassSection(title: "言語") {
+                    ForEach(Array(AppLanguage.allCases.enumerated()), id: \.offset) { index, language in
+                        SettingsLanguageRow(language: language)
+                        if index < AppLanguage.allCases.count - 1 {
+                            SettingsInsetDivider()
+                        }
+                    }
+                }
+                
                 SettingsGlassSection(title: "AI・地域") {
                     SettingsRowChevron(icon: "sparkles", label: "AI の口調") {
                         aiPersonaSheetPresented = true
@@ -119,6 +128,7 @@ struct SettingsView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $accountSwitcherPresented) {
             NavigationStack {
@@ -126,6 +136,7 @@ struct SettingsView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $termsSheetPresented) {
             NavigationStack {
@@ -133,6 +144,7 @@ struct SettingsView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $privacySheetPresented) {
             NavigationStack {
@@ -140,6 +152,7 @@ struct SettingsView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $helpSheetPresented) {
             NavigationStack {
@@ -147,6 +160,7 @@ struct SettingsView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $ossSheetPresented) {
             NavigationStack {
@@ -154,6 +168,7 @@ struct SettingsView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $aiPersonaSheetPresented) {
             NavigationStack {
@@ -161,11 +176,13 @@ struct SettingsView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $profileEditSheetPresented) {
             ProfileEditSheet()
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
+                .presentationSizing(.page)
         }
         .alert("ログアウトしますか？", isPresented: $logoutConfirmPresented) {
             Button("キャンセル", role: .cancel) {}

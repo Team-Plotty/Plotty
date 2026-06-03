@@ -15,6 +15,11 @@ struct PlottyApp: App {
     @State private var plotDataStore = PlotDataStore()
     @State private var connectivity = ConnectivityMonitor()
     
+    init() {
+        // 日本の祝日データをプリロード（Holidays JP API）
+        PlotJapaneseCalendar.preload()
+    }
+    
     var body: some Scene {
         WindowGroup {
             RootView()

@@ -7,11 +7,16 @@ struct LoginView: View {
     @Environment(\.connectivity) private var connectivity
     
     @State private var email = ""
+    @State private var password = ""
     @State private var showTerms = false
     @State private var showPrivacy = false
-    @State private var showRelayHelp = false
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @FocusState private var focusedField: Field?
+    
+    private enum Field {
+        case email, password
+    }
     
     var body: some View {
         NavigationStack {
@@ -21,6 +26,7 @@ struct LoginView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.xl) {
                         header
+                            .padding(.top, Spacing.xxl)
                         
                         if !connectivity.isOnline {
                             PlotOfflineBanner()
@@ -30,48 +36,36 @@ struct LoginView: View {
                             PlotErrorBanner(message: errorMessage, onRetry: nil)
                         }
                         
-                        if let last = accountSession.lastUsedProvider {
-                            Text("前回: \(last.title) でログイン")
-                                .font(.scaledCaption())
-                                .foregroundStyle(secondaryColor)
-                        }
+                        loginForm
                         
-                        providerButtons
+                        divider
                         
-                        emailSection
+                        snsLoginButtons
                         
-                        NavigationLink {
-                            SignUpView()
-                        } label: {
-                            Text("新規登録へ")
-                                .font(.scaledBodyMedium().weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.plain)
+                        signUpLink
                         
                         legalLinks
                     }
                     .padding(.horizontal, Spacing.screenEdge)
-                    .padding(.vertical, Spacing.xl)
+                    .padding(.bottom, Spacing.xl)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .sheet(isPresented: $showTerms) {
                 NavigationStack {
                     LegalDocumentView(kind: .termsOfService)
                 }
                 .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationSizing(.page)
             }
             .sheet(isPresented: $showPrivacy) {
                 NavigationStack {
                     LegalDocumentView(kind: .privacyPolicy)
                 }
                 .presentationDetents([.medium, .large])
-            }
-            .sheet(isPresented: $showRelayHelp) {
-                NavigationStack {
-                    HelpView(highlightRelay: true)
-                }
-                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationSizing(.page)
             }
             .overlay {
                 if isLoading {
@@ -82,89 +76,201 @@ struct LoginView: View {
     }
     
     private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .center, spacing: Spacing.sm) {
             Text("Plotty")
-                .font(.scaledDisplayMedium())
+                .font(.system(size: 42, weight: .bold, design: .rounded))
                 .foregroundStyle(primaryColor)
+            
             Text("チャットから予定・タスク・メモを整理")
                 .font(.scaledBodyMedium())
                 .foregroundStyle(secondaryColor)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, Spacing.lg)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, Spacing.lg)
     }
     
-    private var providerButtons: some View {
-        VStack(spacing: Spacing.sm) {
-            ForEach(AuthProvider.allCases) { provider in
-                Button {
-                    login(with: provider)
-                } label: {
-                    HStack(spacing: Spacing.sm) {
-                        Image(systemName: provider.icon)
-                            .font(.system(size: 18, weight: .semibold))
-                            .frame(width: 28)
-                        Text("\(provider.title)でログイン")
-                            .font(.scaledBodyLarge())
-                        Spacer()
-                    }
+    private var loginForm: some View {
+        VStack(spacing: Spacing.md) {
+            // メールアドレス入力
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("メールアドレス")
+                    .font(.scaledCaption())
+                    .foregroundStyle(secondaryColor)
+                
+                TextField("example@email.com", text: $email)
+                    .font(.scaledBodyLarge())
                     .foregroundStyle(primaryColor)
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.vertical, Spacing.md)
-                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .disabled(isLoading || !connectivity.isOnline)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.emailAddress)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: .email)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .password }
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .frame(minHeight: 50)
+                    .background {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(inputBackgroundColor)
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(inputBorderColor, lineWidth: 1)
+                    }
             }
+            
+            // パスワード入力
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("パスワード")
+                    .font(.scaledCaption())
+                    .foregroundStyle(secondaryColor)
+                
+                SecureField("パスワードを入力", text: $password)
+                    .font(.scaledBodyLarge())
+                    .foregroundStyle(primaryColor)
+                    .textContentType(.password)
+                    .focused($focusedField, equals: .password)
+                    .submitLabel(.done)
+                    .onSubmit { loginWithEmail() }
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .frame(minHeight: 50)
+                    .background {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(inputBackgroundColor)
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(inputBorderColor, lineWidth: 1)
+                    }
+            }
+            
+            // ログインボタン
+            Button(action: loginWithEmail) {
+                Text("ログイン")
+                    .font(.scaledBodyLarge().weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(canLogin ? Color.accentColor : Color.gray.opacity(0.5))
+                    }
+            }
+            .disabled(!canLogin || isLoading)
+            .padding(.top, Spacing.sm)
         }
     }
     
-    private var emailSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("メールアドレス")
-                .font(.scaledLabelMedium())
+    private var divider: some View {
+        HStack {
+            Rectangle()
+                .fill(dividerColor)
+                .frame(height: 1)
+            
+            Text("または")
+                .font(.scaledCaption())
+                .foregroundStyle(secondaryColor)
+                .padding(.horizontal, Spacing.sm)
+            
+            Rectangle()
+                .fill(dividerColor)
+                .frame(height: 1)
+        }
+        .padding(.vertical, Spacing.md)
+    }
+    
+    private var snsLoginButtons: some View {
+        VStack(spacing: Spacing.sm) {
+            // Google
+            Button {
+                login(with: .google)
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "g.circle.fill")
+                        .font(.system(size: 20))
+                    Text("Googleでログイン")
+                        .font(.scaledBodyMedium().weight(.medium))
+                }
+                .foregroundStyle(primaryColor)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(inputBackgroundColor)
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(inputBorderColor, lineWidth: 1)
+                }
+            }
+            .disabled(isLoading || !connectivity.isOnline)
+            
+            // Apple
+            Button {
+                login(with: .apple)
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "apple.logo")
+                        .font(.system(size: 20))
+                    Text("Appleでログイン")
+                        .font(.scaledBodyMedium().weight(.medium))
+                }
+                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.05))
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.2), lineWidth: 1)
+                }
+            }
+            .disabled(isLoading || !connectivity.isOnline)
+        }
+    }
+    
+    private var signUpLink: some View {
+        HStack {
+            Text("アカウントをお持ちでない方")
+                .font(.scaledBodySmall())
                 .foregroundStyle(secondaryColor)
             
-            TextField("", text: $email, prompt: Text("name@example.com").foregroundStyle(placeholderColor))
-                .font(.scaledBodyMedium())
-                .foregroundStyle(primaryColor)
-                .textInputAutocapitalization(.never)
-                .keyboardType(.emailAddress)
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-                .plotInputCapsuleGlass()
-            
-            PlotCharacterCountFooter(
-                current: email.count,
-                maximum: PlotInputLimits.title
-            )
-            
-            Button("メールでログイン") {
-                login(with: .email)
+            NavigationLink {
+                SignUpView()
+            } label: {
+                Text("新規登録")
+                    .font(.scaledBodySmall().weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
             }
-            .filledButtonStyle()
-            .disabled(
-                isLoading
-                || !connectivity.isOnline
-                || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            )
-            
-            Button("Hide My Email について") {
-                showRelayHelp = true
-            }
-            .font(.scaledCaption())
-            .foregroundStyle(secondaryColor)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, Spacing.md)
     }
     
     private var legalLinks: some View {
-        HStack(spacing: Spacing.md) {
+        HStack(spacing: Spacing.lg) {
             Button("利用規約") { showTerms = true }
             Button("プライバシー") { showPrivacy = true }
         }
         .font(.scaledCaption())
         .foregroundStyle(secondaryColor)
         .frame(maxWidth: .infinity)
+        .padding(.top, Spacing.lg)
+    }
+    
+    private var canLogin: Bool {
+        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !password.isEmpty
+    }
+    
+    private func loginWithEmail() {
+        guard canLogin else { return }
+        focusedField = nil
+        login(with: .email)
     }
     
     private func login(with provider: AuthProvider) {
@@ -185,24 +291,31 @@ struct LoginView: View {
                     break
                 case .failure(let error):
                     errorMessage = error.localizedDescription
-                    if error == .appleRelayHint {
-                        showRelayHelp = true
-                    }
                 }
             }
         }
     }
     
+    // MARK: - Colors
+    
     private var primaryColor: Color {
-        colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
+        colorScheme == .dark ? .white : .black
     }
     
     private var secondaryColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
+        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
     }
     
-    private var placeholderColor: Color {
-        colorScheme == .dark ? Color.darkInputPlaceholder : Color.lightInputPlaceholder
+    private var inputBackgroundColor: Color {
+        colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.04)
+    }
+    
+    private var inputBorderColor: Color {
+        colorScheme == .dark ? .white.opacity(0.15) : .black.opacity(0.1)
+    }
+    
+    private var dividerColor: Color {
+        colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.1)
     }
 }
 

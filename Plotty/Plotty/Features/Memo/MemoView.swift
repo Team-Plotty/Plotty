@@ -5,26 +5,21 @@ struct MemoView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.plotDataStore) private var dataStore
     @Environment(\.connectivity) private var connectivity
+    @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     var selectedTab: TabItem = .memo
     @Binding var showCreateSheet: Bool
+    @Binding var searchText: String
     
     @State private var editingMemo: MemoItem?
     @State private var selectedAccentFilters: Set<AccentSwatch> = []
-    @State private var searchText = ""
     
     @State private var draftTitle = ""
     @State private var draftContent = ""
     @State private var draftAccent: AccentSwatch = .graphite
     
-    @FocusState private var isSearchFocused: Bool
-    
     var body: some View {
-        PlotSearchableTabLayout(
-            searchText: $searchText,
-            isSearchFocused: $isSearchFocused,
-            onRefresh: { await reloadMemos() }
-        ) {
+        ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 PlotScreenStatusSection(
                     isOffline: !connectivity.isOnline,
@@ -52,14 +47,17 @@ struct MemoView: View {
                     )
                 }
             }
+            .padding(.horizontal, Spacing.screenEdge)
+            .padding(.top, Spacing.sm)
+            .padding(.bottom, Spacing.tabbedScrollBottomInset)
         }
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(plotTabHorizontalPaging)
+        .refreshable { await reloadMemos() }
         .plotListLoading(dataStore.isLoading(.memos))
         .task { await reloadMemos() }
         .onChange(of: connectivity.isOnline) { _, _ in
             if connectivity.isOnline { Task { await reloadMemos() } }
-        }
-        .onChange(of: selectedTab) { _, newTab in
-            if newTab != .memo { isSearchFocused = false }
         }
         .sheet(isPresented: $showCreateSheet) {
             MemoCreateSheet(
@@ -71,6 +69,7 @@ struct MemoView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(item: $editingMemo) { memo in
             MemoEditSheet(memo: memo) { updated in
@@ -83,6 +82,7 @@ struct MemoView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
     }
     
@@ -135,7 +135,7 @@ struct MemoView: View {
 }
 
 #Preview {
-    MemoView(selectedTab: .memo, showCreateSheet: .constant(false))
+    MemoView(selectedTab: .memo, showCreateSheet: .constant(false), searchText: .constant(""))
         .environment(\.plotDataStore, PlotDataStore())
         .ambientBackground()
         .preferredColorScheme(.dark)

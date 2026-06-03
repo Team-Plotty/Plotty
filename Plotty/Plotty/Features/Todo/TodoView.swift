@@ -4,11 +4,12 @@ import SwiftUI
 struct TodoView: View {
     var selectedTab: TabItem = .todo
     @Binding var showCreateSheet: Bool
+    @Binding var searchText: String
     
     @Environment(\.plotDataStore) private var dataStore
     @Environment(\.connectivity) private var connectivity
+    @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
-    @State private var searchText = ""
     @State private var priorityFilter: TodoItem.Priority?
     @State private var sortOrder: TodoSortOrder = .dueDate
     @State private var editingTodo: TodoItem?
@@ -18,14 +19,8 @@ struct TodoView: View {
     @State private var draftHasDueDate = false
     @State private var draftDueDate = Date()
     
-    @FocusState private var isSearchFocused: Bool
-    
     var body: some View {
-        PlotSearchableTabLayout(
-            searchText: $searchText,
-            isSearchFocused: $isSearchFocused,
-            onRefresh: { await reloadTodos() }
-        ) {
+        ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 PlotScreenStatusSection(
                     isOffline: !connectivity.isOnline,
@@ -77,14 +72,17 @@ struct TodoView: View {
                     }
                 }
             }
+            .padding(.horizontal, Spacing.screenEdge)
+            .padding(.top, Spacing.sm)
+            .padding(.bottom, Spacing.tabbedScrollBottomInset)
         }
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(plotTabHorizontalPaging)
+        .refreshable { await reloadTodos() }
         .plotListLoading(dataStore.isLoading(.todos))
         .task { await reloadTodos() }
         .onChange(of: connectivity.isOnline) { _, _ in
             if connectivity.isOnline { Task { await reloadTodos() } }
-        }
-        .onChange(of: selectedTab) { _, newTab in
-            if newTab != .todo { isSearchFocused = false }
         }
         .sheet(isPresented: $showCreateSheet) {
             TodoCreateSheet(
@@ -97,6 +95,7 @@ struct TodoView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(item: $editingTodo) { todo in
             TodoEditSheet(todo: todo) { updated in
@@ -107,6 +106,7 @@ struct TodoView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
     }
     
@@ -182,7 +182,7 @@ struct TodoView: View {
 }
 
 #Preview {
-    TodoView(showCreateSheet: .constant(false))
+    TodoView(showCreateSheet: .constant(false), searchText: .constant(""))
         .environment(\.plotDataStore, PlotDataStore())
         .ambientBackground()
         .preferredColorScheme(.dark)

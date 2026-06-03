@@ -204,6 +204,13 @@ extension View {
         modifier(PlotInputCapsuleGlass())
     }
     
+    /// 上部パンくず・下部タブバー背面。カレンダー `<` `>` ボタンと同系統の Liquid Glass。
+    func plotRootChromeGlassBackground() -> some View {
+        background {
+            PlotRootChromeGlass()
+        }
+    }
+    
     /// 検索欄（メモ / TODO）。一覧カードと同じ Liquid Glass。
     func plotListSearchGlass() -> some View {
         background {
@@ -229,6 +236,16 @@ extension View {
     /// 一覧カード（メモ・TODO・カレンダー予定で共通。`EventRow` と同じ Liquid Glass）。
     func plotListCardGlass(cornerRadius: CGFloat = Radius.md) -> some View {
         glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+// MARK: - ルート chrome（上部パンくず・下部タブバー）の Liquid Glass
+/// カレンダー月切り替えの `<` `>` や FAB と同じ `glassEffect(.regular)` 系統。
+struct PlotRootChromeGlass: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.clear)
+            .glassEffect(.regular, in: Rectangle())
     }
 }
 

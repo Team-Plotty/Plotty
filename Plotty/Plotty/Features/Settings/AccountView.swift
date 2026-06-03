@@ -58,6 +58,7 @@ struct AccountView: View {
             ProfileEditSheet()
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
+                .presentationSizing(.page)
         }
     }
     

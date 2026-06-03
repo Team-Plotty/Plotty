@@ -17,11 +17,12 @@ enum ChatMockResponder {
     static func respond(
         body: String,
         category: PlotChatCategory,
-        dataStore: PlotDataStore
+        dataStore: PlotDataStore,
+        language: AppLanguage
     ) -> ChatMessage {
         let title = String(body.prefix(20))
-        let summary = register(body: body, title: title, category: category, dataStore: dataStore)
-        let aiText = confirmationText(for: category)
+        let summary = register(body: body, title: title, category: category, dataStore: dataStore, language: language)
+        let aiText = confirmationText(for: category, language: language)
         
         return ChatMessage(
             role: .ai,
@@ -35,7 +36,8 @@ enum ChatMockResponder {
     static func reclassify(
         summary: ChatRegistrationSummary,
         to newCategory: PlotChatCategory,
-        dataStore: PlotDataStore
+        dataStore: PlotDataStore,
+        language: AppLanguage
     ) -> ChatRegistrationSummary {
         if let entityID = summary.linkedEntityID {
             removeEntity(id: entityID, category: summary.category, dataStore: dataStore)
@@ -44,7 +46,8 @@ enum ChatMockResponder {
             body: summary.sourceBody,
             title: summary.title,
             category: newCategory,
-            dataStore: dataStore
+            dataStore: dataStore,
+            language: language
         )
     }
     
@@ -52,7 +55,8 @@ enum ChatMockResponder {
         body: String,
         title: String,
         category: PlotChatCategory,
-        dataStore: PlotDataStore
+        dataStore: PlotDataStore,
+        language: AppLanguage
     ) -> ChatRegistrationSummary {
         switch category {
         case .schedule:
@@ -71,7 +75,7 @@ enum ChatMockResponder {
             return ChatRegistrationSummary(
                 category: .schedule,
                 title: title,
-                detail: start.formatted(date: .abbreviated, time: .shortened),
+                detail: PlotDateFormatter.dateTime(start, language: language),
                 linkedEntityID: event.id,
                 sourceBody: body
             )
@@ -79,10 +83,11 @@ enum ChatMockResponder {
         case .task:
             let todo = TodoItem(title: title, isCompleted: false, dueDate: Date(), priority: .medium)
             dataStore.addTodo(todo)
+            let detail = language == .japanese ? "優先度: 中" : "Priority: Medium"
             return ChatRegistrationSummary(
                 category: .task,
                 title: title,
-                detail: "優先度: 中",
+                detail: detail,
                 linkedEntityID: todo.id,
                 sourceBody: body
             )
@@ -90,10 +95,11 @@ enum ChatMockResponder {
         case .memo:
             let memo = MemoItem(title: title, content: body, updatedAt: Date(), isPinned: false, accent: .graphite)
             dataStore.addMemo(memo)
+            let detail = language == .japanese ? "メモに保存" : "Saved to memo"
             return ChatRegistrationSummary(
                 category: .memo,
                 title: title,
-                detail: "メモに保存",
+                detail: detail,
                 linkedEntityID: memo.id,
                 sourceBody: body
             )
@@ -108,11 +114,14 @@ enum ChatMockResponder {
         }
     }
     
-    private static func confirmationText(for category: PlotChatCategory) -> String {
-        switch category {
-        case .schedule: return "カレンダーに登録したよ！"
-        case .task: return "ToDoに追加したよ！"
-        case .memo: return "メモに残しておいたよ！"
+    private static func confirmationText(for category: PlotChatCategory, language: AppLanguage) -> String {
+        switch (category, language) {
+        case (.schedule, .japanese): return "カレンダーに登録したよ！"
+        case (.schedule, .english): return "Added to calendar!"
+        case (.task, .japanese): return "ToDoに追加したよ！"
+        case (.task, .english): return "Added to ToDo!"
+        case (.memo, .japanese): return "メモに残しておいたよ！"
+        case (.memo, .english): return "Saved to memo!"
         }
     }
 }

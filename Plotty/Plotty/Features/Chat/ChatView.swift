@@ -47,8 +47,10 @@ struct ChatComposerDock: View {
 struct ChatTabView: View {
     @Environment(\.connectivity) private var connectivity
     @Environment(\.plotDataStore) private var dataStore
+    @Environment(\.appSettings) private var appSettings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
+    @Environment(\.keyboardHeight) private var keyboardHeight
     
     var selectedTab: TabItem
     @Binding var draftMessage: String
@@ -64,6 +66,15 @@ struct ChatTabView: View {
     @State private var reclassifyingMessageID: UUID?
     @State private var aiTask: Task<Void, Never>?
     
+    /// キーボード表示時の入力欄の上方向オフセット
+    private var composerKeyboardOffset: CGFloat {
+        guard keyboardHeight > 0 else { return 0 }
+        // キーボード高さからタブバー高さとセーフエリアを引いた分だけ上に移動
+        // 典型的なセーフエリア(ホームインジケータ)は約34pt
+        let safeAreaBottom: CGFloat = 34
+        return keyboardHeight - Spacing.tabBarHeight - safeAreaBottom
+    }
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             messageList
@@ -76,6 +87,7 @@ struct ChatTabView: View {
                 isAIProcessing: isAIProcessing
             )
             .padding(.bottom, Spacing.chatComposerGapAboveTabBar)
+            .offset(y: -composerKeyboardOffset)
         }
         .onDisappear {
             aiTask?.cancel()
@@ -284,7 +296,7 @@ struct ChatTabView: View {
                 // 本実装時削除: モック応答の疑似遅延
                 try await Task.sleep(for: .milliseconds(900))
                 if Task.isCancelled { throw CancellationError() }
-                return ChatMockResponder.respond(body: body, category: category, dataStore: dataStore)
+                return ChatMockResponder.respond(body: body, category: category, dataStore: dataStore, language: appSettings.language)
             }
             group.addTask {
                 try await Task.sleep(for: ChatMockResponder.responseTimeout)
@@ -323,7 +335,8 @@ struct ChatTabView: View {
             let newSummary = ChatMockResponder.reclassify(
                 summary: summary,
                 to: category,
-                dataStore: dataStore
+                dataStore: dataStore,
+                language: appSettings.language
             )
             var updated = messages[index]
             updated.registrationSummary = newSummary
@@ -334,10 +347,13 @@ struct ChatTabView: View {
     }
     
     private func reclassifyConfirmationText(for category: PlotChatCategory) -> String {
-        switch category {
-        case .schedule: return "カレンダーに登録し直したよ！"
-        case .task: return "ToDoに登録し直したよ！"
-        case .memo: return "メモに登録し直したよ！"
+        switch (category, appSettings.language) {
+        case (.schedule, .japanese): return "カレンダーに登録し直したよ！"
+        case (.schedule, .english): return "Moved to calendar!"
+        case (.task, .japanese): return "ToDoに登録し直したよ！"
+        case (.task, .english): return "Moved to ToDo!"
+        case (.memo, .japanese): return "メモに登録し直したよ！"
+        case (.memo, .english): return "Moved to memo!"
         }
     }
 }

@@ -3,6 +3,8 @@ import SwiftUI
 // MARK: - メモを一枚のカードとして表示（カレンダー `EventRow` と同じカード面）
 struct MemoCard: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.appSettings) private var appSettings
+    
     let memo: MemoItem
     
     var body: some View {
@@ -38,7 +40,7 @@ struct MemoCard: View {
                         .lineLimit(2)
                 }
                 
-                Text(memo.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                Text(PlotDateFormatter.dateTime(memo.updatedAt, language: appSettings.language))
                     .font(.scaledCaption())
                     .foregroundStyle(colorScheme == .dark ? Color.darkTextTertiary : Color.lightTextTertiary)
             }

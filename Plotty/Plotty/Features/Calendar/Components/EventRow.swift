@@ -3,6 +3,8 @@ import SwiftUI
 // MARK: - 予定を一行で表示
 struct EventRow: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.appSettings) private var appSettings
+    
     let event: CalendarEvent
     
     var body: some View {
@@ -17,7 +19,7 @@ struct EventRow: View {
                     .foregroundStyle(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
                     .lineLimit(1)
                 
-                Text("\(event.startTime.formatted(date: .omitted, time: .shortened)) - \(event.endTime.formatted(date: .omitted, time: .shortened))")
+                Text(PlotDateFormatter.timeRange(from: event.startTime, to: event.endTime, language: appSettings.language))
                     .font(.scaledCaption())
                     .foregroundStyle(colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary)
             }

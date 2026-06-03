@@ -8,6 +8,9 @@ enum PlotDebug {
     /// `true` のとき起動時にログイン画面を表示（本番相当）
     static let requireLoginOnLaunch = true
     
+    /// デモ用: ログインをスキップしてチャットタブから起動（本実装時削除）
+    static let demoLaunchToChat = true
+    
     /// `true` のとき一覧の再読み込みを意図的に失敗させる（UI 確認用）
     static let simulateDataLoadFailure = false
     
