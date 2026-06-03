@@ -4,26 +4,27 @@ import SwiftUI
 struct PlotRootBreadcrumb: View {
     @Environment(\.colorScheme) private var colorScheme
     
-    /// 縦区切りの高さ（文字サイズ設定に `@ScaledMetric` で追従）
-    @ScaledMetric(relativeTo: .title) private var titleDividerHeight: CGFloat = 28
+    /// 縦区切りの高さ（コンパクトヘッダー用）
+    @ScaledMetric(relativeTo: .body) private var titleDividerHeight: CGFloat = 16
     
     let screenTitle: String
     var onAccountTapped: () -> Void = {}
 
     var body: some View {
-        HStack(alignment: .center, spacing: Spacing.md) {
-            HStack(alignment: .center, spacing: Spacing.sm) {
+        HStack(alignment: .center, spacing: Spacing.xs) {
+            HStack(alignment: .center, spacing: Spacing.xs) {
                 Text("Plotty")
-                    .font(.scaledTitleLarge())
+                    .font(.scaledBodyLarge())
+                    .fontWeight(.semibold)
                     .foregroundStyle(primary)
                 
                 RoundedRectangle(cornerRadius: 1, style: .continuous)
                     .fill(tertiary)
-                    .frame(width: 2, height: titleDividerHeight)
+                    .frame(width: 1.5, height: titleDividerHeight)
                     .accessibilityHidden(true)
                 
                 Text(screenTitle)
-                    .font(.scaledBodyMedium())
+                    .font(.scaledCaption())
                     .fontWeight(.medium)
                     .foregroundStyle(secondary)
                     .lineLimit(1)
@@ -37,9 +38,9 @@ struct PlotRootBreadcrumb: View {
             
             Button(action: onAccountTapped) {
                 Image(systemName: "person.crop.circle")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(primary)
-                    .frame(width: 48, height: 48)
+                    .frame(width: Spacing.minTouchTarget, height: Spacing.minTouchTarget)
                     .contentShape(Rectangle())
                     .accessibilityLabel("アカウント")
             }
@@ -47,6 +48,7 @@ struct PlotRootBreadcrumb: View {
         }
         .padding(.leading, Spacing.screenEdge)
         .padding(.trailing, Spacing.screenEdge)
+        .padding(.vertical, Spacing.xxs)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Plotty、\(screenTitle)")
