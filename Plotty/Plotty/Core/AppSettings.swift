@@ -31,6 +31,33 @@ enum AppTheme: String, CaseIterable {
     }
 }
 
+// MARK: - 言語設定（日本語 / 英語）
+enum AppLanguage: String, CaseIterable {
+    case japanese = "ja"
+    case english = "en"
+    
+    var displayName: String {
+        switch self {
+        case .japanese: return "日本語"
+        case .english: return "English"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .japanese: return "globe.asia.australia"
+        case .english: return "globe.americas"
+        }
+    }
+    
+    var locale: Locale {
+        switch self {
+        case .japanese: return Locale(identifier: "ja_JP")
+        case .english: return Locale(identifier: "en_US")
+        }
+    }
+}
+
 // MARK: - AI 人格設定（`ai_persona_config` 相当）
 struct AIPersonaConfig: Codable, Equatable {
     var name: String
@@ -46,7 +73,7 @@ struct AIPersonaConfig: Codable, Equatable {
     )
 }
 
-// MARK: - アプリ設定（テーマ・タイムゾーン・AI人格）
+// MARK: - アプリ設定（テーマ・タイムゾーン・言語・AI人格）
 @Observable
 final class AppSettings {
     private let defaults = UserDefaults.standard
@@ -54,6 +81,7 @@ final class AppSettings {
     private enum Keys {
         static let theme = "app_theme"
         static let timezone = "app_timezone"
+        static let language = "app_language"
         static let aiPersona = "app_ai_persona"
     }
     
@@ -63,6 +91,10 @@ final class AppSettings {
     
     var timezoneIdentifier: String {
         didSet { defaults.set(timezoneIdentifier, forKey: Keys.timezone) }
+    }
+    
+    var language: AppLanguage {
+        didSet { defaults.set(language.rawValue, forKey: Keys.language) }
     }
     
     var aiPersona: AIPersonaConfig {
@@ -82,6 +114,8 @@ final class AppSettings {
         self.theme = AppTheme(rawValue: savedTheme) ?? .dark
         self.timezoneIdentifier = defaults.string(forKey: Keys.timezone)
             ?? TimeZone.current.identifier
+        let savedLanguage = defaults.string(forKey: Keys.language) ?? AppLanguage.japanese.rawValue
+        self.language = AppLanguage(rawValue: savedLanguage) ?? .japanese
         if let data = defaults.data(forKey: Keys.aiPersona),
            let decoded = try? JSONDecoder().decode(AIPersonaConfig.self, from: data) {
             self.aiPersona = decoded
