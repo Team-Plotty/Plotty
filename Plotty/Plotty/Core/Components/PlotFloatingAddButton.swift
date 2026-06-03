@@ -8,17 +8,26 @@ struct PlotFloatingAddButton: View {
     var accessibilityLabel: String = "新規作成"
     let action: () -> Void
     
-    private let diameter: CGFloat = 56
+    /// ボタンの視覚的なサイズ（iOS 26 Liquid Glass 推奨サイズ）
+    private let visualDiameter: CGFloat = 64
+    /// 当たり判定のサイズ（端までタップ可能に）
+    private let hitDiameter: CGFloat = 72
     
     var body: some View {
         Button(action: action) {
-            Image(systemName: "plus")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(iconColor)
-                .frame(width: diameter, height: diameter)
+            Circle()
+                .fill(Color.clear)
+                .frame(width: hitDiameter, height: hitDiameter)
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(iconColor)
+                        .frame(width: visualDiameter, height: visualDiameter)
+                        .glassEffect(.regular.interactive(), in: Circle())
+                }
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: Circle())
+        .contentShape(Circle())
         .accessibilityLabel(accessibilityLabel)
     }
     
