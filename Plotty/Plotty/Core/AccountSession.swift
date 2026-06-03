@@ -122,8 +122,9 @@ final class AccountSession {
             displayNameOverrides = decoded
         }
         
-        // 本実装時削除: デモ用の自動ログイン（PlotDebug.requireLoginOnLaunch ごと削除可）
-        if !PlotDebug.requireLoginOnLaunch, !isAuthenticated || currentAccount == nil {
+        // 本実装時削除: デモ用の自動ログイン（PlotDebug ごと削除可）
+        if PlotDebug.demoLaunchToChat || !PlotDebug.requireLoginOnLaunch,
+           !isAuthenticated || currentAccount == nil {
             bootstrapDemoSession()
         }
     }
