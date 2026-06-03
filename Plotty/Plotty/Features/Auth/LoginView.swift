@@ -51,6 +51,10 @@ struct LoginView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                focusedField = nil
+            }
             .sheet(isPresented: $showTerms) {
                 NavigationStack {
                     LegalDocumentView(kind: .termsOfService)
@@ -111,12 +115,9 @@ struct LoginView: View {
                     .padding(.vertical, Spacing.sm)
                     .frame(minHeight: 50)
                     .background {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(inputBackgroundColor)
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(inputBorderColor, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                            .fill(Color.clear)
+                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
                     }
             }
             
@@ -137,12 +138,9 @@ struct LoginView: View {
                     .padding(.vertical, Spacing.sm)
                     .frame(minHeight: 50)
                     .background {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(inputBackgroundColor)
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(inputBorderColor, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                            .fill(Color.clear)
+                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
                     }
             }
             
@@ -153,12 +151,9 @@ struct LoginView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(canLogin ? Color.accentColor : Color.gray.opacity(0.5))
-                    }
             }
             .disabled(!canLogin || isLoading)
+            .buttonStyle(LiquidGlassAccentButtonStyle(isEnabled: canLogin && !isLoading))
             .padding(.top, Spacing.sm)
         }
     }
@@ -196,15 +191,8 @@ struct LoginView: View {
                 .foregroundStyle(primaryColor)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
-                .background {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(inputBackgroundColor)
-                }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(inputBorderColor, lineWidth: 1)
-                }
             }
+            .buttonStyle(LiquidGlassSNSButtonStyle())
             .disabled(isLoading || !connectivity.isOnline)
             
             // Apple
@@ -217,18 +205,11 @@ struct LoginView: View {
                     Text("Appleでログイン")
                         .font(.scaledBodyMedium().weight(.medium))
                 }
-                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                .foregroundStyle(primaryColor)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
-                .background {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.05))
-                }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.2), lineWidth: 1)
-                }
             }
+            .buttonStyle(LiquidGlassSNSButtonStyle())
             .disabled(isLoading || !connectivity.isOnline)
         }
     }
@@ -316,6 +297,38 @@ struct LoginView: View {
     
     private var dividerColor: Color {
         colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.1)
+    }
+}
+
+// MARK: - Liquid Glass ボタンスタイル（アクセント）
+private struct LiquidGlassAccentButtonStyle: ButtonStyle {
+    let isEnabled: Bool
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                    .fill(isEnabled ? Color.accentColor : Color.gray.opacity(0.5))
+            }
+            .glassEffect(isEnabled ? .regular.interactive() : .regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Liquid Glass ボタンスタイル（SNS）
+private struct LiquidGlassSNSButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                    .fill(Color.clear)
+                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+            }
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
