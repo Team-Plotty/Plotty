@@ -25,7 +25,7 @@ struct CalendarTabView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.lg) {
+            VStack(alignment: .leading, spacing: 0) {
                 PlotScreenStatusSection(
                     isOffline: !connectivity.isOnline,
                     errorMessage: dataStore.errorMessage(for: .events),
@@ -46,6 +46,7 @@ struct CalendarTabView: View {
                         onSelectDate: selectDate
                     )
                 }
+                .padding(.top, Spacing.sm)
                 
                 CalendarDayEventsSection(
                     selectedDate: selectedDate,
@@ -55,6 +56,7 @@ struct CalendarTabView: View {
                     onEditEvent: { editingEvent = $0 },
                     onDeleteEvent: removeEvent
                 )
+                .padding(.top, Spacing.lg)
             }
             .padding(.horizontal, Spacing.screenEdge)
             .padding(.top, Spacing.sm)
