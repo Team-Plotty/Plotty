@@ -28,11 +28,6 @@ struct TodoView: View {
                     onRetry: { Task { await reloadTodos() } }
                 )
                 
-                TodoProgressBlock(
-                    completedCount: completedCount,
-                    totalCount: dataStore.todos.count
-                )
-                
                 TodoFilterSortBar(
                     priorityFilter: $priorityFilter,
                     sortOrder: $sortOrder
@@ -47,9 +42,11 @@ struct TodoView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.top, Spacing.xl)
                 } else if incompleteFiltered.isEmpty && completeFiltered.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, Spacing.xl)
+                    if !searchText.isEmpty {
+                        PlotSearchEmptyState(searchText: searchText, resource: .todo)
+                    } else {
+                        PlotFilterEmptyState(resource: .todo)
+                    }
                 } else {
                     if !incompleteFiltered.isEmpty {
                         TodoTaskListSection(
