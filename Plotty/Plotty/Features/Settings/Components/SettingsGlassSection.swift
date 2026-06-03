@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - セクション（見出し＋ガラスカード）
 struct SettingsGlassSection<Content: View>: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     
     let title: String
     @ViewBuilder let content: () -> Content
@@ -18,17 +18,18 @@ struct SettingsGlassSection<Content: View>: View {
                 content()
             }
             .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+            .environment(\.plotColorScheme, plotColorScheme)
         }
     }
     
     private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
+        PlotColors.textSecondary(plotColorScheme)
     }
 }
 
 // MARK: - カード内の区切り線
 struct SettingsInsetDivider: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     
     var body: some View {
         Divider()
@@ -37,6 +38,6 @@ struct SettingsInsetDivider: View {
     }
     
     private var dividerColor: Color {
-        colorScheme == .dark ? Color.darkBorderSubtle : Color.lightBorderSubtle
+        plotColorScheme == .dark ? Color.darkBorderSubtle : Color.lightBorderSubtle
     }
 }

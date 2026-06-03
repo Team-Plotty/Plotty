@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - ヘルプ画面
 struct HelpView: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.plotColorScheme) private var plotColorScheme
     @Environment(\.dismiss) private var dismiss
     
     var highlightRelay: Bool = false
@@ -56,105 +56,93 @@ struct HelpView: View {
     }
     
     private var relaySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("Apple の非公開メール（Hide My Email）")
-                .font(.scaledLabelMedium())
-                .foregroundStyle(secondaryColor)
-                .padding(.leading, Spacing.xs)
-            
+        SettingsGlassSection(title: "Apple の非公開メール（Hide My Email）") {
             Text("初回登録時と同じ Apple ID・同じメール設定でログインしてください。別のメールに見える場合は、設定のアカウント切り替えか、登録時に使ったメールアドレスをお試しください。")
                 .font(.scaledBodySmall())
                 .foregroundStyle(secondaryColor)
-                .padding(Spacing.lg)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
         }
     }
     
     private func faqSection(title: String, items: [(String, String)]) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text(title)
-                .font(.scaledLabelMedium())
-                .foregroundStyle(secondaryColor)
-                .padding(.leading, Spacing.xs)
-            
-            VStack(spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text(item.0)
-                            .font(.scaledBodyLarge().weight(.semibold))
-                            .foregroundStyle(primaryColor)
-                        Text(item.1)
-                            .font(.scaledBodySmall())
-                            .foregroundStyle(secondaryColor)
-                    }
-                    .padding(Spacing.lg)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    if index < items.count - 1 {
-                        Divider().padding(.leading, Spacing.lg)
-                    }
+        SettingsGlassSection(title: title) {
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(item.0)
+                        .font(.scaledBodyLarge().weight(.semibold))
+                        .foregroundStyle(primaryColor)
+                    Text(item.1)
+                        .font(.scaledBodySmall())
+                        .foregroundStyle(secondaryColor)
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                if index < items.count - 1 {
+                    SettingsInsetDivider()
                 }
             }
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
         }
     }
     
     private var troubleshootSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("トラブルシュート")
-                .font(.scaledLabelMedium())
-                .foregroundStyle(secondaryColor)
-                .padding(.leading, Spacing.xs)
-            
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                Label {
-                    Text("通信エラー: Wi‑Fi / モバイルデータを確認し、アプリを再起動してください。")
-                        .font(.scaledBodySmall())
-                        .foregroundStyle(secondaryColor)
-                } icon: {
-                    Image(systemName: "wifi.exclamationmark")
-                }
-                
-                Label {
-                    Text("AI が応答しない: 10秒以内に応答がない場合は再送信してください。")
-                        .font(.scaledBodySmall())
-                        .foregroundStyle(secondaryColor)
-                } icon: {
-                    Image(systemName: "clock.badge.exclamationmark")
-                }
-            }
-            .padding(Spacing.lg)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+        SettingsGlassSection(title: "トラブルシュート") {
+            troubleshootRow(
+                icon: "wifi.exclamationmark",
+                text: "通信エラー: Wi‑Fi / モバイルデータを確認し、アプリを再起動してください。"
+            )
+            SettingsInsetDivider()
+            troubleshootRow(
+                icon: "clock.badge.exclamationmark",
+                text: "AI が応答しない: 10秒以内に応答がない場合は再送信してください。"
+            )
         }
     }
     
-    private var contactSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("お問い合わせ")
-                .font(.scaledLabelMedium())
+    private func troubleshootRow(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
                 .foregroundStyle(secondaryColor)
+                .frame(width: 28, alignment: .center)
             
+            Text(text)
+                .font(.scaledBodySmall())
+                .foregroundStyle(secondaryColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.md)
+    }
+    
+    private var contactSection: some View {
+        SettingsGlassSection(title: "お問い合わせ") {
             Link(destination: URL(string: "mailto:support@plotty.app")!) {
-                HStack {
+                HStack(spacing: Spacing.sm) {
                     Text("support@plotty.app")
                         .font(.scaledBodyMedium())
-                    Spacer()
+                        .foregroundStyle(primaryColor)
+                    Spacer(minLength: 0)
                     Image(systemName: "envelope")
+                        .font(.system(size: 18))
+                        .foregroundStyle(secondaryColor)
                 }
-                .foregroundStyle(primaryColor)
-                .padding(Spacing.lg)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
+                .contentShape(Rectangle())
             }
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
         }
     }
     
     private var primaryColor: Color {
-        colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary
+        PlotColors.textPrimary(plotColorScheme)
     }
     
     private var secondaryColor: Color {
-        colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary
+        PlotColors.textSecondary(plotColorScheme)
     }
 }
 
@@ -163,4 +151,5 @@ struct HelpView: View {
         HelpView()
             .ambientBackground()
     }
+    .environment(\.plotColorScheme, .dark)
 }
