@@ -23,6 +23,12 @@ struct ContentView: View {
     @State private var showTodoCreate = false
     @State private var showCalendarCreate = false
     
+    // 検索欄の表示状態（メモ・TODO用）
+    @State private var isSearchExpanded = false
+    @State private var memoSearchText = ""
+    @State private var todoSearchText = ""
+    @FocusState private var isSearchFocused: Bool
+    
     @State private var chatDraftMessage = ""
     @State private var chatSendRequested = false
     @FocusState private var isChatComposerFocused: Bool
@@ -30,6 +36,48 @@ struct ContentView: View {
     @State private var isChatComposerPageVisible = true
     
     var body: some View {
+        ZStack(alignment: .bottom) {
+            // メインコンテンツ
+            mainContent
+            
+            // タブバー（常に画面下部に固定）
+            bottomChrome
+        }
+        // ZStack 全体でキーボードを無視することで、タブバーが動かなくなる
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        // キーボード高さを子ビューに提供（チャット入力欄で使用）
+        .plotKeyboardAware()
+        // 検索オーバーレイ（最前面に表示）
+        .overlay(alignment: .bottom) {
+            if isSearchExpanded, showsFloatingSearch {
+                floatingSearchOverlay
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: isSearchExpanded)
+        .overlay {
+            if selectedTab == .chat, isChatAIProcessing {
+                PlotAIScreenBorder()
+            }
+        }
+        .onAppear {
+            focusChatComposerIfNeeded()
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            // 検索を閉じる
+            if isSearchExpanded {
+                closeSearch()
+            }
+            
+            if newTab == .chat {
+                focusChatComposerIfNeeded()
+            } else {
+                dismissChatComposerImmediately()
+                isChatAIProcessing = false
+            }
+        }
+    }
+    
+    private var mainContent: some View {
         ZStack {
             AmbientBackground()
             
@@ -61,50 +109,16 @@ struct ContentView: View {
                     dismissTextInputForCurrentTab()
                 }
             )
-            .padding(.bottom, Spacing.md)
+            .padding(.bottom, Spacing.xs)
             .frame(maxWidth: .infinity)
             .background {
-                ZStack {
-                    Rectangle()
-                        .glassEffect(.regular, in: Rectangle())
-                    
-                    VStack(spacing: 0) {
-                        Spacer()
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    colors: colorScheme == .dark
-                                        ? [Color.white.opacity(0.04), Color.white.opacity(0.18)]
-                                        : [Color.black.opacity(0.06), Color.white.opacity(0.7)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(height: 0.6)
-                    }
-                }
-                .ignoresSafeArea(edges: .top)
+                PlotRootChromeGlass()
+                    .ignoresSafeArea(edges: .top)
             }
         }
-        /// 下端はタブバーのみ inset。チャット入力は `ChatTabView` 内オーバーレイ（inset に載せると背面がベージュの板に見える）。
+        /// コンテンツ下部にタブバー分の余白を確保
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomChrome
-        }
-        .overlay {
-            if selectedTab == .chat, isChatAIProcessing {
-                PlotAIScreenBorder()
-            }
-        }
-        .onAppear {
-            focusChatComposerIfNeeded()
-        }
-        .onChange(of: selectedTab) { _, newTab in
-            if newTab == .chat {
-                focusChatComposerIfNeeded()
-            } else {
-                dismissChatComposerImmediately()
-                isChatAIProcessing = false
-            }
+            Color.clear.frame(height: Spacing.tabBarHeight)
         }
     }
     
@@ -112,9 +126,17 @@ struct ContentView: View {
     private func tabPage(for tab: TabItem) -> some View {
         switch tab {
         case .memo:
-            MemoView(selectedTab: tab, showCreateSheet: $showMemoCreate)
+            MemoView(
+                selectedTab: tab,
+                showCreateSheet: $showMemoCreate,
+                searchText: $memoSearchText
+            )
         case .todo:
-            TodoView(selectedTab: tab, showCreateSheet: $showTodoCreate)
+            TodoView(
+                selectedTab: tab,
+                showCreateSheet: $showTodoCreate,
+                searchText: $todoSearchText
+            )
         case .chat:
             ChatTabView(
                 selectedTab: tab,
@@ -135,19 +157,38 @@ struct ContentView: View {
         [.memo, .todo, .calendar].contains(selectedTab)
     }
     
+    private var showsFloatingSearch: Bool {
+        [.memo, .todo].contains(selectedTab)
+    }
+    
     private var bottomChrome: some View {
-        ZStack(alignment: .bottomTrailing) {
-            FooterTabBar(selectedTab: $selectedTab)
-            
-            if showsFloatingAdd {
-                PlotFloatingAddButton(
-                    accessibilityLabel: floatingAddAccessibilityLabel,
-                    action: fabTapped
-                )
-                .padding(.trailing, Spacing.screenEdge)
-                .offset(y: -(Spacing.tabBarHeight + Spacing.floatingAddGapAboveTabBar))
+        FooterTabBar(selectedTab: $selectedTab)
+            .overlay(alignment: .top) {
+                // フローティングボタン（タブバーの上に配置）
+                if showsFloatingAdd || showsFloatingSearch {
+                    HStack {
+                        // 検索ボタン（左）
+                        if showsFloatingSearch {
+                            PlotFloatingSearchButton(
+                                accessibilityLabel: "検索",
+                                action: searchButtonTapped
+                            )
+                        }
+                        
+                        Spacer()
+                        
+                        // 作成ボタン（右）
+                        if showsFloatingAdd {
+                            PlotFloatingAddButton(
+                                accessibilityLabel: floatingAddAccessibilityLabel,
+                                action: fabTapped
+                            )
+                        }
+                    }
+                    .padding(.horizontal, Spacing.screenEdge)
+                    .offset(y: -(Spacing.floatingAddGapAboveTabBar + 72))
+                }
             }
-        }
     }
     
     private var floatingAddAccessibilityLabel: String {
@@ -185,11 +226,90 @@ struct ContentView: View {
     
     private func fabTapped() {
         dismissTextInputForCurrentTab()
+        isSearchExpanded = false
         switch selectedTab {
         case .memo: showMemoCreate = true
         case .todo: showTodoCreate = true
         case .calendar: showCalendarCreate = true
         default: break
+        }
+    }
+    
+    private func searchButtonTapped() {
+        dismissTextInputForCurrentTab()
+        withAnimation(.easeOut(duration: 0.25)) {
+            isSearchExpanded = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isSearchFocused = true
+        }
+    }
+    
+    private func closeSearch() {
+        isSearchFocused = false
+        withAnimation(.easeOut(duration: 0.25)) {
+            isSearchExpanded = false
+        }
+    }
+    
+    private var currentSearchText: Binding<String> {
+        switch selectedTab {
+        case .memo: return $memoSearchText
+        case .todo: return $todoSearchText
+        default: return .constant("")
+        }
+    }
+    
+    @ViewBuilder
+    private var floatingSearchOverlay: some View {
+        SearchOverlayContent(
+            searchText: currentSearchText,
+            isSearchFocused: $isSearchFocused,
+            placeholder: selectedTab == .memo ? "メモを検索" : "タスクを検索",
+            onCancel: closeSearch
+        )
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}
+
+// MARK: - 検索オーバーレイ（キーボード追従）
+private struct SearchOverlayContent: View {
+    @Environment(\.keyboardHeight) private var keyboardHeight
+    
+    @Binding var searchText: String
+    @FocusState.Binding var isSearchFocused: Bool
+    var placeholder: String
+    var onCancel: () -> Void
+    
+    /// キーボード表示時の上方向オフセット（チャット入力欄と同じ計算）
+    private var keyboardOffset: CGFloat {
+        guard keyboardHeight > 0 else { return 0 }
+        let safeAreaBottom: CGFloat = 34
+        return keyboardHeight - Spacing.tabBarHeight - safeAreaBottom
+    }
+    
+    var body: some View {
+        ZStack {
+            // 背景タップで閉じる
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onCancel()
+                }
+            
+            VStack(spacing: 0) {
+                Spacer()
+                
+                PlotFloatingSearchField(
+                    text: $searchText,
+                    isFocused: $isSearchFocused,
+                    placeholder: placeholder,
+                    onCancel: onCancel
+                )
+                .padding(.horizontal, Spacing.screenEdge)
+                .padding(.bottom, Spacing.chatComposerGapAboveTabBar)
+                .offset(y: -keyboardOffset)
+            }
         }
     }
 }
