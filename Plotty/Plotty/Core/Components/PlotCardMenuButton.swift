@@ -53,17 +53,22 @@ struct PlotCardActionRow<Content: View>: View {
     @ViewBuilder let content: () -> Content
     
     var body: some View {
-        content()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .topTrailing) {
-                PlotCardMenuButton(
-                    onEdit: onEdit,
-                    onDelete: onDelete,
-                    pinAction: pinAction
-                )
-                .padding(.top, Spacing.xxs)
-                .padding(.trailing, Spacing.xxs)
-            }
-            .plotListCardGlass()
+        ZStack(alignment: .topTrailing) {
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            PlotCardMenuButton(
+                onEdit: onEdit,
+                onDelete: onDelete,
+                pinAction: pinAction
+            )
+            .padding(.top, Spacing.xxs)
+            .padding(.trailing, Spacing.xxs)
+        }
+        .background {
+            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                .fill(Color.clear)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+        }
     }
 }
