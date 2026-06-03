@@ -32,18 +32,20 @@ struct CalendarTabView: View {
                     onRetry: { Task { await reloadEvents() } }
                 )
                 
-                CalendarMonthNavigation(
-                    monthAnchor: monthAnchor,
-                    onPrevious: { shiftMonth(-1) },
-                    onNext: { shiftMonth(1) }
-                )
-                
-                CalendarMonthGrid(
-                    monthAnchor: monthAnchor,
-                    selectedDate: selectedDate,
-                    events: dataStore.events,
-                    onSelectDate: selectDate
-                )
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    CalendarMonthNavigation(
+                        monthAnchor: monthAnchor,
+                        onPrevious: { shiftMonth(-1) },
+                        onNext: { shiftMonth(1) }
+                    )
+                    
+                    CalendarMonthGrid(
+                        monthAnchor: monthAnchor,
+                        selectedDate: selectedDate,
+                        events: dataStore.events,
+                        onSelectDate: selectDate
+                    )
+                }
                 
                 CalendarDayEventsSection(
                     selectedDate: selectedDate,
@@ -55,7 +57,7 @@ struct CalendarTabView: View {
                 )
             }
             .padding(.horizontal, Spacing.screenEdge)
-            .padding(.top, Spacing.lg)
+            .padding(.top, Spacing.sm)
             .padding(.bottom, Spacing.tabbedScrollBottomInset)
         }
         .scrollContentBackground(.hidden)
@@ -80,6 +82,12 @@ struct CalendarTabView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
+        }
+        .onChange(of: showCreateSheet) { _, isShowing in
+            if isShowing {
+                prepareCreateDraft()
+            }
         }
         .sheet(item: $selectedEvent) { event in
             EventDetailSheet(
@@ -92,6 +100,7 @@ struct CalendarTabView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
         .sheet(item: $editingEvent) { event in
             EventEditSheet(event: event) { updated in
@@ -102,6 +111,7 @@ struct CalendarTabView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
         }
     }
     
@@ -164,6 +174,30 @@ struct CalendarTabView: View {
                 monthAnchor = d
             }
         }
+    }
+    
+    /// 新規作成シート用の初期値を準備
+    /// - 選択中の日付 + 現在の時刻を開始時刻にする
+    private func prepareCreateDraft() {
+        let now = Date()
+        let nowComponents = calendar.dateComponents([.hour, .minute], from: now)
+        let selectedDayStart = calendar.startOfDay(for: selectedDate)
+        
+        // 選択中の日付に現在時刻を合成
+        var startComponents = calendar.dateComponents([.year, .month, .day], from: selectedDayStart)
+        startComponents.hour = nowComponents.hour
+        startComponents.minute = nowComponents.minute
+        
+        let start = calendar.date(from: startComponents) ?? selectedDayStart
+        let end = start.addingTimeInterval(3600) // 1時間後
+        
+        draftTitle = ""
+        draftStart = start
+        draftEnd = end
+        draftSwatch = .sky
+        draftLocation = ""
+        draftNotes = ""
+        draftIsAllDay = false
     }
 }
 
