@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - 選択日の予定一覧
 struct CalendarDayEventsSection: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.appSettings) private var appSettings
     
     let selectedDate: Date
     let events: [CalendarEvent]
@@ -14,7 +15,7 @@ struct CalendarDayEventsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
-                Text(selectedDate.formatted(date: .abbreviated, time: .omitted))
+                Text(PlotDateFormatter.dateWithHoliday(selectedDate, language: appSettings.language))
                     .font(.scaledLabelMedium())
                     .foregroundStyle(secondaryTextColor)
                 

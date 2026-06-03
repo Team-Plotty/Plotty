@@ -3,9 +3,15 @@ import SwiftUI
 // MARK: - 予定詳細シート
 struct EventDetailSheet: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.appSettings) private var appSettings
+    
     let event: CalendarEvent
     let onClose: () -> Void
     let onEdit: () -> Void
+    
+    private var allDayText: String {
+        appSettings.language == .japanese ? "終日" : "All day"
+    }
     
     var body: some View {
         NavigationStack {
@@ -15,11 +21,11 @@ struct EventDetailSheet: View {
                     .foregroundStyle(textColor)
                 
                 if event.isAllDay {
-                    Text("終日")
+                    Text(allDayText)
                         .font(.scaledBodyMedium())
                         .foregroundStyle(secondaryTextColor)
                 } else {
-                    Text("\(event.startTime.formatted(date: .abbreviated, time: .shortened)) 〜 \(event.endTime.formatted(date: .abbreviated, time: .shortened))")
+                    Text(PlotDateFormatter.dateTimeRange(from: event.startTime, to: event.endTime, language: appSettings.language))
                         .font(.scaledBodyMedium())
                         .foregroundStyle(secondaryTextColor)
                 }
