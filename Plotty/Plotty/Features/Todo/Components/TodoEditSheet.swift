@@ -43,5 +43,6 @@ struct TodoEditSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }

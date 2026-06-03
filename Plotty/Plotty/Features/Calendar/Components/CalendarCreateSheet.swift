@@ -98,6 +98,7 @@ struct CalendarCreateSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
     
     private var textColor: Color {

@@ -37,5 +37,6 @@ struct MemoEditSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }
