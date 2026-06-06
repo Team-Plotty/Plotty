@@ -297,14 +297,16 @@
 
 ## 5. API依存（画面別）
 
+いずれも **Supabase Edge Functions**（`plotty-api`）経由。Base URL は `https://<project-ref>.supabase.co/functions/v1/plotty-api`（詳細 `06` / `10` §3）。一覧は **`GET /api/v1/entities`** のみ（`docs/contracts/api-contract-mvp.md` §1）。
+
 | 画面 | 主なAPI |
 |---|---|
 | ログイン/新規登録 | Supabase Auth（Google/Apple/Email） |
-| 設定 | `public.users` 更新API |
-| AIチャット | `POST /chat/messages`, `POST /chat/reclassify` |
-| タスク | `GET/PATCH /tasks`, `DELETE /entities/task/{id}` |
-| スケジュール | `GET/PATCH /schedules`, `DELETE /entities/schedule/{id}` |
-| メモ | `GET/PATCH /memos`, `DELETE /entities/memo/{id}` |
+| 設定 | `public.users` 更新（RLS 下 PATCH。endpoint 詳細は Phase E） |
+| AIチャット | `POST /api/v1/chat/messages`, `POST /api/v1/chat/reclassify` |
+| タスク | `GET /api/v1/entities?type=task`, `PATCH /api/v1/tasks/{id}`, `DELETE ...` |
+| スケジュール | `GET /api/v1/entities?type=schedule`, `PATCH /api/v1/schedules/{id}`, `DELETE ...` |
+| メモ | `GET /api/v1/entities?type=memo`, `PATCH /api/v1/memos/{id}`, `DELETE ...` |
 
 ---
 

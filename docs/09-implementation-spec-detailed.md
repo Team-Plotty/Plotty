@@ -234,3 +234,45 @@ LLMへ渡すのは会話制御項目のみとし、システム管理値は含�
 3. Edge 以外に復号経路がないか
 4. RLS が `auth.uid() = user_id` で網羅されているか
 5. 30日削除ジョブの監視導線があるか
+
+---
+
+## 10. Edge ランタイム（Supabase Edge Functions）
+
+### 10.1 決定事項
+
+- API 層は **Supabase Edge Functions** でホストする（Cloudflare Workers は不採用）。
+- 関数名（MVP）: **`plotty-api`**
+- ロジックの正本: リポジトリ `edge/` の router / handler / contracts（移植元）
+
+### 10.2 デプロイ構成
+
+| 項目 | 内容 |
+|---|---|
+| 配置 | `supabase/functions/plotty-api/index.ts`（入口）+ 共有モジュール |
+| Secrets | `GROQ_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_ENCRYPTION_KEY_BASE64` 等 |
+| 公開 URL | `https://<project-ref>.supabase.co/functions/v1/plotty-api/api/v1/...` |
+| ローカル | `supabase functions serve plotty-api --env-file supabase/.env.local` |
+| 本番 | `supabase functions deploy plotty-api` |
+
+### 10.3 ランタイム制約（Hosted）
+
+- Wall clock: Free で最大 150s（Groq 10s タイムアウトは問題なし）
+- CPU time: 2s / req（I/O 除く）— 暗号 + JSON 処理向き
+- Invocations: Free で 50 万 / 月（低利用 MVP 向き）
+
+### 10.4 iOS 接続
+
+- Base URL: Supabase プロジェクトの Functions URL + `/plotty-api`
+- 認証: Supabase Auth の access token を Bearer に付与
+- 詳細 URL 例は `10` §3
+
+### 10.5 運用上の注意
+
+- Supabase Free プロジェクトは **1 週間 API 無操作で pause** されうる。個人 MVP では手動 resume または軽い keep-alive で対処（`08` 未決項目）。
+- `service_role` は Function 内のみ。クライアント・RLS ユーザー JWT からは参照不可。
+
+### 10.6 API 契約
+
+- MVP の Request/Response・DTO・冪等・reclassify: **`docs/contracts/api-contract-mvp.md`**
+- 実装施工メモ（mapper・migration・doc 正本）: **`docs/contracts/implementation-notes.md`**

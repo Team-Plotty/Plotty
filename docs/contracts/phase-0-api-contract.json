@@ -2,7 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "POST /api/v1/chat/messages",
   "type": "object",
-  "description": "Phase 0 で固定する API 契約",
+  "description": "Phase 0 で固定する API 契約（chat/messages の部分スキーマのみ）。MVP 全体の正本は api-contract-mvp.md。施工メモは implementation-notes.md。",
+  "x-plotty-doc-hierarchy": {
+    "fullContract": "docs/contracts/api-contract-mvp.md",
+    "implementationNotes": "docs/contracts/implementation-notes.md",
+    "scope": "POST /api/v1/chat/messages request/response のみ"
+  },
   "request": {
     "type": "object",
     "required": ["text", "forced_category", "client_message_id"],

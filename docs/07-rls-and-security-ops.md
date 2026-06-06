@@ -11,7 +11,7 @@
 使用を許可するのは以下のみ:
 
 1. `pg_cron` による30日削除バッチ
-2. Edgeでの鍵取得・復号処理
+2. **Supabase Edge Functions**（`plotty-api`）での鍵取得・復号処理
 3. 管理ジョブ（明示的運用時）
 
 禁止:
@@ -20,5 +20,5 @@
 
 ## 運用ログ
 
-- Edgeログで `request_id`, `user_id`, `function_name`, `latency_ms`, `error_code` を記録
+- Supabase Edge Functions のログで `request_id`, `user_id`, `function_name`, `latency_ms`, `error_code` を記録
 - 障害時に追跡可能な最小監査情報を残す

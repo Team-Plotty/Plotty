@@ -98,7 +98,7 @@ AIは以下の JSON のみ、または JSON + ユーザーへの返信を出力�
 
 ## 6. 実装用プロンプトテンプレート（そのまま利用可）
 
-この節は、Edge から LLM を呼ぶ際にそのまま使える最小構成。
+この節は、**Supabase Edge Functions**（`plotty-api`）から LLM を呼ぶ際にそのまま使える最小構成。
 
 ### 6.1 System Prompt
 

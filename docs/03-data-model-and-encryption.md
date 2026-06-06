@@ -24,5 +24,5 @@
 ## 鍵管理
 
 - 復号鍵はクライアントに持たせない
-- Vaultで管理し、Edgeで参照
+- Vaultで管理し、**Supabase Edge Functions**（`plotty-api`）で参照（MVP は Functions Secrets）
 - `public.users.encryption_key_id` は初回アクション時に設定可
