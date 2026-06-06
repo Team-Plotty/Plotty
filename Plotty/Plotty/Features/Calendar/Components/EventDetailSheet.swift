@@ -56,6 +56,7 @@ struct EventDetailSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
     
     private var textColor: Color {

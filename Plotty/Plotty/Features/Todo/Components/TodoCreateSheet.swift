@@ -56,5 +56,6 @@ struct TodoCreateSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }

@@ -47,6 +47,7 @@ struct ProfileEditSheet: View {
                 draftName = accountSession.currentAccount?.displayName ?? ""
             }
         }
+        .frame(maxWidth: .infinity)
     }
     
     private func save() {

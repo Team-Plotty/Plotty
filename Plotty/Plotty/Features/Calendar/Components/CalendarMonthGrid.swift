@@ -111,14 +111,23 @@ struct CalendarMonthGrid: View {
                         isCurrentMonth: isCurrentMonth
                     ))
                 
-                // 予定ドット（最大3つ）
-                HStack(spacing: 3) {
+                // 予定ドット（グラデーションフェード）
+                HStack(alignment: .center, spacing: 3) {
                     if dayEvents.isEmpty {
                         Color.clear.frame(width: 5, height: 5)
                     } else {
-                        ForEach(Array(dayEvents.prefix(3).enumerated()), id: \.offset) { _, event in
+                        ForEach(Array(dayEvents.prefix(3).enumerated()), id: \.offset) { index, event in
+                            let opacity: Double = {
+                                if dayEvents.count <= 3 { return 1.0 }
+                                switch index {
+                                case 0: return 1.0
+                                case 1: return 0.6
+                                case 2: return 0.3
+                                default: return 1.0
+                                }
+                            }()
                             Circle()
-                                .fill(event.color)
+                                .fill(event.color.opacity(opacity))
                                 .frame(width: 5, height: 5)
                         }
                     }

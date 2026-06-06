@@ -43,5 +43,6 @@ struct EventEditSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }

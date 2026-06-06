@@ -77,6 +77,8 @@ struct ContentView: View {
         }
     }
     
+    @Environment(\.plotDataStore) private var dataStore
+    
     private var mainContent: some View {
         ZStack {
             AmbientBackground()
@@ -94,21 +96,34 @@ struct ContentView: View {
         }
         .preferredColorScheme(appSettings.theme.colorScheme)
         .safeAreaInset(edge: .top, spacing: 0) {
-            PlotRootBreadcrumb(
-                screenTitle: selectedTab.rootBreadcrumbTitle,
-                onAccountTapped: {
-                    PlotTextInputDismiss.postNotification()
-                    isChatComposerFocused = false
-                    selectedTab = .settings
-                    pendingSettingsRoute = .account
+            VStack(spacing: 0) {
+                PlotRootBreadcrumb(
+                    screenTitle: selectedTab.rootBreadcrumbTitle,
+                    onAccountTapped: {
+                        PlotTextInputDismiss.postNotification()
+                        isChatComposerFocused = false
+                        selectedTab = .settings
+                        pendingSettingsRoute = .account
+                    }
+                )
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        dismissTextInputForCurrentTab()
+                    }
+                )
+                
+                // TODOタブの時だけ進捗バーを表示
+                if selectedTab == .todo {
+                    TodoHeaderProgress(
+                        completedCount: dataStore.todos.filter(\.isCompleted).count,
+                        totalCount: dataStore.todos.count
+                    )
+                    .padding(.horizontal, Spacing.screenEdge)
+                    .padding(.top, Spacing.xs)
+                    .padding(.bottom, Spacing.xs)
                 }
-            )
-            .contentShape(Rectangle())
-            .simultaneousGesture(
-                TapGesture().onEnded {
-                    dismissTextInputForCurrentTab()
-                }
-            )
+            }
             .padding(.bottom, Spacing.xs)
             .frame(maxWidth: .infinity)
             .background {

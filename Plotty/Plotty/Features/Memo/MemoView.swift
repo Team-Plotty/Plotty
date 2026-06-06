@@ -33,9 +33,7 @@ struct MemoView: View {
                     MemoEmptyState(isCompletelyEmpty: true, hint: "")
                 } else if filteredMemos.isEmpty {
                     if !searchText.isEmpty {
-                        ContentUnavailableView.search(text: searchText)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, Spacing.xl)
+                        PlotSearchEmptyState(searchText: searchText, resource: .memo)
                     } else {
                         MemoEmptyState(isCompletelyEmpty: false, hint: emptyStateHint)
                     }

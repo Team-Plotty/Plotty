@@ -46,5 +46,6 @@ struct MemoCreateSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }

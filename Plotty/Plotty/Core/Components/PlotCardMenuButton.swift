@@ -30,12 +30,13 @@ struct PlotCardMenuButton: View {
                 Label("削除", systemImage: "trash")
             }
         } label: {
-            Image(systemName: "ellipsis")
+            Image(systemName: "ellipsis.vertical")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(iconColor)
                 .frame(width: Spacing.minTouchTarget, height: Spacing.minTouchTarget)
                 .contentShape(Rectangle())
         }
+        .menuStyle(.automatic)
         .buttonStyle(.plain)
         .accessibilityLabel("その他の操作")
     }
