@@ -24,3 +24,7 @@
 - 複数ファイルに跨る変更は、最後に `08-roadmap-and-open-items.md` へメモを残す。
 - 詳細仕様を修正する場合は、`09` と `10` を正本として扱う。
 - スキーマの正本 SQL は **`edge/sql/plotty_schema.sql`**。説明は `13-database-ddl.md`。
+- **Edge API ランタイム** は **Supabase Edge Functions**（`plotty-api`）。概要は `06` §Edge ランタイム、`09` §10、決定ログは `08`。
+- **MVP API 契約（DTO・冪等・reclassify）** は **`docs/contracts/api-contract-mvp.md`**。
+- **実装施工メモ（mapper・migration 待ち・doc 正本・設計完成度）** は **`docs/contracts/implementation-notes.md`**。
+- **`docs/design.md`** は UI デザイン参考（レガシー表記あり）。画面要件の正本は `11`。

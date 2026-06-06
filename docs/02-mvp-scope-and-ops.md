@@ -14,7 +14,7 @@
 
 ## 同期方針
 
-- Realtime依存ではなく、Edge成功後にローカル状態を更新
+- Realtime依存ではなく、**Supabase Edge Functions**（`plotty-api`）成功後にローカル状態を更新
 - 最終整合性は再読み込みで担保
 
 ## 30日削除運用

@@ -18,7 +18,7 @@
 | 層 | 役割 | 禁止事項 |
 |---|---|---|
 | iOS | 入力、描画、ローカル状態更新 | 直接復号、鍵保持 |
-| Edge | 検証、Groq、暗号化/復号、DB操作 | クライアントへの秘密情報露出 |
+| Edge（Supabase Edge Functions） | 検証、Groq、暗号化/復号、DB操作 | クライアントへの秘密情報露出 |
 | DB | 永続化、RLS、cron | 業務ロジック集中化 |
 | Vault | 鍵保管 | アプリから直接参照 |
 
@@ -26,7 +26,13 @@
 
 ## 3. エンドポイント詳細
 
-基底パスは `/api/v1`（Edge Function 名に合わせ調整可）。
+### URL 構成
+
+- **ホスト:** Supabase Edge Functions（関数名 `plotty-api`）
+- **公開 URL 例:** `https://<project-ref>.supabase.co/functions/v1/plotty-api/api/v1/chat/messages`
+- **アプリ内パス:** `/api/v1/...`（下表のパスはこの suffix）
+
+iOS の Base URL は `https://<project-ref>.supabase.co/functions/v1/plotty-api` とし、各 API は `/api/v1/...` を連結する。
 
 ## 3.1 `POST /chat/messages`
 
@@ -68,6 +74,8 @@
 
 ## 3.2 `POST /chat/reclassify`
 
+契約の正本: `docs/contracts/api-contract-mvp.md` §4。
+
 ### Request
 
 ```json
@@ -78,48 +86,105 @@
 }
 ```
 
+| フィールド | 必須 | 備考 |
+|---|---|---|
+| `source.type` / `source.id` | ✓ | 変更元実体 |
+| `target_type` | ✓ | `source.type` と異なること |
+| `reason_text` | 任意 | 0–500 文字 |
+
+### Processing
+
+1. 元実体を論理削除
+2. 新種別で新 UUID の実体を作成（内容は `origin_text_encrypted` 等から引き継ぎ）
+3. 元メッセージが残っていれば `related_entities` を新 ID に更新
+
 ### Response（例）
 
 ```json
 {
-  "migrated_entity": { "type": "memo", "id": "uuid-new" }
+  "confirmation_text": "メモに変更したよ！",
+  "migrated_entity": {
+    "type": "memo",
+    "id": "uuid-new",
+    "title": "資料の提出",
+    "content": "明日までに資料を提出する",
+    "is_pinned": false,
+    "updated_at": "2026-05-06T12:00:00Z"
+  }
 }
 ```
 
 ## 3.3 `GET /entities`
 
-### Query
+契約の正本: `docs/contracts/api-contract-mvp.md` §1–§2。
 
-- `type`（任意）
-- `from`, `to`（任意）
-- `limit`, `cursor`
+### Query（MVP）
+
+| パラメータ | 説明 |
+|---|---|
+| `type` | 任意。`schedule` / `task` / `memo` |
+| `limit` | 任意。1–200、既定 50 |
+
+**MVP 除外:** `cursor`, `from`, `to`（`next_cursor` は常に `null`）
 
 ### Response（例）
 
 ```json
 {
   "items": [
-    { "type": "schedule", "id": "uuid", "title": "会議" },
-    { "type": "task", "id": "uuid", "title": "資料作成" }
+    {
+      "type": "schedule",
+      "id": "uuid",
+      "title": "会議",
+      "start_at": "2026-05-06T01:00:00Z",
+      "end_at": "2026-05-06T02:00:00Z",
+      "is_all_day": false,
+      "location": "会議室A",
+      "notes": "",
+      "updated_at": "2026-05-06T00:00:00Z"
+    },
+    {
+      "type": "task",
+      "id": "uuid",
+      "title": "資料作成",
+      "is_completed": false,
+      "due_date": "2026-05-07T14:59:59Z",
+      "priority": 2,
+      "created_at": "2026-05-05T00:00:00Z",
+      "updated_at": "2026-05-05T00:00:00Z"
+    },
+    {
+      "type": "memo",
+      "id": "uuid",
+      "title": "買い物リスト",
+      "content": "牛乳、卵",
+      "is_pinned": true,
+      "updated_at": "2026-05-06T10:00:00Z"
+    }
   ],
-  "next_cursor": "opaque-cursor"
+  "next_cursor": null
 }
 ```
 
 ## 3.4 更新系
 
-- `PATCH /schedules/{id}`
-- `PATCH /tasks/{id}`
-- `PATCH /memos/{id}`
-- `DELETE /entities/{type}/{id}`（論理削除）
+契約の正本: `docs/contracts/api-contract-mvp.md` §2。
+
+| パス | PATCH で更新可能な主フィールド |
+|---|---|
+| `/schedules/{id}` | `title`, `start_at`, `end_at`, `is_all_day`, `location`, `notes` |
+| `/tasks/{id}` | `title`, `is_completed`, `due_date`, `priority` |
+| `/memos/{id}` | `title`, `content`, `is_pinned` |
+
+- `DELETE /entities/{type}/{id}` — 論理削除（レスポンスは §6）
 
 ---
 
 ## 4. I/O 契約ルール
 
 - DB暗号文カラムはクライアントへ直接返さない
-- 返却は表示用DTO（復号済み + 必要最小限）
-- `client_message_id` で冪等性を担保
+- 返却は表示用DTO（復号済み + 必要最小限）。種別ごとのフィールドは `docs/contracts/api-contract-mvp.md` §2
+- `client_message_id` で冪等性を担保（**同一 user + 同一 key の再 POST は 200 + 初回 body**。§5）
 - エラー構造は共通化する
 
 共通エラー例:
@@ -154,7 +219,7 @@
 ## 6.1 許可用途
 
 1. `pg_cron` 30日削除
-2. Edgeでの鍵取得・復号
+2. Edge（Supabase Edge Functions）での鍵取得・復号
 3. 明示的な管理ジョブ
 
 ## 6.2 禁止用途
@@ -200,8 +265,14 @@
 
 ---
 
-## 10. 次の成果物
+## 10. 関連ドキュメント
 
-1. `docs/11-api-contract-json.md`（項目レベル契約）
-2. `docs/12-rls-policies-sql.md`（適用SQL）
-3. `docs/13-edge-test-cases.md`（統合テスト仕様）
+| ファイル | 内容 |
+|---|---|
+| `docs/contracts/api-contract-mvp.md` | **MVP API 契約（確定）** — DTO・reclassify・冪等 |
+| `docs/contracts/implementation-notes.md` | **実装施工メモ** — mapper・migration 待ち・doc 正本 |
+| `docs/contracts/phase-0-api-contract.json` | chat/messages の部分 JSON Schema（§3.1 と整合） |
+| `edge/sql/plotty_schema.sql` | RLS 含む DDL 正本 |
+| `edge/src/contracts/chat-messages.ts` | 実装側 Zod 正本（本契約と同期） |
+
+**将来:** Edge 統合テスト仕様書、RLS migration 手順書（番号は `docs/contracts/` 配下で追加）

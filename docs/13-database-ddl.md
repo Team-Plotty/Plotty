@@ -30,3 +30,12 @@
 
 - 本 DDL は初回作成用。運用では **Supabase migration** などに移し、重複実行時の `CREATE POLICY` 衝突には `DROP POLICY IF EXISTS` の整備を推奨する。
 - メッセージの物理削除ジョブは **必ず `service_role` 相当の権限**で動かす（RLS バイパスが必要なため）。
+
+## 今後の migration（施工待ち）
+
+`plotty_schema.sql` 適用**後**、別 migration で追加予定。設計詳細: `docs/contracts/implementation-notes.md` §3。
+
+| 追加対象 | 用途 |
+|---|---|
+| `messages.client_message_id` | チャット POST 冪等 |
+| `public.user_daily_groq_usage` | Groq 日次トークン上限（user × UTC 日付） |

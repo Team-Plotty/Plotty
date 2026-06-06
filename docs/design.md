@@ -1,6 +1,10 @@
 # DESIGN_SYSTEM.md
 # ScheduleAI — 完全デザインシステム
 
+> **ドキュメント位置づけ（2026/06/03）**  
+> 本ファイルは **UI デザインの参考資料**（旧プロジェクト名表記を含む）。  
+> **要件・画面・API の正本**は `docs/01`〜`13` および `docs/contracts/`。実装施工メモは `docs/contracts/implementation-notes.md`。
+
 > **原則**
 > 1. Apple Human Interface Guidelines (HIG) 完全準拠
 > 2. Glassmorphism（ガラス素材）ベース
