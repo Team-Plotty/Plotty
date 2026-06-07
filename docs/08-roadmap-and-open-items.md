@@ -4,17 +4,19 @@
 
 ---
 
-## 現状サマリ（2026/06/03 時点）
+## 現状サマリ（2026/06/07 時点）
 
 | 領域 | 進捗 | 備考 |
 |---|---|---|
 | iOS UI（SwiftUI） | おおむね完成 | 全画面・Liquid Glass・共通状態 UI あり |
 | iOS ↔ Edge 接続 | 未着手 | `PlotAPIClient` 等なし。データはモック |
 | Edge API | 部分完成 | `edge/` に handler あり。Supabase Edge Functions（`plotty-api`）へデプロイ・reclassify 未 |
-| Supabase 運用 | DDL のみ | migration 適用・cron・auth トリガーは未 |
+| Supabase 運用 | Phase A 進行中 | **A1・A2** migration 適用済み。**A3** 以降未 |
 | 認証 | 部分完成 | Google OAuth のみ実装。Apple / Email はモック |
 
 **ボトルネック:** iOS から Edge への接続と Supabase 本番化。UI シェルは先行しているため、以降は **バックエンド接続 → 認証本番化 → 体験仕上げ** の順が効率的。
+
+**作業ブランチ:** Phase A は **`feature/phase-a-supabase-foundation`**（A3 以降も同一ブランチでコミット → Phase 完了後に PR）。
 
 ---
 
@@ -80,16 +82,28 @@ MVP は **個人〜小規模利用** を想定し、以下で設計する。公�
 
 ## ブランチ命名
 
-README の `feature/<category>-<topic>` に従う。**1 機能 1 ブランチ**。作業前に `main` を最新化する。
+README の `feature/<category>-<topic>` に従う。**1 Phase 1 ブランチ**。Phase 内のタスク（A1, B3 等）は **同一ブランチ上で順にコミット**し、**Phase の完了条件を満たしたタイミングで PR → merge** する。作業前に `main` を最新化する。
+
+| Phase | ブランチ | PR タイミング |
+|---|---|---|
+| A | `feature/phase-a-supabase-foundation` | A1〜A6 完了・完了条件達成後 |
+| B | `feature/phase-b-edge-api` | B1〜B7 完了後 |
+| C | `feature/phase-c-ios-edge-connection` | C1〜C7 完了後 |
+| D | `feature/phase-d-auth-production` | D1〜D8 完了後 |
+| E | `feature/phase-e-ux-polish` | E1〜E5 完了後 |
+| F | `feature/phase-f-release-gate` | `11` §6 全項目クリア後 |
+| G | `clean/phase-g-mock-removal` | モック削除・整理完了後 |
 
 | category の目安 | 用途 |
 |---|---|
-| `feature/` | 機能追加・本番接続 |
-| `fix/` | バグ修正 |
+| `feature/` | Phase 単位の機能・接続（上表） |
+| `fix/` | リリース前の単発修正（Phase F 中でも可） |
 | `docs/` | ドキュメントのみ |
-| `clean/` | モック削除・整理 |
+| `clean/` | Phase G のモック削除 |
 
-以下、各タスクに推奨ブランチ名を記載する（Phase 名はブランチに含めない）。
+**コミット:** Phase 内は **タスク完了ごとに 1 コミット**（例: `add: A3 messages 30日削除 cron migration`）。**push / PR は Phase 完了時**。
+
+**レガシー:** タスク単位ブランチ（`feature/supabase-schema-migration` 等）で着手済みの場合は、未 merge 分を Phase ブランチに cherry-pick するか、Phase ブランチを切り直して `main` から再開してよい。
 
 ---
 
@@ -110,81 +124,89 @@ flowchart TD
 
 ### Phase A — 基盤（Supabase + Edge デプロイ）
 
+**ブランチ:** `feature/phase-a-supabase-foundation`
+
 **目的:** 本番相当の DB・API 実行環境を用意する。
 
-| # | タスク | ブランチ | 参照 |
+| # | タスク | 状態 | 参照 |
 |---|---|---|---|
-| A1 | `edge/sql/plotty_schema.sql` を Supabase migration として適用 | `feature/supabase-schema-migration` | `13` |
-| A2 | `auth.users` → `public.users` 自動作成トリガーを適用 | `feature/supabase-auth-user-trigger` | `04`, `09`, `13` |
-| A3 | `messages` 30 日削除 cron（`edge/sql/messages-retention-job.sql`） | `feature/messages-retention-cron` | `02`, `07` |
-| A4 | `edge/` を Supabase Edge Function（`plotty-api`）としてデプロイ。Secrets 設定 | `feature/supabase-edge-functions-deploy` | `05`, `06`, `09` §10, 本ファイル §インフラ |
-| A5 | iOS に Edge Base URL を設定（`.../functions/v1/plotty-api`） | `feature/ios-edge-base-url` | `06`, `10` §3 |
-| A6 | RLS を migration 化し、本番と開発で同一手順にする | `feature/supabase-rls-migrations` | `07`, `13` |
+| A1 | `edge/sql/plotty_schema.sql` を Supabase migration として適用 | **完了** | `13` |
+| A2 | `auth.users` → `public.users` 自動作成トリガーを適用 | **完了** | `04`, `09`, `13` |
+| A3 | `messages` 30 日削除 cron（`edge/sql/messages-retention-job.sql`） | 未 | `02`, `07` |
+| A4 | `edge/` を Supabase Edge Function（`plotty-api`）としてデプロイ。Secrets 設定 | 未 | `05`, `06`, `09` §10, 本ファイル §インフラ |
+| A5 | iOS に Edge Base URL を設定（`.../functions/v1/plotty-api`） | 未 | `06`, `10` §3 |
+| A6 | RLS を migration 化し、本番と開発で同一手順にする | 未 | `07`, `13` |
 
 **完了条件:** curl / 統合テストで JWT 付き `POST /api/v1/chat/messages` が本番 DB に書き込める。
 
-**推奨マージ順:** A1 → A2 → A6 → A3 → A4 → A5（A1/A2/A6 は依存が強いため連続作業可）
+**推奨作業順:** A1 → A2 → A6 → A3 → A4 → A5（A1/A2/A6 は依存が強いため連続作業可）
 
 ---
 
 ### Phase B — Edge API 完成
 
+**ブランチ:** `feature/phase-b-edge-api`
+
 **目的:** `06` / `10` に記載の MVP エンドポイントをコードと契約で揃える。
 
-| # | タスク | 状態 | ブランチ | 参照 |
-|---|---|---|---|---|
-| B1 | `POST /api/v1/chat/reclassify` 実装 + router 登録 | 未実装 | `feature/edge-chat-reclassify` | `06`, `10` §3.2, `contracts/api-contract-mvp.md` §4 |
-| B2 | 一覧 API を `GET /entities` に統一（種別 GET は MVP 不提供） | **確定** | `docs/api-entities-routing`（本 push に含む） | `contracts/api-contract-mvp.md` §1 |
-| B3 | PATCH / GET DTO を UI 必須フィールドまで拡張 | **契約確定** / 実装未 | `feature/edge-entity-dto-expansion` | `contracts/api-contract-mvp.md` §2 |
-| B4 | 初回利用時の `encryption_key_id` 発行 | 未実装 | `feature/edge-encryption-key-provisioning` | `09` §5.2 |
-| B5 | `client_message_id` 冪等の本番検証 | **契約確定** / 実装未 | `feature/edge-chat-idempotency` | `contracts/api-contract-mvp.md` §5 |
-| B6 | Groq 障害時のエラーコード・文言を確定 | 未決 | `feature/edge-groq-error-responses` | 本ファイル §未決 |
-| B7 | Groq 日次トークン上限（user 単位、UTC 日次）+ 短時間 req 制限 | 方針確定 | `feature/edge-groq-daily-token-limit` | `05` §利用量制限 |
+| # | タスク | 状態 | 参照 |
+|---|---|---|---|
+| B1 | `POST /api/v1/chat/reclassify` 実装 + router 登録 | 未実装 | `06`, `10` §3.2, `contracts/api-contract-mvp.md` §4 |
+| B2 | 一覧 API を `GET /entities` に統一（種別 GET は MVP 不提供） | **確定** | `contracts/api-contract-mvp.md` §1 |
+| B3 | PATCH / GET DTO を UI 必須フィールドまで拡張 | **契約確定** / 実装未 | `contracts/api-contract-mvp.md` §2 |
+| B4 | 初回利用時の `encryption_key_id` 発行 | 未実装 | `09` §5.2 |
+| B5 | `client_message_id` 冪等の本番検証 | **契約確定** / 実装未 | `contracts/api-contract-mvp.md` §5 |
+| B6 | Groq 障害時のエラーコード・文言を確定 | 未決 | 本ファイル §未決 |
+| B7 | Groq 日次トークン上限（user 単位、UTC 日次）+ 短時間 req 制限 | 方針確定 | `05` §利用量制限 |
 
 **完了条件:** `edge/src/tests/integration.test.ts` に reclassify を追加し、本番 Supabase でも同等フローが通る。
 
-**推奨マージ順:** B2（方針確定）→ B3 → B1 → B4 → B5 → B6 → B7
+**推奨作業順:** B2 → B3 → B1 → B4 → B5 → B6 → B7
 
 ---
 
 ### Phase C — iOS ↔ Edge 接続
 
+**ブランチ:** `feature/phase-c-ios-edge-connection`
+
 **目的:** モックデータをやめ、docs 通りのデータフローに切り替える。
 
-| # | タスク | ブランチ | 参照 |
-|---|---|---|---|
-| C1 | `PlotAPIClient` 新設（Bearer JWT、`request_id` エラー mapping） | `feature/ios-api-client` | `06`, `10` |
-| C2 | Edge DTO ↔ 各 Item / ChatMessage mapper | `feature/ios-api-dto-mapping` | `10` §4 |
-| C3 | `PlotDataStore.reload()` → `GET /api/v1/entities` | `feature/ios-entities-fetch` | `02` §同期方針 |
-| C4 | 編集・削除・完了切替・ピン留め → PATCH / DELETE | `feature/ios-entities-mutation` | `11` §3.4–3.6 |
-| C5 | `ChatView` 送信 → `POST /api/v1/chat/messages` + Store 更新 | `feature/ios-chat-edge-send` | `01`, `11` §3.7 |
-| C6 | 再分類 → `POST /api/v1/chat/reclassify`（B1 完了後） | `feature/ios-chat-reclassify` | `01`, `11` §3.7 |
-| C7 | 送信ごとに `client_message_id`（UUID）を付与 | `feature/ios-chat-client-message-id` | `06` |
+| # | タスク | 参照 |
+|---|---|---|
+| C1 | `PlotAPIClient` 新設（Bearer JWT、`request_id` エラー mapping） | `06`, `10` |
+| C2 | Edge DTO ↔ 各 Item / ChatMessage mapper | `10` §4 |
+| C3 | `PlotDataStore.reload()` → `GET /api/v1/entities` | `02` §同期方針 |
+| C4 | 編集・削除・完了切替・ピン留め → PATCH / DELETE | `11` §3.4–3.6 |
+| C5 | `ChatView` 送信 → `POST /api/v1/chat/messages` + Store 更新 | `01`, `11` §3.7 |
+| C6 | 再分類 → `POST /api/v1/chat/reclassify`（B1 完了後） | `01`, `11` §3.7 |
+| C7 | 送信ごとに `client_message_id`（UUID）を付与 | `06` |
 
 **完了条件:** `11` §6 のチェック 5（チャット → 実体作成 → 各一覧反映）が本番 API で一連確認できる。
 
-**推奨マージ順:** C1 → C2 → C3 → C4 → C5 + C7（同一 PR 可）→ C6
+**推奨作業順:** C1 → C2 → C3 → C4 → C5 + C7（同一コミット可）→ C6
 
 ---
 
 ### Phase D — 認証本番化
 
+**ブランチ:** `feature/phase-d-auth-production`
+
 **目的:** `04` / `11` §3.1–3.2 の 3 方式を Supabase Auth で通す。
 
-| # | タスク | ブランチ | 参照 |
-|---|---|---|---|
-| D1 | Google OAuth 成功 → Supabase session → `AccountSession`（samples 廃止） | `feature/supabase-google-session` | `04` |
-| D2 | Sign in with Apple | `feature/supabase-apple-sign-in` | `04` |
-| D3 | Email をマジックリンク / OTP に変更 | `feature/supabase-email-magic-link` | `04`, `11` §3.1 |
-| D4 | 前回ログイン方式の推奨表示 | `feature/auth-last-provider-hint` | `04` §Apple Relay |
-| D5 | Apple Relay 時のヘルプ誘導（Login → Help 連携） | `feature/auth-apple-relay-help` | `11` §3.1 |
-| D6 | 新規登録時タイムゾーンを端末 → `public.users.timezone` | `feature/signup-timezone-bootstrap` | `11` §3.2 |
-| D7 | ログアウト / アカウント削除を Supabase + DB に接続 | `feature/account-logout-delete` | `11` §3.3 |
-| D8 | `PlotDebug` デモフラグを本番ビルドから除外 | `feature/debug-flags-release-gating` | — |
+| # | タスク | 参照 |
+|---|---|---|
+| D1 | Google OAuth 成功 → Supabase session → `AccountSession`（samples 廃止） | `04` |
+| D2 | Sign in with Apple | `04` |
+| D3 | Email をマジックリンク / OTP に変更 | `04`, `11` §3.1 |
+| D4 | 前回ログイン方式の推奨表示 | `04` §Apple Relay |
+| D5 | Apple Relay 時のヘルプ誘導（Login → Help 連携） | `11` §3.1 |
+| D6 | 新規登録時タイムゾーンを端末 → `public.users.timezone` | `11` §3.2 |
+| D7 | ログアウト / アカウント削除を Supabase + DB に接続 | `11` §3.3 |
+| D8 | `PlotDebug` デモフラグを本番ビルドから除外 | — |
 
 **完了条件:** `11` §6 のチェック 2・3 が通る。
 
-**推奨マージ順:** D1 → D2 → D3 → D4 → D5 → D6 → D7 → D8
+**推奨作業順:** D1 → D2 → D3 → D4 → D5 → D6 → D7 → D8
 
 **メモ:** Phase C と並行可能だが、**C1 以降は有効 JWT が必要**なため D1 は C5 より前に完了させるのが望ましい。
 
@@ -192,46 +214,52 @@ flowchart TD
 
 ### Phase E — 体験仕上げ
 
+**ブランチ:** `feature/phase-e-ux-polish`
+
 **目的:** UI シェルだけでは足りない docs 要件を埋める。
 
-| # | タスク | ブランチ | 参照 |
-|---|---|---|---|
-| E1 | `ai_persona_config` / `timezone` / `display_name` を `public.users` と双方向同期 | `feature/settings-users-sync` | `09` §3.2, `11` §3.3 |
-| E2 | チャット履歴の取得・表示（必要なら Edge に messages GET を追加） | `feature/chat-messages-history` | `11` §3.7 |
-| E3 | AI 推論アシスト UI（500ms デバウンス、キー入力ごとの API 呼び出し禁止） | `feature/chat-category-inference-ui` | `01`, `09` §1.2 |
-| E4 | 元メッセージ 30 日経過後の再分類不可 | `feature/chat-reclassify-expiry` | `01`, `09` §1.2 |
-| E5 | 主要イベント計測 + 失敗時 `request_id` 連携 | `feature/analytics-request-id` | `11` §2.4 |
+| # | タスク | 参照 |
+|---|---|---|
+| E1 | `ai_persona_config` / `timezone` / `display_name` を `public.users` と双方向同期 | `09` §3.2, `11` §3.3 |
+| E2 | チャット履歴の取得・表示（必要なら Edge に messages GET を追加） | `11` §3.7 |
+| E3 | AI 推論アシスト UI（500ms デバウンス、キー入力ごとの API 呼び出し禁止） | `01`, `09` §1.2 |
+| E4 | 元メッセージ 30 日経過後の再分類不可 | `01`, `09` §1.2 |
+| E5 | 主要イベント計測 + 失敗時 `request_id` 連携 | `11` §2.4 |
 
 **完了条件:** `11` §6 のチェック 6 が通る。
 
-**推奨マージ順:** E1 → E2 → E3 → E4 → E5
+**推奨作業順:** E1 → E2 → E3 → E4 → E5
 
 ---
 
 ### Phase F — リリース前チェック
 
-`11` §6 を正本として全項目を確認する。チェックで見つかった不足は **内容ごとに** ブランチを切る。
+**ブランチ:** `feature/phase-f-release-gate`
 
-| チェック | 不足時のブランチ例 |
+`11` §6 を正本として全項目を確認する。チェックで見つかった単発修正は **同一 Phase F ブランチ**で対応する。緊急の hotfix のみ `fix/*` を許容。
+
+| チェック | 対応 Phase / タスク |
 |---|---|
-| 1. 法務画面の全導線 | `fix/legal-navigation-paths` |
-| 2. 認証 3 方式 | Phase D の各ブランチで対応 |
-| 3. Apple Relay 導線 | `feature/auth-apple-relay-help`（D5 と共用可） |
-| 4. 共通 UI 状態 | `fix/screen-status-states` |
-| 5. チャット → 一覧の一連 | Phase C の各ブランチで対応 |
-| 6. 設定反映 | `feature/settings-users-sync`（E1 と共用可） |
-| OSS ライセンス本文 | `feature/oss-licenses-content` |
+| 1. 法務画面の全導線 | Phase F 内で修正 |
+| 2. 認証 3 方式 | Phase D |
+| 3. Apple Relay 導線 | Phase D（D5） |
+| 4. 共通 UI 状態 | Phase F 内で修正 |
+| 5. チャット → 一覧の一連 | Phase C |
+| 6. 設定反映 | Phase E（E1） |
+| OSS ライセンス本文 | Phase F 内（E 相当の残タスク） |
 
 ---
 
 ### Phase G — モック削除・整理
 
-| 対象 | ブランチ |
+**ブランチ:** `clean/phase-g-mock-removal`
+
+| 対象 | 備考 |
 |---|---|
-| `ChatMockResponder` / `*.sampleData` / `PlottyAccount.samples` | `clean/remove-mock-data-layer` |
-| `PlotDebug` デモ用フラグ | `clean/remove-debug-demo-flags` |
-| `SupabaseDatabaseService` stub 整理 | `clean/supabase-service-layer` |
-| `Plotty/Core/` 重複ファイル | `clean/legacy-core-duplicates` |
+| `ChatMockResponder` / `*.sampleData` / `PlottyAccount.samples` | Phase G で一括削除 |
+| `PlotDebug` デモ用フラグ | Phase G または Phase D（D8）と重複しないよう整理 |
+| `SupabaseDatabaseService` stub 整理 | Phase G |
+| `Plotty/Core/` 重複ファイル | Phase G |
 
 ---
 
@@ -251,15 +279,17 @@ flowchart TD
 
 ## コードと docs のズレ（docs 準拠で解消する）
 
-| 項目 | docs | 現コード | 解消ブランチ |
+解消は **該当 Phase ブランチ**内で行う。
+
+| 項目 | docs | 現コード | 解消 Phase |
 |---|---|---|---|
-| Email 認証 | マジックリンク / OTP | パスワードフォーム | `feature/supabase-email-magic-link` |
-| 種別 GET | `/schedules` 等 | **`GET /entities` のみ**（確定） | 実装: `feature/edge-entity-dto-expansion` |
-| PATCH / GET フィールド | UI 必須フィールド | 契約未反映 | `contracts/api-contract-mvp.md` → コード |
-| Edge ランタイム | Supabase Edge Functions | `edge/` が Workers 形式 | `feature/supabase-edge-functions-deploy` |
-| チャット履歴 | `messages` 表示 | セッション内メモリのみ | `feature/chat-messages-history` |
-| AI 推論アシスト | 入力中 UI | 未実装 | `feature/chat-category-inference-ui` |
-| OSS ライセンス | 利用ライブラリ一覧 | プレースホルダー | `feature/oss-licenses-content` |
+| Email 認証 | マジックリンク / OTP | パスワードフォーム | D（D3） |
+| 種別 GET | `/schedules` 等 | **`GET /entities` のみ**（確定） | B（B3） |
+| PATCH / GET フィールド | UI 必須フィールド | 契約未反映 | B（B3） |
+| Edge ランタイム | Supabase Edge Functions | `edge/` が Workers 形式 | A（A4） |
+| チャット履歴 | `messages` 表示 | セッション内メモリのみ | E（E2） |
+| AI 推論アシスト | 入力中 UI | 未実装 | E（E3） |
+| OSS ライセンス | 利用ライブラリ一覧 | プレースホルダー | F |
 
 ---
 
@@ -275,11 +305,11 @@ flowchart TD
 
 ## 追加で詰める項目（未決）
 
-- Groq 障害時の UX（文言、再試行導線）→ `feature/edge-groq-error-responses` / `feature/analytics-request-id`
-- Groq 日次トークン上限の実装・初期値チューニング → `feature/edge-groq-daily-token-limit`（方針: `05` §利用量制限）
-- RLS SQL の最終形（migration 化）→ `feature/supabase-rls-migrations`
+- Groq 障害時の UX（文言、再試行導線）→ Phase B（B6）/ Phase E（E5）
+- Groq 日次トークン上限の実装・初期値チューニング → Phase B（B7）（方針: `05` §利用量制限）
+- RLS SQL の最終形（migration 化）→ Phase A（A6）
 - Supabase Free プロジェクト pause 対策（週次 ping 等）→ A4 デプロイ後に要否判断
-- `messages.client_message_id` 列（または idempotency テーブル）の migration → `feature/edge-chat-idempotency`（詳細: `contracts/implementation-notes.md` §3）
+- `messages.client_message_id` 列（または idempotency テーブル）の migration → Phase B（B5）（詳細: `contracts/implementation-notes.md` §3）
 
 ---
 
@@ -308,3 +338,4 @@ flowchart TD
 - 2026/06/03: **`client_message_id` 冪等** — 同一 user+key の再 POST は **200 + 初回レスポンス**。§5。
 - 2026/06/03: §2〜§4 の実装吸収項目・migration バックログ・doc 正本整理を **`docs/contracts/implementation-notes.md`** に集約。方針変更は不要、施工のみ。
 - 2026/06/03: **設計レビュー結論** — MVP 設計は実装開始可能（完成度 約 80–85%、実装 約 15–20%）。priority / due_date / doc 正本のズレ・Phase E 後回しは **いずれも実装で吸収可能**（ユーザー確認済み）。docs push 後の次手: Phase A → B。
+- 2026/06/07: **ブランチ戦略** — タスク単位（`feature/supabase-schema-migration` 等）から **Phase 単位 1 ブランチ**に変更。Phase 内はタスクごとにコミット、**push / PR は Phase 完了時**。Phase A ブランチ: `feature/phase-a-supabase-foundation`。
