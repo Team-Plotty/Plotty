@@ -14,9 +14,10 @@
 
 **リモート / ローカル Supabase（推奨）**
 
-1. `supabase db push` または `supabase migration up` で `20260603120000_plotty_schema.sql` を適用
-2. `auth.users` → `public.users` 連携トリガー（A2 migration）
-3. `messages-retention-job.sql`（A3 migration、`pg_cron` 拡張が有効であること）
+1. `supabase link --project-ref <ref>` のあと `supabase db push` で `20260603120000_plotty_schema.sql` を適用
+2. Edge Functions ローカル開発時は `supabase/.env.example` を `supabase/.env.local` にコピーして Secrets を設定（`09` §10.2）
+3. `auth.users` → `public.users` 連携トリガー（A2 migration）
+4. `messages-retention-job.sql`（A3 migration、`pg_cron` 拡張が有効であること）
 
 **手動 SQL（参考）**
 
