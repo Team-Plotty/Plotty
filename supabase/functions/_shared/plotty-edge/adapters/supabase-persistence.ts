@@ -8,7 +8,7 @@ import type {
   PersistenceRepository,
   ScheduleWriteInput,
   TaskWriteInput
-} from "../services/persistence.js";
+} from "../services/persistence.ts";
 
 const rowToEntityReadModel = (
   type: "schedule" | "task" | "memo",

@@ -1,9 +1,9 @@
-import type { JsonResponse } from "../core/http.js";
-import type { EntityType } from "../contracts/chat-messages.js";
+import type { JsonResponse } from "../core/http.ts";
+import type { EntityType } from "../contracts/chat-messages.ts";
 import {
   createGetEntitiesHandler,
   type GetEntitiesHandlerDeps
-} from "./get-entities-handler.js";
+} from "./get-entities-handler.ts";
 
 export interface GetTypedEntitiesInput {
   authorizationHeader: string | null;

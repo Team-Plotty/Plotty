@@ -1,15 +1,15 @@
-import { createAppRouter } from "./app/router.js";
-import { createAesGcmCryptoService } from "./adapters/aes-gcm-crypto.js";
+import { createAppRouter } from "./app/router.ts";
+import { createAesGcmCryptoService } from "./adapters/aes-gcm-crypto.ts";
 import {
   createSupabaseClient,
   createSupabaseUserSettingsRepository
-} from "./adapters/supabase-user-settings.js";
-import { createSupabasePersistenceRepository } from "./adapters/supabase-persistence.js";
-import { parseEdgeEnv } from "./core/env.js";
-import { consoleLogger } from "./core/logger.js";
-import { createSupabaseAuthVerifier } from "./services/auth.js";
-import { createGroqClient } from "./services/groq-client.js";
-import { createInMemoryRateLimiter } from "./services/rate-limit.js";
+} from "./adapters/supabase-user-settings.ts";
+import { createSupabasePersistenceRepository } from "./adapters/supabase-persistence.ts";
+import { parseEdgeEnv } from "./core/env.ts";
+import { consoleLogger } from "./core/logger.ts";
+import { createSupabaseAuthVerifier } from "./services/auth.ts";
+import { createGroqClient } from "./services/groq-client.ts";
+import { createInMemoryRateLimiter } from "./services/rate-limit.ts";
 
 export type EnvGetter = (key: string) => string | undefined;
 

@@ -1,4 +1,4 @@
-import type { CryptoService, EncryptedPayload } from "../services/crypto.js";
+import type { CryptoService, EncryptedPayload } from "../services/crypto.ts";
 
 const encodeBase64 = (text: string): string => {
   const bytes = new TextEncoder().encode(text);

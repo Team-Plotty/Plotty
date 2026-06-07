@@ -7,7 +7,7 @@ import type {
   PersistenceRepository,
   ScheduleWriteInput,
   TaskWriteInput
-} from "../services/persistence.js";
+} from "../services/persistence.ts";
 
 export interface InMemoryDatabase {
   messages: MessageWriteInput[];

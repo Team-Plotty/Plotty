@@ -1,19 +1,19 @@
 import {
   createChatMessagesHandler,
   type ChatMessagesHandlerDeps
-} from "./chat-messages-handler.js";
+} from "./chat-messages-handler.ts";
 import {
   createDeleteEntityHandler,
   type DeleteEntityHandlerDeps
-} from "./delete-entity-handler.js";
+} from "./delete-entity-handler.ts";
 import {
   createGetEntitiesHandler,
   type GetEntitiesHandlerDeps
-} from "./get-entities-handler.js";
+} from "./get-entities-handler.ts";
 import {
   createPatchEntityHandler,
   type PatchEntityHandlerDeps
-} from "./patch-entity-handler.js";
+} from "./patch-entity-handler.ts";
 
 type RouterDeps = ChatMessagesHandlerDeps &
   GetEntitiesHandlerDeps &

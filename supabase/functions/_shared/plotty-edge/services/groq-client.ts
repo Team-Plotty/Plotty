@@ -1,5 +1,5 @@
-import { llmExtractionResultSchema, type LlmExtractionResult } from "../contracts/chat-messages.js";
-import { withRetry } from "./retry.js";
+import { llmExtractionResultSchema, type LlmExtractionResult } from "../contracts/chat-messages.ts";
+import { withRetry } from "./retry.ts";
 
 export interface GroqClientConfig {
   apiKey: string;

@@ -3,15 +3,15 @@ import {
   getEntitiesResponseSchema,
   type EntityType,
   type GetEntitiesResponse
-} from "../contracts/chat-messages.js";
-import { type ErrorCode, errorMessageByCode } from "../contracts/errors.js";
-import { jsonResponse, type JsonResponse } from "../core/http.js";
-import { consoleLogger, type Logger } from "../core/logger.js";
-import { createRequestContext } from "../core/request-context.js";
-import { parseBearerToken, type AuthVerifier } from "../services/auth.js";
-import type { CryptoService } from "../services/crypto.js";
-import type { EntityReadModel, PersistenceRepository } from "../services/persistence.js";
-import type { RateLimiter } from "../services/rate-limit.js";
+} from "../contracts/chat-messages.ts";
+import { type ErrorCode, errorMessageByCode } from "../contracts/errors.ts";
+import { jsonResponse, type JsonResponse } from "../core/http.ts";
+import { consoleLogger, type Logger } from "../core/logger.ts";
+import { createRequestContext } from "../core/request-context.ts";
+import { parseBearerToken, type AuthVerifier } from "../services/auth.ts";
+import type { CryptoService } from "../services/crypto.ts";
+import type { EntityReadModel, PersistenceRepository } from "../services/persistence.ts";
+import type { RateLimiter } from "../services/rate-limit.ts";
 
 const FUNCTION_NAME = "get_entities";
 

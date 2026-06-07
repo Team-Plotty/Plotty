@@ -7,6 +7,9 @@
 ```bash
 cp -R edge/src supabase/functions/_shared/plotty-edge
 rm -rf supabase/functions/_shared/plotty-edge/tests
+find supabase/functions/_shared/plotty-edge -name '*.ts' -exec sed -i '' 's/\.js"/\.ts"/g' {} +
 ```
 
-正本は **`edge/src`**（Node 向け `npm run typecheck` もこちら）。
+または `cd edge && npm run sync:supabase-shared`
+
+Deno バンドル用に import 拡張子を `.js` → `.ts` に変換している（`edge/src` 正本は Node 向け `.js` のまま）。

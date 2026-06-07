@@ -1,6 +1,6 @@
-import type { LlmExtractionResult, PostChatMessagesResponse } from "../contracts/chat-messages.js";
-import type { CryptoService, EncryptedPayload } from "./crypto.js";
-import type { BuildPersistenceInput, MemoWriteInput, PersistenceRepository, RelatedEntityRef, ScheduleWriteInput, TaskWriteInput } from "./persistence.js";
+import type { LlmExtractionResult, PostChatMessagesResponse } from "../contracts/chat-messages.ts";
+import type { CryptoService, EncryptedPayload } from "./crypto.ts";
+import type { BuildPersistenceInput, MemoWriteInput, PersistenceRepository, RelatedEntityRef, ScheduleWriteInput, TaskWriteInput } from "./persistence.ts";
 
 const addDays = (date: Date, days: number): Date => {
   const next = new Date(date);

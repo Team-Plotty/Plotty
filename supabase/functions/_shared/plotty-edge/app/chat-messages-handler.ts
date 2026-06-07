@@ -2,18 +2,18 @@ import {
   postChatMessagesRequestSchema,
   postChatMessagesResponseSchema,
   type PostChatMessagesResponse
-} from "../contracts/chat-messages.js";
-import { errorMessageByCode, type ErrorCode } from "../contracts/errors.js";
-import { createRequestContext } from "../core/request-context.js";
-import { jsonResponse, type JsonResponse } from "../core/http.js";
-import { consoleLogger, type Logger } from "../core/logger.js";
-import { parseBearerToken, type AuthVerifier } from "../services/auth.js";
-import type { CryptoService } from "../services/crypto.js";
-import { persistExtractionResults } from "../services/entity-builder.js";
-import type { GroqClient } from "../services/groq-client.js";
-import type { PersistenceRepository } from "../services/persistence.js";
-import type { RateLimiter } from "../services/rate-limit.js";
-import type { UserSettingsRepository } from "../services/user-settings.js";
+} from "../contracts/chat-messages.ts";
+import { errorMessageByCode, type ErrorCode } from "../contracts/errors.ts";
+import { createRequestContext } from "../core/request-context.ts";
+import { jsonResponse, type JsonResponse } from "../core/http.ts";
+import { consoleLogger, type Logger } from "../core/logger.ts";
+import { parseBearerToken, type AuthVerifier } from "../services/auth.ts";
+import type { CryptoService } from "../services/crypto.ts";
+import { persistExtractionResults } from "../services/entity-builder.ts";
+import type { GroqClient } from "../services/groq-client.ts";
+import type { PersistenceRepository } from "../services/persistence.ts";
+import type { RateLimiter } from "../services/rate-limit.ts";
+import type { UserSettingsRepository } from "../services/user-settings.ts";
 
 const FUNCTION_NAME = "post_chat_messages";
 

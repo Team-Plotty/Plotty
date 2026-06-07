@@ -1,5 +1,5 @@
-import type { EntityType, LlmExtractionResult } from "../contracts/chat-messages.js";
-import type { EncryptedPayload } from "./crypto.js";
+import type { EntityType, LlmExtractionResult } from "../contracts/chat-messages.ts";
+import type { EncryptedPayload } from "./crypto.ts";
 
 export interface RelatedEntityRef {
   type: EntityType;
