@@ -201,16 +201,4 @@ create policy "memos_update_own" on public.memos
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- メモ: public.users は RLS で INSERT が無い。Supabase の慣例では auth.users に対する SECURITY DEFINER のトリガーで挿入する。
--- メモ（テンプレ）: auth.users に行を作成したときにプロファイルを作る関数（適用時はサービス側で確認してコメント解除）
---
--- create or replace function public.handle_new_user()
--- returns trigger language plpgsql security definer set search_path = public as $$
--- begin
---   insert into public.users (id) values (new.id)
---   on conflict (id) do nothing;
---   return new;
--- end;
--- $$;
---
--- create trigger on_auth_user_created after insert on auth.users
---   for each row execute procedure public.handle_new_user();
+-- 適用済み migration: supabase/migrations/20260607150000_auth_user_profile_trigger.sql（A2）
