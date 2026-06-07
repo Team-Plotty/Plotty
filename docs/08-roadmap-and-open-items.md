@@ -135,7 +135,7 @@ flowchart TD
 | A3 | `messages` 30 日削除 cron（`edge/sql/messages-retention-job.sql`） | **完了** | `02`, `07` |
 | A4 | `edge/` を Supabase Edge Function（`plotty-api`）としてデプロイ。Secrets 設定 | **完了** | `05`, `06`, `09` §10, 本ファイル §A4 デプロイ |
 | A5 | iOS に Edge Base URL を設定（`.../functions/v1/plotty-api`） | **完了** | `06`, `10` §3, `SupabaseConfig` |
-| A6 | RLS を migration 化し、本番と開発で同一手順にする | 未 | `07`, `13` |
+| A6 | RLS を migration 化し、本番と開発で同一手順にする | **コード完了** / db push 待ち | `07`, `13`, `edge/sql/rls-policies.sql` |
 
 **完了条件:** curl / 統合テストで JWT 付き `POST /api/v1/chat/messages` が本番 DB に書き込める。
 
@@ -327,7 +327,7 @@ flowchart TD
 
 - Groq 障害時の UX（文言、再試行導線）→ Phase B（B6）/ Phase E（E5）
 - Groq 日次トークン上限の実装・初期値チューニング → Phase B（B7）（方針: `05` §利用量制限）
-- RLS SQL の最終形（migration 化）→ Phase A（A6）
+- RLS SQL の最終形（migration 化）→ Phase A（A6）`20260607170000_rls_policies.sql`
 - Supabase Free プロジェクト pause 対策（週次 ping 等）→ A4 デプロイ後に要否判断
 - `messages.client_message_id` 列（または idempotency テーブル）の migration → Phase B（B5）（詳細: `contracts/implementation-notes.md` §3）
 
