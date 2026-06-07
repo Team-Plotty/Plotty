@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "sync:supabase-shared": "cp -R src ../supabase/functions/_shared/plotty-edge && rm -rf ../supabase/functions/_shared/plotty-edge/tests",
     "test:integration": "npm run build && node --test dist/tests/**/*.test.js"
   },
   "dependencies": {
