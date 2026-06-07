@@ -1,0 +1,94 @@
+import type { EntityType, LlmExtractionResult } from "../contracts/chat-messages.ts";
+import type { EncryptedPayload } from "./crypto.ts";
+
+export interface RelatedEntityRef {
+  type: EntityType;
+  id: string;
+}
+
+export interface MessageWriteInput {
+  id: string;
+  userId: string;
+  role: "user" | "assistant";
+  clientMessageId?: string;
+  contentEncrypted: string;
+  iv: string;
+  relatedEntities: RelatedEntityRef[];
+  analysisResultsEncrypted?: EncryptedPayload;
+  expiresAt: string;
+}
+
+export interface BaseEntityWriteInput {
+  id: string;
+  userId: string;
+  sourceMessageId: string;
+  originTextEncrypted: string;
+  titleEncrypted: string;
+  titleHash: string;
+  iv: string;
+}
+
+export interface ScheduleWriteInput extends BaseEntityWriteInput {
+  startAt: string;
+  endAt: string | null;
+  isAllDay: boolean;
+  location: string | null;
+}
+
+export interface TaskWriteInput extends BaseEntityWriteInput {
+  dueDate: string;
+  priority: 2 | 3 | 1;
+}
+
+export interface MemoWriteInput extends BaseEntityWriteInput {
+  contentEncrypted: string;
+}
+
+export interface EntityReadFilter {
+  userId: string;
+  type?: EntityType;
+  limit: number;
+}
+
+export interface EntityReadModel {
+  type: EntityType;
+  id: string;
+  userId: string;
+  titleEncrypted: string;
+  iv: string;
+  startAt?: string;
+  dueDate?: string;
+  contentEncrypted?: string;
+  isDeleted?: boolean;
+}
+
+export interface EntityUpdateInput {
+  id: string;
+  userId: string;
+  type: EntityType;
+  titleEncrypted?: string;
+  iv?: string;
+  startAt?: string;
+  dueDate?: string;
+  contentEncrypted?: string;
+}
+
+export interface PersistenceRepository {
+  insertMessage(input: MessageWriteInput): Promise<void>;
+  insertSchedule(input: ScheduleWriteInput): Promise<void>;
+  insertTask(input: TaskWriteInput): Promise<void>;
+  insertMemo(input: MemoWriteInput): Promise<void>;
+  listEntities(filter: EntityReadFilter): Promise<EntityReadModel[]>;
+  updateEntity(input: EntityUpdateInput): Promise<EntityReadModel | null>;
+  softDeleteEntity(input: { id: string; userId: string; type: EntityType }): Promise<boolean>;
+}
+
+export interface BuildPersistenceInput {
+  messageId: string;
+  userId: string;
+  clientMessageId: string;
+  extraction: LlmExtractionResult;
+  analysisResultsEncrypted: EncryptedPayload;
+  textEncryption: EncryptedPayload;
+  assistantTextEncryption: EncryptedPayload;
+}

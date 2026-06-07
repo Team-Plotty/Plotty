@@ -4,9 +4,13 @@
 
 | ファイル | 内容 |
 |---------|------|
-| [`edge/sql/plotty_schema.sql`](../edge/sql/plotty_schema.sql) | **テーブル／インデックス／RLS／`updated_at` トリガー** の一式（SQL 正本） |
-| [`supabase/migrations/20260603120000_plotty_schema.sql`](../supabase/migrations/20260603120000_plotty_schema.sql) | 上記を **Supabase migration** 化したもの（A1） |
-| [`edge/sql/messages-retention-job.sql`](../edge/sql/messages-retention-job.sql) | **`messages` 30日削除** の `pg_cron` 登録（UTC・720時間） |
+| [`edge/sql/plotty_schema.sql`](../edge/sql/plotty_schema.sql) | **テーブル／インデックス／トリガー** の一式（SQL 正本。RLS は別ファイル） |
+| [`edge/sql/rls-policies.sql`](../edge/sql/rls-policies.sql) | **RLS ポリシー** の SQL 正本 |
+| [`supabase/migrations/20260603120000_plotty_schema.sql`](../supabase/migrations/20260603120000_plotty_schema.sql) | スキーマ + 初回 RLS（A1） |
+| [`supabase/migrations/20260607170000_rls_policies.sql`](../supabase/migrations/20260607170000_rls_policies.sql) | **RLS 再適用・正本 migration**（A6、idempotent） |
+| [`supabase/migrations/20260607150000_auth_user_profile_trigger.sql`](../supabase/migrations/20260607150000_auth_user_profile_trigger.sql) | **`auth.users` → `public.users` 自動作成トリガー**（A2） |
+| [`supabase/migrations/20260607160000_messages_retention_cron.sql`](../supabase/migrations/20260607160000_messages_retention_cron.sql) | **`messages` 30日削除 cron**（A3） |
+| [`edge/sql/messages-retention-job.sql`](../edge/sql/messages-retention-job.sql) | 上記 cron の SQL 正本（手動適用用） |
 
 仕様の根拠: `09-implementation-spec-detailed.md`。
 
@@ -16,8 +20,9 @@
 
 1. `supabase link --project-ref <ref>` のあと `supabase db push` で `20260603120000_plotty_schema.sql` を適用
 2. Edge Functions ローカル開発時は `supabase/.env.example` を `supabase/.env.local` にコピーして Secrets を設定（`09` §10.2）
-3. `auth.users` → `public.users` 連携トリガー（A2 migration）
-4. `messages-retention-job.sql`（A3 migration、`pg_cron` 拡張が有効であること）
+3. `supabase db push` で `20260607150000_auth_user_profile_trigger.sql` を適用（A2）
+4. `supabase db push` で `20260607160000_messages_retention_cron.sql` を適用（A3。`pg_cron` 拡張を有効化してから）
+5. `supabase db push` で `20260607170000_rls_policies.sql` を適用（A6。手動 SQL 環境のポリシー揃え・以降の RLS 正本）
 
 **手動 SQL（参考）**
 
@@ -32,8 +37,10 @@
 
 ## RLS（本 DDL に含む内容）
 
+- 正本 SQL: **`edge/sql/rls-policies.sql`**。Supabase 適用: **A6 migration**
 - `auth.uid() = user_id` の本人データのみ（`users` は `id = auth.uid()`）
 - `messages` は **SELECT / INSERT のみ**（更新・削除はクライアント JWT では不可。バッチ・Edge の `service_role` で実施する想定）
+- A1 migration にも初回 RLS あり。A6 は **DROP IF EXISTS + CREATE** で本番・開発を同一手順に揃える
 
 ## 注意事項
 

@@ -3,17 +3,19 @@ import Supabase
 
 /// Supabase クライアントの初期化・共有アクセス。
 enum SupabaseManager {
-    /// `SupabaseSecrets.plist` を Copy Bundle Resources に含め、値を設定してから参照する。
-    static let client: SupabaseClient = {
-        let secrets: SupabaseConfig.Values
+    private static let secrets: SupabaseConfig.Values = {
         do {
-            secrets = try SupabaseConfig.load()
+            return try SupabaseConfig.load()
         } catch {
             preconditionFailure(
                 "SupabaseSecrets.plist を用意し SUPABASE_URL / SUPABASE_ANON_KEY を設定してください。"
             )
         }
-        return SupabaseClient(
+    }()
+
+    /// `SupabaseSecrets.plist` を Copy Bundle Resources に含め、値を設定してから参照する。
+    static let client: SupabaseClient = {
+        SupabaseClient(
             supabaseURL: secrets.supabaseURL,
             supabaseKey: secrets.anonKey,
             options: SupabaseClientOptions(
@@ -23,6 +25,9 @@ enum SupabaseManager {
             )
         )
     }()
+
+    /// Plotty Edge API の Base URL（`.../functions/v1/plotty-api`）。Phase C の `PlotAPIClient` が使用する。
+    static var edgeAPIBaseURL: URL { secrets.edgeAPIBaseURL }
 
     /// OAuth コールバック URL を Supabase Auth に渡す。
     static func handleOpenURL(_ url: URL) {

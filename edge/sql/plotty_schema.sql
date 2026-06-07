@@ -159,58 +159,10 @@ create trigger memos_set_updated_at
   before update on public.memos
   for each row execute procedure public.set_updated_at();
 
--- ── Row Level Security（方針: 本人のみ。messages の UPDATE/DELETE はクライアント JWT では不可）
-alter table public.users enable row level security;
-alter table public.messages enable row level security;
-alter table public.schedules enable row level security;
-alter table public.tasks enable row level security;
-alter table public.memos enable row level security;
-
--- public.users
-create policy "users_select_own" on public.users
-  for select using (auth.uid() = id);
-create policy "users_update_own" on public.users
-  for update using (auth.uid() = id) with check (auth.uid() = id);
-
--- messages（クライアントは閲覧・挿入のみ想定。更新・削除は service_role / cron）
-create policy "messages_select_own" on public.messages
-  for select using (auth.uid() = user_id);
-create policy "messages_insert_own" on public.messages
-  for insert with check (auth.uid() = user_id);
-
--- schedules / tasks / memos
-create policy "schedules_select_own" on public.schedules
-  for select using (auth.uid() = user_id);
-create policy "schedules_insert_own" on public.schedules
-  for insert with check (auth.uid() = user_id);
-create policy "schedules_update_own" on public.schedules
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "tasks_select_own" on public.tasks
-  for select using (auth.uid() = user_id);
-create policy "tasks_insert_own" on public.tasks
-  for insert with check (auth.uid() = user_id);
-create policy "tasks_update_own" on public.tasks
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "memos_select_own" on public.memos
-  for select using (auth.uid() = user_id);
-create policy "memos_insert_own" on public.memos
-  for insert with check (auth.uid() = user_id);
-create policy "memos_update_own" on public.memos
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- ── Row Level Security
+-- 正本: edge/sql/rls-policies.sql
+-- Supabase 適用: supabase/migrations/20260607170000_rls_policies.sql（A6）
+-- A1 migration にも初回適用用コピーあり。以降の RLS 変更は rls-policies.sql → A6 系 migration で行う。
 
 -- メモ: public.users は RLS で INSERT が無い。Supabase の慣例では auth.users に対する SECURITY DEFINER のトリガーで挿入する。
--- メモ（テンプレ）: auth.users に行を作成したときにプロファイルを作る関数（適用時はサービス側で確認してコメント解除）
---
--- create or replace function public.handle_new_user()
--- returns trigger language plpgsql security definer set search_path = public as $$
--- begin
---   insert into public.users (id) values (new.id)
---   on conflict (id) do nothing;
---   return new;
--- end;
--- $$;
---
--- create trigger on_auth_user_created after insert on auth.users
---   for each row execute procedure public.handle_new_user();
+-- 適用済み migration: supabase/migrations/20260607150000_auth_user_profile_trigger.sql（A2）
