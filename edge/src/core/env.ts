@@ -16,6 +16,21 @@ const envSchema = z.object({
 
 export type EdgeEnv = z.infer<typeof envSchema>;
 
+/** Supabase Edge Functions では JWT issuer / audience が Secrets に無いことがあるため補完する */
+export const normalizeEdgeEnvSource = (
+  source: Record<string, string | undefined>
+): Record<string, string | undefined> => {
+  const supabaseUrl = source.SUPABASE_URL?.replace(/\/$/, "");
+  return {
+    ...source,
+    SUPABASE_URL: supabaseUrl,
+    SUPABASE_JWT_ISSUER:
+      source.SUPABASE_JWT_ISSUER ??
+      (supabaseUrl ? `${supabaseUrl}/auth/v1` : undefined),
+    SUPABASE_JWT_AUDIENCE: source.SUPABASE_JWT_AUDIENCE ?? "authenticated"
+  };
+};
+
 export const parseEdgeEnv = (source: Record<string, string | undefined>): EdgeEnv => {
-  return envSchema.parse(source);
+  return envSchema.parse(normalizeEdgeEnvSource(source));
 };
