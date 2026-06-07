@@ -133,8 +133,8 @@ flowchart TD
 | A1 | `edge/sql/plotty_schema.sql` を Supabase migration として適用 | **完了** | `13` |
 | A2 | `auth.users` → `public.users` 自動作成トリガーを適用 | **完了** | `04`, `09`, `13` |
 | A3 | `messages` 30 日削除 cron（`edge/sql/messages-retention-job.sql`） | **完了** | `02`, `07` |
-| A4 | `edge/` を Supabase Edge Function（`plotty-api`）としてデプロイ。Secrets 設定 | **コード完了** / デプロイ待ち | `05`, `06`, `09` §10, 本ファイル §A4 デプロイ |
-| A5 | iOS に Edge Base URL を設定（`.../functions/v1/plotty-api`） | 未 | `06`, `10` §3 |
+| A4 | `edge/` を Supabase Edge Function（`plotty-api`）としてデプロイ。Secrets 設定 | **完了** | `05`, `06`, `09` §10, 本ファイル §A4 デプロイ |
+| A5 | iOS に Edge Base URL を設定（`.../functions/v1/plotty-api`） | **完了** | `06`, `10` §3, `SupabaseConfig` |
 | A6 | RLS を migration 化し、本番と開発で同一手順にする | 未 | `07`, `13` |
 
 **完了条件:** curl / 統合テストで JWT 付き `POST /api/v1/chat/messages` が本番 DB に書き込める。
