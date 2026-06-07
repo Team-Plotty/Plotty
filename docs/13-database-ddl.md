@@ -4,16 +4,25 @@
 
 | ファイル | 内容 |
 |---------|------|
-| [`edge/sql/plotty_schema.sql`](../edge/sql/plotty_schema.sql) | **テーブル／インデックス／RLS／`updated_at` トリガー** の一式 |
+| [`edge/sql/plotty_schema.sql`](../edge/sql/plotty_schema.sql) | **テーブル／インデックス／RLS／`updated_at` トリガー** の一式（SQL 正本） |
+| [`supabase/migrations/20260603120000_plotty_schema.sql`](../supabase/migrations/20260603120000_plotty_schema.sql) | 上記を **Supabase migration** 化したもの（A1） |
 | [`edge/sql/messages-retention-job.sql`](../edge/sql/messages-retention-job.sql) | **`messages` 30日削除** の `pg_cron` 登録（UTC・720時間） |
 
 仕様の根拠: `09-implementation-spec-detailed.md`。
 
 ## 適用の推奨順序
 
+**リモート / ローカル Supabase（推奨）**
+
+1. `supabase link --project-ref <ref>` のあと `supabase db push` で `20260603120000_plotty_schema.sql` を適用
+2. Edge Functions ローカル開発時は `supabase/.env.example` を `supabase/.env.local` にコピーして Secrets を設定（`09` §10.2）
+3. `auth.users` → `public.users` 連携トリガー（A2 migration）
+4. `messages-retention-job.sql`（A3 migration、`pg_cron` 拡張が有効であること）
+
+**手動 SQL（参考）**
+
 1. `plotty_schema.sql`（スキーマ本体）
-2. `auth.users` → `public.users` 連携トリガー（Supabase 標準手順に合わせる。`plotty_schema.sql` 末尾にコメント付きテンプレあり）
-3. `messages-retention-job.sql`（`pg_cron` 拡張が有効であること）
+2. 上記 2・3 と同順
 
 ## 対象テーブル
 
