@@ -14,11 +14,16 @@ import {
   createPatchEntityHandler,
   type PatchEntityHandlerDeps
 } from "./patch-entity-handler.ts";
+import {
+  createReclassifyHandler,
+  type ReclassifyHandlerDeps
+} from "./reclassify-handler.ts";
 
 type RouterDeps = ChatMessagesHandlerDeps &
   GetEntitiesHandlerDeps &
   PatchEntityHandlerDeps &
-  DeleteEntityHandlerDeps;
+  DeleteEntityHandlerDeps &
+  ReclassifyHandlerDeps;
 
 const jsonHeaders = {
   "content-type": "application/json; charset=utf-8"
@@ -68,6 +73,7 @@ export const createAppRouter = (deps: RouterDeps) => {
   const getEntitiesHandler = createGetEntitiesHandler(deps);
   const patchEntityHandler = createPatchEntityHandler(deps);
   const deleteEntityHandler = createDeleteEntityHandler(deps);
+  const reclassifyHandler = createReclassifyHandler(deps);
 
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -75,6 +81,17 @@ export const createAppRouter = (deps: RouterDeps) => {
 
     if (request.method === "POST" && url.pathname === "/api/v1/chat/messages") {
       const result = await chatHandler({
+        authorizationHeader,
+        body: await parseBody(request)
+      });
+      return new Response(JSON.stringify(result.body), {
+        status: result.status,
+        headers: jsonHeaders
+      });
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/v1/chat/reclassify") {
+      const result = await reclassifyHandler({
         authorizationHeader,
         body: await parseBody(request)
       });
