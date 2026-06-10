@@ -4,14 +4,14 @@
 
 ---
 
-## 現状サマリ（2026/06/07 時点）
+## 現状サマリ（2026/06/10 時点）
 
 | 領域 | 進捗 | 備考 |
 |---|---|---|
 | iOS UI（SwiftUI） | おおむね完成 | 全画面・Liquid Glass・共通状態 UI あり |
 | iOS ↔ Edge 接続 | 未着手 | `PlotAPIClient` 等なし。データはモック |
-| Edge API | 部分完成 | `edge/` に handler あり。Supabase Edge Functions（`plotty-api`）へデプロイ・reclassify 未 |
-| Supabase 運用 | Phase A 進行中 | **A1・A2** migration 適用済み。**A3** 以降未 |
+| Edge API | **Phase B 完了** | B0〜B7 実装・本番 smoke 通過（`plotty-api` デプロイ済み） |
+| Supabase 運用 | Phase A/B コード完了 | B5/B7 migration 適用済み。A6 RLS migration は db push 待ち |
 | 認証 | 部分完成 | Google OAuth のみ実装。Apple / Email はモック |
 
 **ボトルネック:** iOS から Edge への接続と Supabase 本番化。UI シェルは先行しているため、以降は **バックエンド接続 → 認証本番化 → 体験仕上げ** の順が効率的。
@@ -171,13 +171,13 @@ flowchart TD
 
 | # | タスク | 状態 | 参照 |
 |---|---|---|---|
-| B1 | `POST /api/v1/chat/reclassify` 実装 + router 登録 | 未実装 | `06`, `10` §3.2, `contracts/api-contract-mvp.md` §4 |
-| B2 | 一覧 API を `GET /entities` に統一（種別 GET は MVP 不提供） | **確定** | `contracts/api-contract-mvp.md` §1 |
-| B3 | PATCH / GET DTO を UI 必須フィールドまで拡張 | **契約確定** / 実装未 | `contracts/api-contract-mvp.md` §2 |
-| B4 | 初回利用時の `encryption_key_id` 発行 | 未実装 | `09` §5.2 |
-| B5 | `client_message_id` 冪等の本番検証 | **契約確定** / 実装未 | `contracts/api-contract-mvp.md` §5 |
-| B6 | Groq 障害時のエラーコード・文言を確定 | 未決 | 本ファイル §未決 |
-| B7 | Groq 日次トークン上限（user 単位、UTC 日次）+ 短時間 req 制限 | 方針確定 | `05` §利用量制限 |
+| B1 | `POST /api/v1/chat/reclassify` 実装 + router 登録 | **完了** | `06`, `10` §3.2, `contracts/api-contract-mvp.md` §4 |
+| B2 | 一覧 API を `GET /entities` に統一（種別 GET は MVP 不提供） | **完了** | `contracts/api-contract-mvp.md` §1 |
+| B3 | PATCH / GET DTO を UI 必須フィールドまで拡張 | **完了** | `contracts/api-contract-mvp.md` §2 |
+| B4 | 初回利用時の `encryption_key_id` 発行 | **完了** | `09` §5.2 |
+| B5 | `client_message_id` 冪等の本番検証 | **完了** | `contracts/api-contract-mvp.md` §5 |
+| B6 | Groq 障害時のエラーコード・文言を確定 | **完了** | `edge/src/services/groq-errors.ts` |
+| B7 | Groq 日次トークン上限（user 単位、UTC 日次）+ 短時間 req 制限 | **完了** | `05` §利用量制限 |
 
 **完了条件:** `edge/src/tests/integration.test.ts` に reclassify を追加し、本番 Supabase でも同等フローが通る。
 
@@ -325,11 +325,9 @@ flowchart TD
 
 ## 追加で詰める項目（未決）
 
-- Groq 障害時の UX（文言、再試行導線）→ Phase B（B6）/ Phase E（E5）
-- Groq 日次トークン上限の実装・初期値チューニング → Phase B（B7）（方針: `05` §利用量制限）
-- RLS SQL の最終形（migration 化）→ Phase A（A6）`20260607170000_rls_policies.sql`
-- Supabase Free プロジェクト pause 対策（週次 ping 等）→ A4 デプロイ後に要否判断
-- `messages.client_message_id` 列（または idempotency テーブル）の migration → Phase B（B5）（詳細: `contracts/implementation-notes.md` §3）
+- Groq 障害時の UX（文言、再試行導線）→ Phase B（B6）完了。UI 再試行導線は Phase E（E5）
+- Groq 日次トークン上限の実装・初期値チューニング → Phase B（B7）**完了**（`GROQ_DAILY_TOKEN_LIMIT` env、本番 smoke 済み）
+- `messages.client_message_id` 列 → Phase B（B5）**完了**（`20260608100000_messages_client_message_id.sql` 適用済み）
 
 ---
 
