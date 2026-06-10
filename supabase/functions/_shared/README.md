@@ -5,8 +5,7 @@
 **`edge/src` を更新したら同期する:**
 
 ```bash
-cp -R edge/src supabase/functions/_shared/plotty-edge
-rm -rf supabase/functions/_shared/plotty-edge/tests
+rsync -a --delete edge/src/ supabase/functions/_shared/plotty-edge/
 find supabase/functions/_shared/plotty-edge -name '*.ts' -exec sed -i '' 's/\.js"/\.ts"/g' {} +
 ```
 
