@@ -8,12 +8,12 @@ import {
   createInMemoryPersistenceRepository,
   createPatchEntityHandler,
   createSimpleCryptoService
-} from "../index.js";
-import type { AuthVerifier } from "../services/auth.js";
-import type { GroqClient } from "../services/groq-client.js";
-import type { RateLimiter } from "../services/rate-limit.js";
-import type { UserSettingsRepository } from "../services/user-settings.js";
-import { createInMemoryGroqUsageRepository } from "../adapters/supabase-groq-usage.js";
+} from "../index.ts";
+import type { AuthVerifier } from "../services/auth.ts";
+import type { GroqClient } from "../services/groq-client.ts";
+import type { RateLimiter } from "../services/rate-limit.ts";
+import type { UserSettingsRepository } from "../services/user-settings.ts";
+import { createInMemoryGroqUsageRepository } from "../adapters/supabase-groq-usage.ts";
 
 const authVerifier: AuthVerifier = {
   async verifyAccessToken(): Promise<{ userId: string }> {
@@ -176,7 +176,7 @@ test("reclassify task to memo", async () => {
   const taskId = created.created_entities[0]?.id;
   assert.ok(taskId);
 
-  const { createReclassifyHandler } = await import("../app/reclassify-handler.js");
+  const { createReclassifyHandler } = await import("../app/reclassify-handler.ts");
   const reclassifyHandler = createReclassifyHandler({
     authVerifier,
     cryptoService,
