@@ -8,7 +8,7 @@
 
 ## モデル運用
 
-- 本番: `llama-3.1-70b-versatile`（精度重視）
+- 本番: `llama-3.3-70b-versatile`（精度重視。旧 `llama-3.1-70b-versatile` は Groq 側で廃止）
 - 開発: `llama-3.1-8b-instant`（高速重視）
 - タイムアウト: 10秒
 - リトライ: 最大1回

@@ -189,7 +189,7 @@
 
 ## 6. AI/Groq 実行要件
 
-- 本番モデル: `llama-3.1-70b-versatile`
+- 本番モデル: `llama-3.3-70b-versatile`
 - 開発モデル: `llama-3.1-8b-instant`
 - タイムアウト: 10秒
 - リトライ: 最大1回
