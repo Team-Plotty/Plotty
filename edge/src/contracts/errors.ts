@@ -33,5 +33,5 @@ export const errorMessageByCode: Record<ErrorCode, string> = {
   GROQ_TIMEOUT: "通信状況を確認して再度お試しください",
   GROQ_UNAVAILABLE: "AIサービスが混み合っています。少し待って再試行してください",
   RATE_LIMITED: "リクエストが多すぎます。時間をおいて再試行してください",
-  INTERNAL_ERROR: "予期しないエラーが発生しました"
+  INTERNAL_ERROR: "予期しないエラーが発生しました。時間をおいて再試行してください",
 };
