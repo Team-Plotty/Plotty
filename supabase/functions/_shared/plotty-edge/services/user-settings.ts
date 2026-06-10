@@ -10,4 +10,5 @@ export interface UserSettings {
 
 export interface UserSettingsRepository {
   findByUserId(userId: string): Promise<UserSettings | null>;
+  ensureEncryptionKeyId(userId: string): Promise<void>;
 }
