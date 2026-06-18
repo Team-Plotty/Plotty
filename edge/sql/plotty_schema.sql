@@ -36,6 +36,7 @@ create table if not exists public.messages (
   iv text not null,
   related_entities jsonb not null default '[]'::jsonb,
   analysis_results_encrypted jsonb,
+  client_message_id text,
   created_at timestamptz not null default timezone('utc', now()),
   expires_at timestamptz not null
 );
@@ -44,6 +45,11 @@ comment on table public.messages is '対話ログ（暗号化済み）。30日�
 comment on column public.messages.related_entities is '例: [{"type":"schedule","id":"uuid"},...]';
 comment on column public.messages.analysis_results_encrypted is '例: {"iv":"...","data":"..."}（暗号化済みペイロード）';
 comment on column public.messages.expires_at is 'created_at + 720時間。INSERT 前トリガーで自動設定';
+comment on column public.messages.client_message_id is 'チャット POST 冪等キー（user ロールのみ。B5 migration）';
+
+create unique index if not exists messages_user_client_message_id_uidx
+  on public.messages (user_id, client_message_id)
+  where client_message_id is not null and role = 'user';
 
 create index if not exists messages_user_created_idx
   on public.messages (user_id, created_at desc);

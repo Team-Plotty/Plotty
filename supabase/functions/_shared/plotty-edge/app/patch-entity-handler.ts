@@ -10,7 +10,8 @@ import { consoleLogger, type Logger } from "../core/logger.ts";
 import { createRequestContext } from "../core/request-context.ts";
 import { parseBearerToken, type AuthVerifier } from "../services/auth.ts";
 import type { CryptoService } from "../services/crypto.ts";
-import type { PersistenceRepository } from "../services/persistence.ts";
+import { entityReadModelToDto } from "../services/entity-dto-mapper.ts";
+import type { EntityUpdateInput, PersistenceRepository } from "../services/persistence.ts";
 import type { RateLimiter } from "../services/rate-limit.ts";
 
 const FUNCTION_NAME = "patch_entity";
@@ -66,6 +67,13 @@ const toErrorResponse = (
   });
 };
 
+const hashTitle = async (title: string): Promise<string> => {
+  const payload = new TextEncoder().encode(title);
+  const digest = await crypto.subtle.digest("SHA-256", payload);
+  const bytes = Array.from(new Uint8Array(digest));
+  return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
+};
+
 export const createPatchEntityHandler = (deps: PatchEntityHandlerDeps) => {
   const logger = deps.logger ?? consoleLogger;
 
@@ -101,52 +109,69 @@ export const createPatchEntityHandler = (deps: PatchEntityHandlerDeps) => {
       );
     }
 
-    const updatePayload: {
-      id: string;
-      userId: string;
-      type: EntityType;
-      titleEncrypted?: string;
-      iv?: string;
-      startAt?: string;
-      dueDate?: string;
-      contentEncrypted?: string;
-    } = {
+    const updatePayload: EntityUpdateInput = {
       id: input.id,
       userId,
       type: input.type
     };
 
+    const hasEncryptedField =
+      parsedBody.data.title !== undefined ||
+      parsedBody.data.notes !== undefined ||
+      parsedBody.data.content !== undefined;
+
+    let entityIv: string | undefined;
+    if (hasEncryptedField) {
+      const existing = await deps.persistenceRepository.getEntityById({
+        userId,
+        type: input.type,
+        id: input.id
+      });
+      if (!existing) {
+        return toErrorResponse(context.requestId, "NOT_FOUND", logger, context.startedAt, userId);
+      }
+      entityIv = existing.iv;
+    }
+
     if (parsedBody.data.title) {
-      const encryptedTitle = await deps.cryptoService.encryptText(parsedBody.data.title);
-      updatePayload.titleEncrypted = encryptedTitle.data;
-      updatePayload.iv = encryptedTitle.iv;
+      updatePayload.titleEncrypted = await deps.cryptoService.encryptDataWithIv(
+        parsedBody.data.title,
+        entityIv!
+      );
+      updatePayload.titleHash = await hashTitle(parsedBody.data.title);
     }
-    if (parsedBody.data.start_at) updatePayload.startAt = parsedBody.data.start_at;
-    if (parsedBody.data.due_date) updatePayload.dueDate = parsedBody.data.due_date;
-    if (parsedBody.data.content) {
-      const encryptedContent = await deps.cryptoService.encryptText(parsedBody.data.content);
-      updatePayload.contentEncrypted = encryptedContent.data;
+    if (parsedBody.data.start_at !== undefined) updatePayload.startAt = parsedBody.data.start_at;
+    if (parsedBody.data.end_at !== undefined) updatePayload.endAt = parsedBody.data.end_at;
+    if (parsedBody.data.is_all_day !== undefined) updatePayload.isAllDay = parsedBody.data.is_all_day;
+    if (parsedBody.data.location !== undefined) updatePayload.location = parsedBody.data.location;
+    if (parsedBody.data.notes !== undefined) {
+      updatePayload.originTextEncrypted = await deps.cryptoService.encryptDataWithIv(
+        parsedBody.data.notes,
+        entityIv!
+      );
     }
+    if (parsedBody.data.due_date !== undefined) updatePayload.dueDate = parsedBody.data.due_date;
+    if (parsedBody.data.is_completed !== undefined) {
+      updatePayload.isCompleted = parsedBody.data.is_completed;
+    }
+    if (parsedBody.data.priority !== undefined) {
+      updatePayload.priority = parsedBody.data.priority as 1 | 2 | 3;
+    }
+    if (parsedBody.data.content !== undefined) {
+      updatePayload.contentEncrypted = await deps.cryptoService.encryptDataWithIv(
+        parsedBody.data.content,
+        entityIv!
+      );
+    }
+    if (parsedBody.data.is_pinned !== undefined) updatePayload.isPinned = parsedBody.data.is_pinned;
 
     const updated = await deps.persistenceRepository.updateEntity(updatePayload);
     if (!updated) {
       return toErrorResponse(context.requestId, "NOT_FOUND", logger, context.startedAt, userId);
     }
 
-    const title = await deps.cryptoService.decryptText({
-      iv: updated.iv,
-      data: updated.titleEncrypted
-    });
-
-    const response: PatchEntityResponse = {
-      entity: {
-        type: updated.type,
-        id: updated.id,
-        title,
-        start_at: updated.startAt,
-        due_date: updated.dueDate
-      }
-    };
+    const entity = await entityReadModelToDto(deps.cryptoService, updated);
+    const response: PatchEntityResponse = { entity };
     const parsed = patchEntityResponseSchema.parse(response);
     logger.info("Request completed", {
       request_id: context.requestId,

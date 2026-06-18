@@ -1,4 +1,5 @@
 import { llmExtractionResultSchema, type LlmExtractionResult } from "../contracts/chat-messages.ts";
+import { GroqEmptyError, GroqHttpError, GroqSchemaError } from "./groq-errors.ts";
 import { withRetry } from "./retry.ts";
 
 export interface GroqClientConfig {
@@ -14,8 +15,13 @@ export interface GroqPromptInput {
   userPrompt: string;
 }
 
+export interface GroqExtractResult {
+  extraction: LlmExtractionResult;
+  tokensUsed: number;
+}
+
 export interface GroqClient {
-  extract(input: GroqPromptInput): Promise<LlmExtractionResult>;
+  extract(input: GroqPromptInput): Promise<GroqExtractResult>;
 }
 
 interface GroqChatCompletionResponse {
@@ -24,10 +30,13 @@ interface GroqChatCompletionResponse {
       content?: string;
     };
   }>;
+  usage?: {
+    total_tokens?: number;
+  };
 }
 
 export const createGroqClient = (config: GroqClientConfig): GroqClient => ({
-  async extract(input: GroqPromptInput): Promise<LlmExtractionResult> {
+  async extract(input: GroqPromptInput): Promise<GroqExtractResult> {
     return withRetry(
       async () => {
         const controller = new AbortController();
@@ -54,21 +63,24 @@ export const createGroqClient = (config: GroqClientConfig): GroqClient => ({
           });
 
           if (!response.ok) {
-            throw new Error(`Groq API error: ${response.status}`);
+            throw new GroqHttpError(response.status);
           }
 
           const json = (await response.json()) as GroqChatCompletionResponse;
           const content = json.choices?.[0]?.message?.content;
           if (!content) {
-            throw new Error("Groq response content is empty");
+            throw new GroqEmptyError();
           }
 
           const parsed = llmExtractionResultSchema.safeParse(JSON.parse(content));
           if (!parsed.success) {
-            throw new Error("Groq response schema validation failed");
+            throw new GroqSchemaError();
           }
 
-          return parsed.data;
+          return {
+            extraction: parsed.data,
+            tokensUsed: json.usage?.total_tokens ?? 0
+          };
         } finally {
           clearTimeout(timeoutId);
         }

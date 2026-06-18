@@ -1,5 +1,4 @@
 import {
-  getEntitiesQuerySchema,
   getEntitiesResponseSchema,
   type EntityType,
   type GetEntitiesResponse
@@ -10,8 +9,10 @@ import { consoleLogger, type Logger } from "../core/logger.js";
 import { createRequestContext } from "../core/request-context.js";
 import { parseBearerToken, type AuthVerifier } from "../services/auth.js";
 import type { CryptoService } from "../services/crypto.js";
-import type { EntityReadModel, PersistenceRepository } from "../services/persistence.js";
+import { entityReadModelToDto } from "../services/entity-dto-mapper.js";
+import type { PersistenceRepository } from "../services/persistence.js";
 import type { RateLimiter } from "../services/rate-limit.js";
+import { getEntitiesQuerySchema } from "../contracts/chat-messages.js";
 
 const FUNCTION_NAME = "get_entities";
 
@@ -62,24 +63,6 @@ const toErrorResponse = (
       request_id: requestId
     }
   });
-};
-
-const toDto = async (
-  cryptoService: CryptoService,
-  readModel: EntityReadModel
-): Promise<GetEntitiesResponse["items"][number]> => {
-  const title = await cryptoService.decryptText({
-    iv: readModel.iv,
-    data: readModel.titleEncrypted
-  });
-
-  return {
-    type: readModel.type,
-    id: readModel.id,
-    title,
-    start_at: readModel.startAt,
-    due_date: readModel.dueDate
-  };
 };
 
 const parseType = (value?: string): EntityType | undefined => {
@@ -133,7 +116,7 @@ export const createGetEntitiesHandler = (deps: GetEntitiesHandlerDeps) => {
       limit: parsedQuery.data.limit
     });
 
-    const items = await Promise.all(rows.map((row) => toDto(deps.cryptoService, row)));
+    const items = await Promise.all(rows.map((row) => entityReadModelToDto(deps.cryptoService, row)));
     const response: GetEntitiesResponse = {
       items,
       next_cursor: null

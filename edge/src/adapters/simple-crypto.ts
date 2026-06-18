@@ -11,10 +11,15 @@ const encodeBase64 = (text: string): string => {
 
 export const createSimpleCryptoService = (): CryptoService => ({
   async encryptText(plainText: string): Promise<EncryptedPayload> {
+    const iv = crypto.randomUUID().replaceAll("-", "").slice(0, 16);
     return {
-      iv: crypto.randomUUID().replaceAll("-", "").slice(0, 16),
-      data: encodeBase64(plainText)
+      iv,
+      data: await this.encryptDataWithIv(plainText, iv)
     };
+  },
+  async encryptDataWithIv(plainText: string, iv: string): Promise<string> {
+    void iv;
+    return encodeBase64(plainText);
   },
   async decryptText(payload: EncryptedPayload): Promise<string> {
     const binary = atob(payload.data);

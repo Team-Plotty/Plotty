@@ -10,7 +10,7 @@
 | [`supabase/migrations/20260607170000_rls_policies.sql`](../supabase/migrations/20260607170000_rls_policies.sql) | **RLS 再適用・正本 migration**（A6、idempotent） |
 | [`supabase/migrations/20260607150000_auth_user_profile_trigger.sql`](../supabase/migrations/20260607150000_auth_user_profile_trigger.sql) | **`auth.users` → `public.users` 自動作成トリガー**（A2） |
 | [`supabase/migrations/20260607160000_messages_retention_cron.sql`](../supabase/migrations/20260607160000_messages_retention_cron.sql) | **`messages` 30日削除 cron**（A3） |
-| [`edge/sql/messages-retention-job.sql`](../edge/sql/messages-retention-job.sql) | 上記 cron の SQL 正本（手動適用用） |
+| [`supabase/migrations/20260608110000_user_daily_groq_usage.sql`](../supabase/migrations/20260608110000_user_daily_groq_usage.sql) | **Groq 日次トークン集計**（B7） |
 
 仕様の根拠: `09-implementation-spec-detailed.md`。
 
@@ -23,6 +23,8 @@
 3. `supabase db push` で `20260607150000_auth_user_profile_trigger.sql` を適用（A2）
 4. `supabase db push` で `20260607160000_messages_retention_cron.sql` を適用（A3。`pg_cron` 拡張を有効化してから）
 5. `supabase db push` で `20260607170000_rls_policies.sql` を適用（A6。手動 SQL 環境のポリシー揃え・以降の RLS 正本）
+6. `supabase db push` で `20260608100000_messages_client_message_id.sql` を適用（B5）
+7. `supabase db push` で `20260608110000_user_daily_groq_usage.sql` を適用（B7）
 
 **手動 SQL（参考）**
 
@@ -53,5 +55,4 @@
 
 | 追加対象 | 用途 |
 |---|---|
-| `messages.client_message_id` | チャット POST 冪等 |
-| `public.user_daily_groq_usage` | Groq 日次トークン上限（user × UTC 日付） |
+| （B5/B7 適用済み migration を参照） | — |
