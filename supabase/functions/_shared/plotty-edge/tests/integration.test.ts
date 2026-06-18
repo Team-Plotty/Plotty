@@ -226,7 +226,22 @@ test("chat messages idempotency returns same response", async () => {
   const countingGroqClient: GroqClient = {
     async extract(input) {
       groqCalls += 1;
-      return groqClient.extract(input);
+      return {
+        extraction: {
+          entities: [
+            {
+              type: "task",
+              data: {
+                title: "資料の提出",
+                content: "明日までに資料を提出する",
+                due_date: "2026-06-17T23:59:59+09:00"
+              }
+            }
+          ],
+          reply_message: "タスクを登録したよ！"
+        },
+        tokensUsed: 100
+      };
     }
   };
 

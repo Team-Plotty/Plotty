@@ -5,6 +5,7 @@ import type {
   TaskEntityDto,
   MemoEntityDto
 } from "../contracts/chat-messages.ts";
+import { normalizeApiDateTime, normalizeApiDateTimeNullable } from "./api-datetime.ts";
 import type { CryptoService } from "./crypto.ts";
 import type { EntityReadModel } from "./persistence.ts";
 
@@ -38,12 +39,12 @@ export const entityReadModelToDto = async (
       type: "schedule",
       id: readModel.id,
       title,
-      start_at: readModel.startAt ?? new Date().toISOString(),
-      end_at: readModel.endAt ?? null,
+      start_at: normalizeApiDateTime(readModel.startAt ?? new Date().toISOString()),
+      end_at: normalizeApiDateTimeNullable(readModel.endAt ?? null),
       is_all_day: readModel.isAllDay ?? false,
       location: readModel.location ?? "",
       notes,
-      updated_at: readModel.updatedAt ?? new Date().toISOString()
+      updated_at: normalizeApiDateTime(readModel.updatedAt ?? new Date().toISOString())
     } satisfies ScheduleEntityDto;
   }
 
@@ -53,10 +54,10 @@ export const entityReadModelToDto = async (
       id: readModel.id,
       title,
       is_completed: readModel.isCompleted ?? false,
-      due_date: readModel.dueDate ?? new Date().toISOString(),
+      due_date: normalizeApiDateTime(readModel.dueDate ?? new Date().toISOString()),
       priority: readModel.priority ?? 2,
-      created_at: readModel.createdAt ?? new Date().toISOString(),
-      updated_at: readModel.updatedAt ?? new Date().toISOString()
+      created_at: normalizeApiDateTime(readModel.createdAt ?? new Date().toISOString()),
+      updated_at: normalizeApiDateTime(readModel.updatedAt ?? new Date().toISOString())
     } satisfies TaskEntityDto;
   }
 
@@ -71,7 +72,7 @@ export const entityReadModelToDto = async (
     title,
     content,
     is_pinned: readModel.isPinned ?? false,
-    updated_at: readModel.updatedAt ?? new Date().toISOString()
+    updated_at: normalizeApiDateTime(readModel.updatedAt ?? new Date().toISOString())
   } satisfies MemoEntityDto;
 };
 
@@ -90,8 +91,8 @@ export const scheduleWriteToCreatedEntity = (
   type: "schedule",
   id: schedule.id,
   title,
-  start_at: schedule.startAt,
-  end_at: schedule.endAt,
+  start_at: normalizeApiDateTime(schedule.startAt),
+  end_at: normalizeApiDateTimeNullable(schedule.endAt),
   is_all_day: schedule.isAllDay,
   location: schedule.location ?? "",
   notes
@@ -105,7 +106,7 @@ export const taskWriteToCreatedEntity = (
   id: task.id,
   title,
   is_completed: task.isCompleted,
-  due_date: task.dueDate,
+  due_date: normalizeApiDateTime(task.dueDate),
   priority: task.priority
 });
 
