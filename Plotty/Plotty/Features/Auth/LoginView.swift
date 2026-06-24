@@ -9,16 +9,12 @@ struct LoginView: View {
     @Environment(\.connectivity) private var connectivity
     
     @State private var email = ""
-    @State private var password = ""
     @State private var showTerms = false
     @State private var showPrivacy = false
     @State private var errorMessage: String?
     @State private var isLoading = false
-    @FocusState private var focusedField: Field?
-    
-    private enum Field {
-        case email, password
-    }
+    @State private var otpChallenge: EmailOTPChallenge?
+    @FocusState private var isEmailFocused: Bool
     
     var body: some View {
         NavigationStack {
@@ -55,7 +51,10 @@ struct LoginView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture {
-                focusedField = nil
+                isEmailFocused = false
+            }
+            .navigationDestination(item: $otpChallenge) { challenge in
+                EmailOTPVerificationView(challenge: challenge, onSuccess: {})
             }
             .sheet(isPresented: $showTerms) {
                 NavigationStack {
@@ -75,7 +74,7 @@ struct LoginView: View {
             }
             .overlay {
                 if isLoading {
-                    PlotLoadingOverlay(message: "ログイン中…")
+                    PlotLoadingOverlay(message: "送信しています…")
                 }
             }
         }
@@ -97,12 +96,11 @@ struct LoginView: View {
     
     private var loginForm: some View {
         VStack(spacing: Spacing.md) {
-            // メールアドレス入力
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text("メールアドレス")
                     .font(.scaledCaption())
                     .foregroundStyle(secondaryColor)
-                
+
                 TextField("example@email.com", text: $email)
                     .font(.scaledBodyLarge())
                     .foregroundStyle(primaryColor)
@@ -110,32 +108,9 @@ struct LoginView: View {
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .autocorrectionDisabled()
-                    .focused($focusedField, equals: .email)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .password }
-                    .padding(.horizontal, Spacing.md)
-                    .padding(.vertical, Spacing.sm)
-                    .frame(minHeight: 50)
-                    .background {
-                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                            .fill(Color.clear)
-                            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-                    }
-            }
-            
-            // パスワード入力
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("パスワード")
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
-                
-                SecureField("パスワードを入力", text: $password)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(primaryColor)
-                    .textContentType(.password)
-                    .focused($focusedField, equals: .password)
+                    .focused($isEmailFocused)
                     .submitLabel(.done)
-                    .onSubmit { loginWithEmail() }
+                    .onSubmit { sendEmailOTP() }
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
                     .frame(minHeight: 50)
@@ -145,17 +120,21 @@ struct LoginView: View {
                             .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
                     }
             }
-            
-            // ログインボタン
-            Button(action: loginWithEmail) {
-                Text("ログイン")
+
+            Text("認証コードまたはログインリンクをメールでお送りします。")
+                .font(.scaledCaption())
+                .foregroundStyle(secondaryColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(action: sendEmailOTP) {
+                Text(EmailOTPPurpose.login.sendButtonTitle)
                     .font(.scaledBodyLarge().weight(.semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
             }
-            .disabled(!canLogin || isLoading)
-            .buttonStyle(LiquidGlassAccentButtonStyle(isEnabled: canLogin && !isLoading))
+            .disabled(!canSendEmailOTP || isLoading)
+            .buttonStyle(LiquidGlassAccentButtonStyle(isEnabled: canSendEmailOTP && !isLoading))
             .padding(.top, Spacing.sm)
         }
     }
@@ -236,17 +215,41 @@ struct LoginView: View {
         .padding(.top, Spacing.lg)
     }
     
-    private var canLogin: Bool {
-        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !password.isEmpty
+    private var canSendEmailOTP: Bool {
+        isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
     }
-    
-    private func loginWithEmail() {
-        guard canLogin else { return }
-        focusedField = nil
-        login(with: .email)
+
+    private func sendEmailOTP() {
+        guard canSendEmailOTP else { return }
+        isEmailFocused = false
+        errorMessage = nil
+        isLoading = true
+        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        Task {
+            let result = await accountSession.sendEmailOTP(
+                email: mail,
+                purpose: .login,
+                displayName: nil,
+                isOnline: connectivity.isOnline
+            )
+            await MainActor.run {
+                isLoading = false
+                switch result {
+                case .success:
+                    otpChallenge = EmailOTPChallenge(email: mail, purpose: .login)
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
     }
-    
+
+    private func isValidEmail(_ raw: String) -> Bool {
+        let pattern = #"^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
+        return raw.range(of: pattern, options: .regularExpression) != nil
+    }
+
     private func login(with provider: AuthProvider) {
         errorMessage = nil
         isLoading = true

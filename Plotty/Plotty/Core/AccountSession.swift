@@ -7,6 +7,8 @@ enum AuthError: LocalizedError, Equatable {
     case offline
     case providerUnavailable(String)
     case appleRelayHint
+    case otpDeliveryFailed
+    case otpVerificationFailed
 
     var errorDescription: String? {
         switch self {
@@ -18,6 +20,10 @@ enum AuthError: LocalizedError, Equatable {
             return "\(provider)でのログインに失敗しました。しばらくしてから再試行してください。"
         case .appleRelayHint:
             return "Hide My Email を使っている場合、既存アカウントと紐づいていないことがあります。別のメールアドレスでログインするか、ヘルプをご確認ください。"
+        case .otpDeliveryFailed:
+            return "認証コードの送信に失敗しました。メールアドレスを確認して、もう一度お試しください。"
+        case .otpVerificationFailed:
+            return "認証コードが正しくないか、有効期限が切れています。もう一度お試しください。"
         }
     }
 }
@@ -145,16 +151,83 @@ final class AccountSession {
             return .failure(.providerUnavailable(provider.title))
         }
 
-        // D3 で Supabase 接続予定（メールはモック）
-        try? await Task.sleep(for: .milliseconds(550))
-
         if provider == .email {
-            let mail = (email ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            guard isValidEmail(mail) else { return .failure(.invalidEmail) }
+            return .failure(.providerUnavailable(provider.title))
         }
 
         loginWithMock(provider: provider, email: email)
         return .success(())
+    }
+
+    /// メールに OTP / マジックリンクを送信する。
+    @MainActor
+    func sendEmailOTP(
+        email: String,
+        purpose: EmailOTPPurpose,
+        displayName: String?,
+        isOnline: Bool
+    ) async -> Result<Void, AuthError> {
+        guard isOnline else { return .failure(.offline) }
+
+        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(mail) else { return .failure(.invalidEmail) }
+
+        guard supabaseEnabled else {
+            loginWithMock(provider: .email, email: mail)
+            return .success(())
+        }
+
+        var metadata: [String: AnyJSON]?
+        let name = (displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty {
+            metadata = ["full_name": .string(name)]
+        }
+
+        do {
+            try await AuthService.sendEmailOTP(
+                email: mail,
+                createUser: purpose.createsUser,
+                data: metadata
+            )
+            return .success(())
+        } catch {
+            return .failure(.otpDeliveryFailed)
+        }
+    }
+
+    /// メール OTP を検証してセッションを反映する。
+    @MainActor
+    func verifyEmailOTP(
+        email: String,
+        code: String,
+        purpose: EmailOTPPurpose,
+        displayName: String?,
+        isOnline: Bool
+    ) async -> Result<Void, AuthError> {
+        guard isOnline else { return .failure(.offline) }
+
+        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let token = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(mail), token.count == 6 else {
+            return .failure(.otpVerificationFailed)
+        }
+
+        guard supabaseEnabled else {
+            loginWithMock(provider: .email, email: mail)
+            applySignUpDisplayName(displayName)
+            return .success(())
+        }
+
+        do {
+            let session = try await AuthService.verifyEmailOTP(
+                email: mail,
+                token: token,
+                type: purpose.verificationType
+            )
+            return completeSupabaseSignIn(session, displayNameOverride: displayName)
+        } catch {
+            return .failure(.otpVerificationFailed)
+        }
     }
 
     @MainActor
@@ -178,13 +251,11 @@ final class AccountSession {
             return .failure(.providerUnavailable(provider.title))
         }
 
-        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isValidEmail(mail) else { return .failure(.invalidEmail) }
+        if provider == .email {
+            return .failure(.providerUnavailable(provider.title))
+        }
 
-        // D3 で Supabase 接続予定
-        try? await Task.sleep(for: .milliseconds(650))
-
-        loginWithMock(provider: provider, email: mail)
+        loginWithMock(provider: provider, email: email)
         applySignUpDisplayName(displayName)
         return .success(())
     }
@@ -266,7 +337,7 @@ final class AccountSession {
         persistPreferences()
     }
 
-    // MARK: - モック（D3 までの暫定）
+    // MARK: - モック（プレビュー用）
 
     @MainActor
     private func performSupabaseOAuthLogin(provider: AuthProvider, email: String?) async -> Result<Void, AuthError> {

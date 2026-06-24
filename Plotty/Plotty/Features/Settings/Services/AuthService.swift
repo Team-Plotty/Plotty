@@ -1,7 +1,7 @@
 import Foundation
 import Supabase
 
-/// Plotty が利用する認証エントリ（Google OAuth / Sign in with Apple など）。
+/// Plotty が利用する認証エントリ（Google OAuth / Sign in with Apple / Email OTP など）。
 enum AuthService {
     /// Google アカウントで Supabase にサインインする（ブラウザセッションを表示）。
     @MainActor
@@ -19,6 +19,42 @@ enum AuthService {
                 nonce: nonce
             )
         )
+    }
+
+    /// メールに OTP / マジックリンクを送信する。
+    @MainActor
+    static func sendEmailOTP(
+        email: String,
+        createUser: Bool,
+        data: [String: AnyJSON]? = nil
+    ) async throws {
+        try await SupabaseManager.client.auth.signInWithOTP(
+            email: email,
+            redirectTo: PlottyAuthRedirect.callbackURL,
+            shouldCreateUser: createUser,
+            data: data
+        )
+    }
+
+    /// メール OTP を検証してセッションを確立する。
+    @MainActor
+    static func verifyEmailOTP(
+        email: String,
+        token: String,
+        type: EmailOTPType
+    ) async throws -> Session {
+        let response = try await SupabaseManager.client.auth.verifyOTP(
+            email: email,
+            token: token,
+            type: type,
+            redirectTo: PlottyAuthRedirect.callbackURL
+        )
+        switch response {
+        case .session(let session):
+            return session
+        case .user:
+            return try await SupabaseManager.client.auth.session
+        }
     }
 
     /// Supabase セッションを終了する。
