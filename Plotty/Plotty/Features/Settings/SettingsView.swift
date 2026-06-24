@@ -214,7 +214,7 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .environment(\.appSettings, AppSettings())
-        .environment(\.accountSession, AccountSession())
+        .environment(\.accountSession, AccountSession.preview())
         .ambientBackground()
         .preferredColorScheme(.dark)
 }

@@ -129,7 +129,7 @@ struct AccountView: View {
 #Preview {
     NavigationStack {
         AccountView()
-            .environment(\.accountSession, AccountSession())
+            .environment(\.accountSession, AccountSession.preview())
             .ambientBackground()
     }
     .preferredColorScheme(.dark)

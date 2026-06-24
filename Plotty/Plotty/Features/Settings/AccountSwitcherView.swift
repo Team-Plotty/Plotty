@@ -103,7 +103,7 @@ struct AccountSwitcherView: View {
 #Preview {
     NavigationStack {
         AccountSwitcherView()
-            .environment(\.accountSession, AccountSession())
+            .environment(\.accountSession, AccountSession.preview())
             .ambientBackground()
     }
     .preferredColorScheme(.dark)

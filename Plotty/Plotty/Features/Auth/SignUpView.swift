@@ -391,7 +391,7 @@ private struct LiquidGlassSNSButtonStyle: ButtonStyle {
 #Preview {
     NavigationStack {
         SignUpView()
-            .environment(\.accountSession, AccountSession())
+            .environment(\.accountSession, AccountSession.preview())
             .environment(\.connectivity, ConnectivityMonitor())
     }
 }

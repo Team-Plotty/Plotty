@@ -334,6 +334,6 @@ private struct LiquidGlassSNSButtonStyle: ButtonStyle {
 
 #Preview {
     LoginView()
-        .environment(\.accountSession, AccountSession())
+        .environment(\.accountSession, AccountSession.preview())
         .environment(\.connectivity, ConnectivityMonitor())
 }
