@@ -2,12 +2,28 @@ import SwiftUI
 
 // MARK: - TODO 項目のデータモデル
 struct TodoItem: Identifiable {
-    let id = UUID()
+    let id: UUID
     var title: String
     var isCompleted: Bool
     var dueDate: Date?
     var priority: Priority
-    var createdAt: Date = Date()
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        isCompleted: Bool,
+        dueDate: Date?,
+        priority: Priority,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.title = title
+        self.isCompleted = isCompleted
+        self.dueDate = dueDate
+        self.priority = priority
+        self.createdAt = createdAt
+    }
     
     enum Priority: Int, CaseIterable, Hashable {
         case low = 0

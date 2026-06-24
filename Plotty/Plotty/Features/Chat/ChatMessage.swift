@@ -2,12 +2,28 @@ import Foundation
 
 // MARK: - チャットメッセージ
 struct ChatMessage: Identifiable {
-    let id = UUID()
+    let id: UUID
     let role: MessageRole
     var text: String
     let chips: [String]
     let timestamp: Date
-    var registrationSummary: ChatRegistrationSummary? = nil
+    var registrationSummary: ChatRegistrationSummary?
+
+    init(
+        id: UUID = UUID(),
+        role: MessageRole,
+        text: String,
+        chips: [String],
+        timestamp: Date,
+        registrationSummary: ChatRegistrationSummary? = nil
+    ) {
+        self.id = id
+        self.role = role
+        self.text = text
+        self.chips = chips
+        self.timestamp = timestamp
+        self.registrationSummary = registrationSummary
+    }
 }
 
 // MARK: - 本実装時削除（開発用サンプルデータ）

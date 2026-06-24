@@ -2,12 +2,28 @@ import Foundation
 
 // MARK: - メモのデータモデル
 struct MemoItem: Identifiable {
-    let id = UUID()
+    let id: UUID
     var title: String
     var content: String
     var updatedAt: Date
-    var isPinned: Bool = false
-    var accent: AccentSwatch = .graphite
+    var isPinned: Bool
+    var accent: AccentSwatch
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        content: String,
+        updatedAt: Date,
+        isPinned: Bool = false,
+        accent: AccentSwatch = .graphite
+    ) {
+        self.id = id
+        self.title = title
+        self.content = content
+        self.updatedAt = updatedAt
+        self.isPinned = isPinned
+        self.accent = accent
+    }
 }
 
 // MARK: - 本実装時削除（開発用サンプルデータ）

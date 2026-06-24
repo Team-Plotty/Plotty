@@ -2,15 +2,35 @@ import SwiftUI
 
 // MARK: - 予定（カレンダー用のデータモデル）
 struct CalendarEvent: Identifiable {
-    let id = UUID()
+    let id: UUID
     var title: String
     var startTime: Date
     var endTime: Date
     var swatch: AccentSwatch
-    var location: String = ""
-    var notes: String = ""
-    var isAllDay: Bool = false
-    
+    var location: String
+    var notes: String
+    var isAllDay: Bool
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        startTime: Date,
+        endTime: Date,
+        swatch: AccentSwatch,
+        location: String = "",
+        notes: String = "",
+        isAllDay: Bool = false
+    ) {
+        self.id = id
+        self.title = title
+        self.startTime = startTime
+        self.endTime = endTime
+        self.swatch = swatch
+        self.location = location
+        self.notes = notes
+        self.isAllDay = isAllDay
+    }
+
     var color: Color { swatch.color }
 }
 
