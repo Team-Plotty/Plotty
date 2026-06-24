@@ -106,8 +106,10 @@ struct CalendarTabView: View {
         }
         .sheet(item: $editingEvent) { event in
             EventEditSheet(event: event) { updated in
-                dataStore.updateEvent(updated)
-                editingEvent = nil
+                Task {
+                    let ok = await dataStore.updateEvent(updated, isOnline: connectivity.isOnline)
+                    if ok { editingEvent = nil }
+                }
             } onCancel: {
                 editingEvent = nil
             }
@@ -142,8 +144,8 @@ struct CalendarTabView: View {
     }
     
     private func removeEvent(id: UUID) {
-        withAnimation(.standard) {
-            dataStore.deleteEvent(id: id)
+        Task {
+            _ = await dataStore.deleteEvent(id: id, isOnline: connectivity.isOnline)
         }
     }
     
@@ -205,7 +207,7 @@ struct CalendarTabView: View {
 
 #Preview {
     CalendarTabView(showCreateSheet: .constant(false))
-        .environment(\.plotDataStore, PlotDataStore())
+        .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)
 }

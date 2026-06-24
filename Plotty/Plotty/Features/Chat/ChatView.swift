@@ -7,11 +7,13 @@ private enum ChatScrollAnchor {
 
 private enum ChatSendError: Error {
     case timeout
+    case api(String)
 }
 
 private struct PendingChatRetry: Equatable {
     let body: String
-    let category: PlotChatCategory
+    let forcedCategory: PlotChatCategory?
+    let clientMessageId: UUID
 }
 
 /// チャット入力ドック（`ChatTabView` でスクロール上に重ねる。背景は付けない）
@@ -237,26 +239,35 @@ struct ChatTabView: View {
         )
         guard !body.isEmpty else { return }
         
-        let category = selectedCategory ?? ChatMockResponder.inferCategory(from: body) // 本実装時削除: モック推論
+        let forcedCategory = selectedCategory
+        let clientMessageId = UUID()
         let userMessage = ChatMessage(role: .user, text: body, chips: [], timestamp: Date())
         messages.append(userMessage)
         draftMessage = ""
         selectedCategory = nil
         isComposerFocused = false
-        
-        requestAIResponse(body: body, category: category)
+
+        requestAIResponse(body: body, forcedCategory: forcedCategory, clientMessageId: clientMessageId)
     }
-    
-    private func requestAIResponse(body: String, category: PlotChatCategory) {
+
+    private func requestAIResponse(
+        body: String,
+        forcedCategory: PlotChatCategory?,
+        clientMessageId: UUID
+    ) {
         asyncPhase = .loading
         isAIProcessing = true
         lastError = nil
         pendingRetry = nil
-        
+
         aiTask?.cancel()
         aiTask = Task {
             do {
-                let aiMessage = try await fetchAIResponse(body: body, category: category)
+                let aiMessage = try await fetchAIResponse(
+                    body: body,
+                    forcedCategory: forcedCategory,
+                    clientMessageId: clientMessageId
+                )
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     messages.append(aiMessage)
@@ -269,40 +280,67 @@ struct ChatTabView: View {
             } catch ChatSendError.timeout {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    handleTimeout(body: body, category: category)
+                    handleTimeout(body: body, forcedCategory: forcedCategory, clientMessageId: clientMessageId)
+                }
+            } catch ChatSendError.api(let message) {
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    lastError = message
+                    pendingRetry = PendingChatRetry(
+                        body: body,
+                        forcedCategory: forcedCategory,
+                        clientMessageId: clientMessageId
+                    )
+                    asyncPhase = .idle
+                    isAIProcessing = false
                 }
             } catch {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     lastError = "応答の取得に失敗しました。"
-                    pendingRetry = PendingChatRetry(body: body, category: category)
+                    pendingRetry = PendingChatRetry(
+                        body: body,
+                        forcedCategory: forcedCategory,
+                        clientMessageId: clientMessageId
+                    )
                     asyncPhase = .idle
                     isAIProcessing = false
                 }
             }
         }
     }
-    
-    // 本実装時削除: ChatMockResponder を本番 AI API 呼び出しに置き換え
-    private func fetchAIResponse(body: String, category: PlotChatCategory) async throws -> ChatMessage {
-        // 本実装時削除: デバッグ用タイムアウト強制
+
+    private func fetchAIResponse(
+        body: String,
+        forcedCategory: PlotChatCategory?,
+        clientMessageId: UUID
+    ) async throws -> ChatMessage {
         if PlotDebug.forceChatTimeout {
-            try await Task.sleep(for: ChatMockResponder.responseTimeout)
+            try await Task.sleep(for: PlotChatAPI.responseTimeout)
             throw ChatSendError.timeout
         }
-        
+
         return try await withThrowingTaskGroup(of: ChatMessage.self) { group in
             group.addTask { @MainActor in
-                // 本実装時削除: モック応答の疑似遅延
-                try await Task.sleep(for: .milliseconds(900))
-                if Task.isCancelled { throw CancellationError() }
-                return ChatMockResponder.respond(body: body, category: category, dataStore: dataStore, language: appSettings.language)
+                do {
+                    return try await dataStore.sendChatMessage(
+                        text: body,
+                        forcedCategory: forcedCategory,
+                        clientMessageId: clientMessageId,
+                        language: appSettings.language
+                    )
+                } catch let error as PlotAPIError {
+                    if error.isGroqTimeout {
+                        throw ChatSendError.timeout
+                    }
+                    throw ChatSendError.api(error.localizedDescription ?? "エラーが発生しました")
+                }
             }
             group.addTask {
-                try await Task.sleep(for: ChatMockResponder.responseTimeout)
+                try await Task.sleep(for: PlotChatAPI.responseTimeout)
                 throw ChatSendError.timeout
             }
-            
+
             guard let result = try await group.next() else {
                 throw ChatSendError.timeout
             }
@@ -310,50 +348,62 @@ struct ChatTabView: View {
             return result
         }
     }
-    
-    private func handleTimeout(body: String, category: PlotChatCategory) {
+
+    private func handleTimeout(
+        body: String,
+        forcedCategory: PlotChatCategory?,
+        clientMessageId: UUID
+    ) {
         lastError = "AI の応答がタイムアウトしました（10秒）。もう一度送信できます。"
-        pendingRetry = PendingChatRetry(body: body, category: category)
+        pendingRetry = PendingChatRetry(
+            body: body,
+            forcedCategory: forcedCategory,
+            clientMessageId: clientMessageId
+        )
         asyncPhase = .idle
         isAIProcessing = false
     }
-    
+
     private func retryPendingSend(_ pending: PendingChatRetry) {
         lastError = nil
-        requestAIResponse(body: pending.body, category: pending.category)
+        requestAIResponse(
+            body: pending.body,
+            forcedCategory: pending.forcedCategory,
+            clientMessageId: pending.clientMessageId
+        )
     }
     
     private func reclassify(messageID: UUID, to category: PlotChatCategory) {
+        guard connectivity.isOnline else {
+            lastError = "オフラインのため再分類できません。"
+            return
+        }
         guard let index = messages.firstIndex(where: { $0.id == messageID }),
               let summary = messages[index].registrationSummary,
               summary.category != category else { return }
-        
+
         reclassifyingMessageID = messageID
-        
+        lastError = nil
+
         Task { @MainActor in
-            // 本実装時削除: モック再分類
-            let newSummary = ChatMockResponder.reclassify(
-                summary: summary,
-                to: category,
-                dataStore: dataStore,
-                language: appSettings.language
-            )
-            var updated = messages[index]
-            updated.registrationSummary = newSummary
-            updated.text = reclassifyConfirmationText(for: category)
-            messages[index] = updated
-            reclassifyingMessageID = nil
-        }
-    }
-    
-    private func reclassifyConfirmationText(for category: PlotChatCategory) -> String {
-        switch (category, appSettings.language) {
-        case (.schedule, .japanese): return "カレンダーに登録し直したよ！"
-        case (.schedule, .english): return "Moved to calendar!"
-        case (.task, .japanese): return "ToDoに登録し直したよ！"
-        case (.task, .english): return "Moved to ToDo!"
-        case (.memo, .japanese): return "メモに登録し直したよ！"
-        case (.memo, .english): return "Moved to memo!"
+            do {
+                let result = try await dataStore.reclassifyEntity(
+                    summary: summary,
+                    to: category,
+                    language: appSettings.language
+                )
+                var updated = messages[index]
+                updated.registrationSummary = result.summary
+                updated.text = result.confirmationText
+                messages[index] = updated
+                reclassifyingMessageID = nil
+            } catch let error as PlotAPIError {
+                lastError = error.localizedDescription ?? "再分類に失敗しました。"
+                reclassifyingMessageID = nil
+            } catch {
+                lastError = "再分類に失敗しました。"
+                reclassifyingMessageID = nil
+            }
         }
     }
 }
@@ -376,7 +426,7 @@ struct ChatTabView: View {
                 sendRequested: $sendRequested
             )
             .ambientBackground()
-            .environment(\.plotDataStore, PlotDataStore())
+            .environment(\.plotDataStore, PlotDataStore.previewSample())
             .environment(\.connectivity, ConnectivityMonitor())
             .environment(\.appSettings, AppSettings())
             .safeAreaInset(edge: .bottom, spacing: 0) {

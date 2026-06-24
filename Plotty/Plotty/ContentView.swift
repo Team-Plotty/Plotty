@@ -333,6 +333,6 @@ private struct SearchOverlayContent: View {
     ContentView()
         .environment(\.appSettings, AppSettings())
         .environment(\.accountSession, AccountSession())
-        .environment(\.plotDataStore, PlotDataStore())
+        .environment(\.plotDataStore, PlotDataStore.previewSample())
         .environment(\.connectivity, ConnectivityMonitor())
 }

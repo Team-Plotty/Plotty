@@ -108,9 +108,9 @@ enum ChatMockResponder {
     
     private static func removeEntity(id: UUID, category: PlotChatCategory, dataStore: PlotDataStore) {
         switch category {
-        case .schedule: dataStore.deleteEvent(id: id)
-        case .task: dataStore.deleteTodo(id: id)
-        case .memo: dataStore.deleteMemo(id: id)
+        case .schedule: dataStore.deleteEventLocally(id: id)
+        case .task: dataStore.deleteTodoLocally(id: id)
+        case .memo: dataStore.deleteMemoLocally(id: id)
         }
     }
     

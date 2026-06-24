@@ -71,10 +71,14 @@ struct MemoView: View {
         }
         .sheet(item: $editingMemo) { memo in
             MemoEditSheet(memo: memo) { updated in
-                withAnimation(.standard) {
-                    dataStore.updateMemo(updated)
+                Task {
+                    let ok = await dataStore.updateMemo(updated, isOnline: connectivity.isOnline)
+                    if ok {
+                        withAnimation(.standard) {
+                            editingMemo = nil
+                        }
+                    }
                 }
-                editingMemo = nil
             } onCancel: {
                 editingMemo = nil
             }
@@ -101,8 +105,8 @@ struct MemoView: View {
     }
     
     private func removeMemo(id: UUID) {
-        withAnimation(.standard) {
-            dataStore.deleteMemo(id: id)
+        Task {
+            _ = await dataStore.deleteMemo(id: id, isOnline: connectivity.isOnline)
         }
     }
     
@@ -134,7 +138,7 @@ struct MemoView: View {
 
 #Preview {
     MemoView(selectedTab: .memo, showCreateSheet: .constant(false), searchText: .constant(""))
-        .environment(\.plotDataStore, PlotDataStore())
+        .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)
 }
