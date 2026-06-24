@@ -21,7 +21,7 @@ export interface MessageWriteInput {
 export interface BaseEntityWriteInput {
   id: string;
   userId: string;
-  sourceMessageId: string;
+  sourceMessageId: string | null;
   originTextEncrypted: string;
   titleEncrypted: string;
   titleHash: string;
@@ -37,11 +37,13 @@ export interface ScheduleWriteInput extends BaseEntityWriteInput {
 
 export interface TaskWriteInput extends BaseEntityWriteInput {
   dueDate: string;
-  priority: 2 | 3 | 1;
+  priority: 1 | 2 | 3;
+  isCompleted: boolean;
 }
 
 export interface MemoWriteInput extends BaseEntityWriteInput {
   contentEncrypted: string;
+  isPinned: boolean;
 }
 
 export interface EntityReadFilter {
@@ -56,9 +58,18 @@ export interface EntityReadModel {
   userId: string;
   titleEncrypted: string;
   iv: string;
+  originTextEncrypted?: string;
   startAt?: string;
+  endAt?: string | null;
+  isAllDay?: boolean;
+  location?: string | null;
   dueDate?: string;
+  isCompleted?: boolean;
+  priority?: 1 | 2 | 3;
   contentEncrypted?: string;
+  isPinned?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   isDeleted?: boolean;
 }
 
@@ -67,26 +78,59 @@ export interface EntityUpdateInput {
   userId: string;
   type: EntityType;
   titleEncrypted?: string;
+  titleHash?: string;
   iv?: string;
+  originTextEncrypted?: string;
   startAt?: string;
+  endAt?: string | null;
+  isAllDay?: boolean;
+  location?: string | null;
   dueDate?: string;
+  isCompleted?: boolean;
+  priority?: 1 | 2 | 3;
   contentEncrypted?: string;
+  isPinned?: boolean;
 }
 
 export interface PersistenceRepository {
   insertMessage(input: MessageWriteInput): Promise<void>;
+  updateMessageRelatedEntities(input: {
+    id: string;
+    userId: string;
+    relatedEntities: RelatedEntityRef[];
+  }): Promise<void>;
   insertSchedule(input: ScheduleWriteInput): Promise<void>;
   insertTask(input: TaskWriteInput): Promise<void>;
   insertMemo(input: MemoWriteInput): Promise<void>;
+  findUserMessageByClientMessageId(
+    userId: string,
+    clientMessageId: string
+  ): Promise<{
+    id: string;
+    relatedEntities: RelatedEntityRef[];
+    analysisResultsEncrypted?: EncryptedPayload;
+  } | null>;
   listEntities(filter: EntityReadFilter): Promise<EntityReadModel[]>;
+  getEntityById(input: {
+    userId: string;
+    type: EntityType;
+    id: string;
+  }): Promise<EntityReadModel | null>;
   updateEntity(input: EntityUpdateInput): Promise<EntityReadModel | null>;
   softDeleteEntity(input: { id: string; userId: string; type: EntityType }): Promise<boolean>;
+  replaceRelatedEntityRef(input: {
+    userId: string;
+    oldEntityId: string;
+    newEntityId: string;
+    newType: EntityType;
+  }): Promise<void>;
 }
 
 export interface BuildPersistenceInput {
   messageId: string;
   userId: string;
   clientMessageId: string;
+  userPlainText: string;
   extraction: LlmExtractionResult;
   analysisResultsEncrypted: EncryptedPayload;
   textEncryption: EncryptedPayload;

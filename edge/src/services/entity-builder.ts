@@ -1,6 +1,19 @@
-import type { LlmExtractionResult, PostChatMessagesResponse } from "../contracts/chat-messages.js";
+import type { PostChatMessagesResponse } from "../contracts/chat-messages.js";
+import type { LlmExtractionResult } from "../contracts/chat-messages.js";
 import type { CryptoService, EncryptedPayload } from "./crypto.js";
-import type { BuildPersistenceInput, MemoWriteInput, PersistenceRepository, RelatedEntityRef, ScheduleWriteInput, TaskWriteInput } from "./persistence.js";
+import {
+  memoWriteToCreatedEntity,
+  scheduleWriteToCreatedEntity,
+  taskWriteToCreatedEntity
+} from "./entity-dto-mapper.js";
+import type {
+  BuildPersistenceInput,
+  MemoWriteInput,
+  PersistenceRepository,
+  RelatedEntityRef,
+  ScheduleWriteInput,
+  TaskWriteInput
+} from "./persistence.js";
 
 const addDays = (date: Date, days: number): Date => {
   const next = new Date(date);
@@ -24,7 +37,7 @@ const hashTitle = async (title: string): Promise<string> => {
 const buildScheduleWriteInput = async (
   userId: string,
   sourceMessageId: string,
-  userMessageEncryption: EncryptedPayload,
+  originTextEncrypted: string,
   titleEncryption: EncryptedPayload,
   entity: LlmExtractionResult["entities"][number]
 ): Promise<ScheduleWriteInput> => {
@@ -34,7 +47,7 @@ const buildScheduleWriteInput = async (
     id: crypto.randomUUID(),
     userId,
     sourceMessageId,
-    originTextEncrypted: userMessageEncryption.data,
+    originTextEncrypted,
     titleEncrypted: titleEncryption.data,
     titleHash: await hashTitle(entity.data.title),
     iv: titleEncryption.iv,
@@ -48,7 +61,7 @@ const buildScheduleWriteInput = async (
 const buildTaskWriteInput = async (
   userId: string,
   sourceMessageId: string,
-  userMessageEncryption: EncryptedPayload,
+  originTextEncrypted: string,
   titleEncryption: EncryptedPayload,
   entity: LlmExtractionResult["entities"][number]
 ): Promise<TaskWriteInput> => {
@@ -56,32 +69,34 @@ const buildTaskWriteInput = async (
     id: crypto.randomUUID(),
     userId,
     sourceMessageId,
-    originTextEncrypted: userMessageEncryption.data,
+    originTextEncrypted,
     titleEncrypted: titleEncryption.data,
     titleHash: await hashTitle(entity.data.title),
     iv: titleEncryption.iv,
     dueDate: entity.data.due_date ?? endOfDayIso(new Date()),
-    priority: 2
+    priority: 2,
+    isCompleted: false
   };
 };
 
 const buildMemoWriteInput = async (
   userId: string,
   sourceMessageId: string,
-  userMessageEncryption: EncryptedPayload,
+  originTextEncrypted: string,
   titleEncryption: EncryptedPayload,
-  contentEncryption: EncryptedPayload,
+  contentEncrypted: string,
   entity: LlmExtractionResult["entities"][number]
 ): Promise<MemoWriteInput> => {
   return {
     id: crypto.randomUUID(),
     userId,
     sourceMessageId,
-    originTextEncrypted: userMessageEncryption.data,
+    originTextEncrypted,
     titleEncrypted: titleEncryption.data,
     titleHash: await hashTitle(entity.data.title),
     iv: titleEncryption.iv,
-    contentEncrypted: contentEncryption.data
+    contentEncrypted,
+    isPinned: false
   };
 };
 
@@ -93,65 +108,6 @@ export const persistExtractionResults = async (
   const relatedEntities: RelatedEntityRef[] = [];
   const createdEntities: PostChatMessagesResponse["created_entities"] = [];
 
-  for (const entity of input.extraction.entities) {
-    const titleEncryption = await cryptoService.encryptText(entity.data.title);
-
-    if (entity.type === "schedule") {
-      const schedule = await buildScheduleWriteInput(
-        input.userId,
-        input.messageId,
-        input.textEncryption,
-        titleEncryption,
-        entity
-      );
-      await repository.insertSchedule(schedule);
-      relatedEntities.push({ type: entity.type, id: schedule.id });
-      createdEntities.push({
-        type: entity.type,
-        id: schedule.id,
-        title: entity.data.title,
-        start_at: schedule.startAt
-      });
-      continue;
-    }
-
-    if (entity.type === "task") {
-      const task = await buildTaskWriteInput(
-        input.userId,
-        input.messageId,
-        input.textEncryption,
-        titleEncryption,
-        entity
-      );
-      await repository.insertTask(task);
-      relatedEntities.push({ type: entity.type, id: task.id });
-      createdEntities.push({
-        type: entity.type,
-        id: task.id,
-        title: entity.data.title,
-        due_date: task.dueDate
-      });
-      continue;
-    }
-
-    const contentEncryption = await cryptoService.encryptText(entity.data.content);
-    const memo = await buildMemoWriteInput(
-      input.userId,
-      input.messageId,
-      input.textEncryption,
-      titleEncryption,
-      contentEncryption,
-      entity
-    );
-    await repository.insertMemo(memo);
-    relatedEntities.push({ type: entity.type, id: memo.id });
-    createdEntities.push({
-      type: entity.type,
-      id: memo.id,
-      title: entity.data.title
-    });
-  }
-
   await repository.insertMessage({
     id: input.messageId,
     userId: input.userId,
@@ -159,9 +115,73 @@ export const persistExtractionResults = async (
     clientMessageId: input.clientMessageId,
     contentEncrypted: input.textEncryption.data,
     iv: input.textEncryption.iv,
-    relatedEntities,
+    relatedEntities: [],
     analysisResultsEncrypted: input.analysisResultsEncrypted,
     expiresAt: addDays(new Date(), 30).toISOString()
+  });
+
+  for (const entity of input.extraction.entities) {
+    const titleEncryption = await cryptoService.encryptText(entity.data.title);
+    const originTextEncrypted = await cryptoService.encryptDataWithIv(
+      input.userPlainText,
+      titleEncryption.iv
+    );
+
+    if (entity.type === "schedule") {
+      const schedule = await buildScheduleWriteInput(
+        input.userId,
+        input.messageId,
+        originTextEncrypted,
+        titleEncryption,
+        entity
+      );
+      await repository.insertSchedule(schedule);
+      relatedEntities.push({ type: entity.type, id: schedule.id });
+      const notes = input.userPlainText;
+      createdEntities.push(
+        scheduleWriteToCreatedEntity(schedule, entity.data.title, notes)
+      );
+      continue;
+    }
+
+    if (entity.type === "task") {
+      const task = await buildTaskWriteInput(
+        input.userId,
+        input.messageId,
+        originTextEncrypted,
+        titleEncryption,
+        entity
+      );
+      await repository.insertTask(task);
+      relatedEntities.push({ type: entity.type, id: task.id });
+      createdEntities.push(taskWriteToCreatedEntity(task, entity.data.title));
+      continue;
+    }
+
+    const contentPlain = entity.data.content ?? entity.data.title;
+    const contentEncrypted = await cryptoService.encryptDataWithIv(
+      contentPlain,
+      titleEncryption.iv
+    );
+    const memo = await buildMemoWriteInput(
+      input.userId,
+      input.messageId,
+      originTextEncrypted,
+      titleEncryption,
+      contentEncrypted,
+      entity
+    );
+    await repository.insertMemo(memo);
+    relatedEntities.push({ type: entity.type, id: memo.id });
+    createdEntities.push(
+      memoWriteToCreatedEntity(memo, entity.data.title, contentPlain)
+    );
+  }
+
+  await repository.updateMessageRelatedEntities({
+    id: input.messageId,
+    userId: input.userId,
+    relatedEntities
   });
 
   await repository.insertMessage({

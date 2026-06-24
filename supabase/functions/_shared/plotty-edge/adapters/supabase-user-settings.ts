@@ -17,6 +17,8 @@ export const createSupabaseClient = (url: string, serviceRoleKey: string): Supab
   });
 };
 
+const DEFAULT_ENCRYPTION_KEY_ID = "app-default-v1";
+
 export const createSupabaseUserSettingsRepository = (
   supabase: SupabaseClient
 ): UserSettingsRepository => ({
@@ -40,5 +42,13 @@ export const createSupabaseUserSettingsRepository = (
         prohibited_topics: data.ai_persona_config?.prohibited_topics ?? []
       }
     };
+  },
+  async ensureEncryptionKeyId(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({ encryption_key_id: DEFAULT_ENCRYPTION_KEY_ID })
+      .eq("id", userId)
+      .is("encryption_key_id", null);
+    if (error) throw error;
   }
 });

@@ -9,10 +9,18 @@ import { jsonResponse, type JsonResponse } from "../core/http.js";
 import { consoleLogger, type Logger } from "../core/logger.js";
 import { parseBearerToken, type AuthVerifier } from "../services/auth.js";
 import type { CryptoService } from "../services/crypto.js";
+import { findIdempotentChatResponse } from "../services/chat-idempotency-lookup.js";
 import { persistExtractionResults } from "../services/entity-builder.js";
 import type { GroqClient } from "../services/groq-client.js";
+import { mapRequestErrorToCode } from "../services/groq-errors.js";
+import {
+  buildChatExtractionDeveloperPrompt,
+  CHAT_EXTRACTION_SYSTEM_PROMPT
+} from "../services/groq-prompts.js";
 import type { PersistenceRepository } from "../services/persistence.js";
 import type { RateLimiter } from "../services/rate-limit.js";
+import type { GroqUsageRepository } from "../services/groq-usage.js";
+import { utcDateString } from "../services/groq-usage.js";
 import type { UserSettingsRepository } from "../services/user-settings.js";
 
 const FUNCTION_NAME = "post_chat_messages";
@@ -21,6 +29,8 @@ export interface ChatMessagesHandlerDeps {
   authVerifier: AuthVerifier;
   userSettingsRepository: UserSettingsRepository;
   groqClient: GroqClient;
+  groqUsageRepository: GroqUsageRepository;
+  groqDailyTokenLimit: number;
   cryptoService: CryptoService;
   persistenceRepository: PersistenceRepository;
   rateLimiter?: RateLimiter;
@@ -94,6 +104,8 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
       }
     }
 
+    await deps.userSettingsRepository.ensureEncryptionKeyId(userId);
+
     const parsedBody = postChatMessagesRequestSchema.safeParse(input.body);
     if (!parsedBody.success) {
       return toErrorResponse(
@@ -105,6 +117,25 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
       );
     }
 
+    const cachedResponse = await findIdempotentChatResponse(
+      deps.persistenceRepository,
+      deps.cryptoService,
+      userId,
+      parsedBody.data.client_message_id
+    );
+    if (cachedResponse) {
+      const parsedCached = postChatMessagesResponseSchema.safeParse(cachedResponse);
+      if (parsedCached.success) {
+        logger.info("Request completed (idempotent)", {
+          request_id: context.requestId,
+          function_name: FUNCTION_NAME,
+          user_id: userId,
+          latency_ms: Date.now() - context.startedAt
+        });
+        return jsonResponse(200, parsedCached.data);
+      }
+    }
+
     const userSettings = await deps.userSettingsRepository.findByUserId(userId);
     if (!userSettings) {
       return toErrorResponse(context.requestId, "NOT_FOUND", logger, context.startedAt, userId);
@@ -113,13 +144,24 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
     let extractionReply = "";
     let createdEntities: PostChatMessagesResponse["created_entities"] = [];
     try {
+      const usageDate = utcDateString();
+      const usedTokens = await deps.groqUsageRepository.getDailyTokensUsed(userId, usageDate);
+      if (usedTokens >= deps.groqDailyTokenLimit) {
+        return toErrorResponse(context.requestId, "RATE_LIMITED", logger, context.startedAt, userId);
+      }
+
       const currentTime = new Date().toISOString();
-      const extraction = await deps.groqClient.extract({
-        systemPrompt:
-          "あなたは Plotty の AI アシスタントです。指定のJSON形式で抽出結果のみ返してください。",
-        developerPrompt: `current_time: ${currentTime}\ntimezone: ${userSettings.timezone}\nuser_id: ${userId}`,
+      const groqResult = await deps.groqClient.extract({
+        systemPrompt: CHAT_EXTRACTION_SYSTEM_PROMPT,
+        developerPrompt: buildChatExtractionDeveloperPrompt({
+          currentTimeIso: currentTime,
+          timezone: userSettings.timezone,
+          userId,
+          forcedCategory: parsedBody.data.forced_category
+        }),
         userPrompt: parsedBody.data.text
       });
+      const extraction = groqResult.extraction;
       extractionReply = extraction.reply_message;
 
       const userMessageEncryption = await deps.cryptoService.encryptText(parsedBody.data.text);
@@ -134,6 +176,7 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
           messageId,
           userId,
           clientMessageId: parsedBody.data.client_message_id,
+          userPlainText: parsedBody.data.text,
           extraction,
           analysisResultsEncrypted: analysisResultsEncryption,
           textEncryption: userMessageEncryption,
@@ -148,6 +191,9 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
       };
 
       const parsedResponse = postChatMessagesResponseSchema.parse(responseBody);
+      if (groqResult.tokensUsed > 0) {
+        await deps.groqUsageRepository.addDailyTokens(userId, usageDate, groqResult.tokensUsed);
+      }
       logger.info("Request completed", {
         request_id: context.requestId,
         function_name: FUNCTION_NAME,
@@ -157,10 +203,18 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
 
       return jsonResponse(200, parsedResponse);
     } catch (error) {
-      const code =
-        error instanceof Error && error.name === "AbortError"
-          ? "GROQ_TIMEOUT"
-          : "GROQ_UNAVAILABLE";
+      if (error instanceof Error && error.message === "NOT_FOUND") {
+        return toErrorResponse(context.requestId, "NOT_FOUND", logger, context.startedAt, userId);
+      }
+      logger.error("Request failed", {
+        request_id: context.requestId,
+        function_name: FUNCTION_NAME,
+        user_id: userId,
+        error_code: "INTERNAL_ERROR",
+        error_message: error instanceof Error ? error.message : "unknown",
+        latency_ms: Date.now() - context.startedAt
+      });
+      const code = mapRequestErrorToCode(error);
       return toErrorResponse(context.requestId, code, logger, context.startedAt, userId);
     }
   };

@@ -10,11 +10,11 @@
 |---|---|---|
 | iOS UI（SwiftUI） | おおむね完成 | 全画面・Liquid Glass・共通状態 UI あり |
 | iOS ↔ Edge 接続 | **コード実装済み・検証未** | C1〜C7 を `feature/phase-c-ios-edge-connection` に実装。**本番 API での動作確認は意図的に後回し**（下記 Phase C §検証後回し） |
-| Edge API | 部分完成 | `edge/` に handler あり。Supabase Edge Functions（`plotty-api`）へデプロイ・reclassify 未 |
-| Supabase 運用 | Phase A 進行中 | **A1・A2** migration 適用済み。**A3** 以降未 |
+| Edge API | **Phase B 完了** | B0〜B7 実装・本番 smoke 通過（`plotty-api` デプロイ済み）。`main` に merge 済み |
+| Supabase 運用 | Phase A/B コード完了 | B5/B7 migration 適用済み。A6 RLS migration は db push 待ち |
 | 認証 | 部分完成 | Google OAuth のみ実装。Apple / Email はモック |
 
-**ボトルネック:** Phase C の **E2E 検証**（要: 有効 JWT + 本番 Edge）と Supabase 本番化。UI シェルと iOS 接続コードは先行済みのため、以降は **Phase D 最小（D1）→ Phase C 検証 → 認証本番化の残り → 体験仕上げ** の順が効率的。
+**ボトルネック:** Phase C の **E2E 検証**（要: 有効 JWT）。Edge（B）は完了済み。以降は **Phase D 最小（D1）→ Phase C 検証 → 認証本番化の残り → 体験仕上げ** の順が効率的。
 
 **作業ブランチ:** Phase A は **`feature/phase-a-supabase-foundation`**（A3 以降も同一ブランチでコミット → Phase 完了後に PR）。
 
@@ -171,13 +171,13 @@ flowchart TD
 
 | # | タスク | 状態 | 参照 |
 |---|---|---|---|
-| B1 | `POST /api/v1/chat/reclassify` 実装 + router 登録 | 未実装 | `06`, `10` §3.2, `contracts/api-contract-mvp.md` §4 |
-| B2 | 一覧 API を `GET /entities` に統一（種別 GET は MVP 不提供） | **確定** | `contracts/api-contract-mvp.md` §1 |
-| B3 | PATCH / GET DTO を UI 必須フィールドまで拡張 | **契約確定** / 実装未 | `contracts/api-contract-mvp.md` §2 |
-| B4 | 初回利用時の `encryption_key_id` 発行 | 未実装 | `09` §5.2 |
-| B5 | `client_message_id` 冪等の本番検証 | **契約確定** / 実装未 | `contracts/api-contract-mvp.md` §5 |
-| B6 | Groq 障害時のエラーコード・文言を確定 | 未決 | 本ファイル §未決 |
-| B7 | Groq 日次トークン上限（user 単位、UTC 日次）+ 短時間 req 制限 | 方針確定 | `05` §利用量制限 |
+| B1 | `POST /api/v1/chat/reclassify` 実装 + router 登録 | **完了** | `06`, `10` §3.2, `contracts/api-contract-mvp.md` §4 |
+| B2 | 一覧 API を `GET /entities` に統一（種別 GET は MVP 不提供） | **完了** | `contracts/api-contract-mvp.md` §1 |
+| B3 | PATCH / GET DTO を UI 必須フィールドまで拡張 | **完了** | `contracts/api-contract-mvp.md` §2 |
+| B4 | 初回利用時の `encryption_key_id` 発行 | **完了** | `09` §5.2 |
+| B5 | `client_message_id` 冪等の本番検証 | **完了** | `contracts/api-contract-mvp.md` §5 |
+| B6 | Groq 障害時のエラーコード・文言を確定 | **完了** | `edge/src/services/groq-errors.ts` |
+| B7 | Groq 日次トークン上限（user 単位、UTC 日次）+ 短時間 req 制限 | **完了** | `05` §利用量制限 |
 
 **完了条件:** `edge/src/tests/integration.test.ts` に reclassify を追加し、本番 Supabase でも同等フローが通る。
 
@@ -214,7 +214,7 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 | **未実施の確認** | `11` §6 チェック 5（チャット送信 → 各一覧反映）、C4 の PATCH 永続化、C6 再分類、C7 冪等再送 |
 | **実施タイミング** | **Phase D 最小（D1: Google → Supabase session、`demoLaunchToChat` 廃止）の直後**。その前は `PlotDebug.demoLaunchToChat = true` のため JWT がなく API 検証が成立しない |
 | **PR / merge** | コードは `feature/phase-c-ios-edge-connection` に残す。**E2E 検証完了まで `main` へ merge しない** |
-| **本番 Edge** | 検証時は Phase B 相当が **deploy 済み**であること（reclassify・拡張 PATCH・冪等）。`main` の `edge/` ソースが古くても、deploy 版が新しければ iOS 検証は可能 |
+| **本番 Edge** | `main` に Phase B merge 済み（reclassify・拡張 PATCH・冪等）。本番 deploy 版も B 相当であること |
 
 **検証時のスモーク手順（メモ）:**
 
@@ -352,11 +352,9 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 
 ## 追加で詰める項目（未決）
 
-- Groq 障害時の UX（文言、再試行導線）→ Phase B（B6）/ Phase E（E5）
-- Groq 日次トークン上限の実装・初期値チューニング → Phase B（B7）（方針: `05` §利用量制限）
-- RLS SQL の最終形（migration 化）→ Phase A（A6）`20260607170000_rls_policies.sql`
-- Supabase Free プロジェクト pause 対策（週次 ping 等）→ A4 デプロイ後に要否判断
-- `messages.client_message_id` 列（または idempotency テーブル）の migration → Phase B（B5）（詳細: `contracts/implementation-notes.md` §3）
+- Groq 障害時の UX（文言、再試行導線）→ Phase B（B6）完了。UI 再試行導線は Phase E（E5）
+- Groq 日次トークン上限の実装・初期値チューニング → Phase B（B7）**完了**（`GROQ_DAILY_TOKEN_LIMIT` env、本番 smoke 済み）
+- `messages.client_message_id` 列 → Phase B（B5）**完了**（`20260608100000_messages_client_message_id.sql` 適用済み）
 
 ---
 

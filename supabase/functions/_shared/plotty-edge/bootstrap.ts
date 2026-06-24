@@ -1,5 +1,6 @@
 import { createAppRouter } from "./app/router.ts";
 import { createAesGcmCryptoService } from "./adapters/aes-gcm-crypto.ts";
+import { createSupabaseGroqUsageRepository } from "./adapters/supabase-groq-usage.ts";
 import {
   createSupabaseClient,
   createSupabaseUserSettingsRepository
@@ -24,7 +25,8 @@ const buildEnvRecord = (get: EnvGetter): Record<string, string | undefined> => (
   GROQ_TIMEOUT_MS: get("GROQ_TIMEOUT_MS"),
   GROQ_RETRY_COUNT: get("GROQ_RETRY_COUNT"),
   RATE_LIMIT_WINDOW_MS: get("RATE_LIMIT_WINDOW_MS"),
-  RATE_LIMIT_MAX_REQUESTS: get("RATE_LIMIT_MAX_REQUESTS")
+  RATE_LIMIT_MAX_REQUESTS: get("RATE_LIMIT_MAX_REQUESTS"),
+  GROQ_DAILY_TOKEN_LIMIT: get("GROQ_DAILY_TOKEN_LIMIT")
 });
 
 /** Edge / Workers / Supabase Edge Functions 共通のアプリ組み立て */
@@ -39,6 +41,8 @@ export const createPlottyApp = (getEnv: EnvGetter) => {
     }),
     userSettingsRepository: createSupabaseUserSettingsRepository(supabase),
     persistenceRepository: createSupabasePersistenceRepository(supabase),
+    groqUsageRepository: createSupabaseGroqUsageRepository(supabase),
+    groqDailyTokenLimit: env.GROQ_DAILY_TOKEN_LIMIT,
     cryptoService: createAesGcmCryptoService(env.APP_ENCRYPTION_KEY_BASE64),
     groqClient: createGroqClient({
       apiKey: env.GROQ_API_KEY,

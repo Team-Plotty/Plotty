@@ -49,6 +49,17 @@ export const createAesGcmCryptoService = (appKeyBase64: string): CryptoService =
         data: encodeBase64(new Uint8Array(cipherBuffer))
       };
     },
+    async encryptDataWithIv(plainText: string, iv: string): Promise<string> {
+      const key = await keyPromise;
+      const ivBytes = decodeBase64(iv);
+      const plainBytes = new TextEncoder().encode(plainText);
+      const cipherBuffer = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: toArrayBuffer(ivBytes) },
+        key,
+        plainBytes
+      );
+      return encodeBase64(new Uint8Array(cipherBuffer));
+    },
     async decryptText(payload: EncryptedPayload): Promise<string> {
       const key = await keyPromise;
       const ivBytes = decodeBase64(payload.iv);
