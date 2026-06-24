@@ -1,4 +1,6 @@
+import AuthenticationServices
 import SwiftUI
+import Supabase
 
 // MARK: - 新規登録画面
 struct SignUpView: View {
@@ -246,22 +248,13 @@ struct SignUpView: View {
             .buttonStyle(LiquidGlassSNSButtonStyle())
             .disabled(isLoading || !connectivity.isOnline || !agreedToTerms)
             
-            // Apple
-            Button {
-                signUp(with: .apple)
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "apple.logo")
-                        .font(.system(size: 20))
-                    Text("Appleで登録")
-                        .font(.scaledBodyMedium().weight(.medium))
-                }
-                .foregroundStyle(primaryColor)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
+            // Apple（ネイティブ Sign in with Apple）
+            PlotAppleSignInButton(
+                label: .signUp,
+                isDisabled: isLoading || !connectivity.isOnline || !agreedToTerms
+            ) { result in
+                handleAppleSignUp(result)
             }
-            .buttonStyle(LiquidGlassSNSButtonStyle())
-            .disabled(isLoading || !connectivity.isOnline || !agreedToTerms)
             
             if !agreedToTerms {
                 Text("SNSで登録するには利用規約への同意が必要です")
@@ -291,10 +284,10 @@ struct SignUpView: View {
             errorMessage = "利用規約に同意してください。"
             return
         }
-        
+
         errorMessage = nil
         isLoading = true
-        
+
         Task {
             let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
             let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -307,6 +300,40 @@ struct SignUpView: View {
             await MainActor.run {
                 isLoading = false
                 switch result {
+                case .success:
+                    dismiss()
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func handleAppleSignUp(_ result: Result<AppleSignInPayload, Error>) {
+        guard agreedToTerms else {
+            errorMessage = "利用規約に同意してください。"
+            return
+        }
+
+        errorMessage = nil
+        isLoading = true
+        let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        Task {
+            let authResult: Result<Void, AuthError>
+            switch result {
+            case .success(let payload):
+                let resolvedName = name.isEmpty ? payload.suggestedDisplayName : name
+                authResult = accountSession.completeSupabaseSignIn(
+                    payload.session,
+                    displayNameOverride: resolvedName
+                )
+            case .failure:
+                authResult = .failure(.providerUnavailable(AuthProvider.apple.title))
+            }
+            await MainActor.run {
+                isLoading = false
+                switch authResult {
                 case .success:
                     dismiss()
                 case .failure(let error):

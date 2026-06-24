@@ -137,25 +137,16 @@ final class AccountSession {
         guard isOnline else { return .failure(.offline) }
 
         if provider == .google {
-            guard supabaseEnabled else {
-                loginWithMock(provider: provider, email: email)
-                return .success(())
-            }
-            do {
-                let session = try await AuthService.signInWithGoogle()
-                applySupabaseSession(session)
-                return .success(())
-            } catch {
-                return .failure(.providerUnavailable(provider.title))
-            }
+            return await performSupabaseOAuthLogin(provider: provider, email: email)
         }
 
-        // D2/D3 で Supabase 接続予定（Apple / メールはモック）
+        if provider == .apple {
+            // Apple は PlotAppleSignInButton → completeSupabaseSignIn 経由
+            return .failure(.providerUnavailable(provider.title))
+        }
+
+        // D3 で Supabase 接続予定（メールはモック）
         try? await Task.sleep(for: .milliseconds(550))
-
-        if provider == .apple, email?.lowercased().contains("privaterelay") == true {
-            return .failure(.appleRelayHint)
-        }
 
         if provider == .email {
             let mail = (email ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -175,6 +166,18 @@ final class AccountSession {
     ) async -> Result<Void, AuthError> {
         guard isOnline else { return .failure(.offline) }
 
+        if provider == .google {
+            let result = await performSupabaseOAuthLogin(provider: provider, email: email)
+            if case .success = result {
+                applySignUpDisplayName(displayName)
+            }
+            return result
+        }
+
+        if provider == .apple {
+            return .failure(.providerUnavailable(provider.title))
+        }
+
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidEmail(mail) else { return .failure(.invalidEmail) }
 
@@ -182,10 +185,15 @@ final class AccountSession {
         try? await Task.sleep(for: .milliseconds(650))
 
         loginWithMock(provider: provider, email: mail)
-        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !name.isEmpty, let id = storedAccount?.id {
-            updateDisplayName(name, for: id)
-        }
+        applySignUpDisplayName(displayName)
+        return .success(())
+    }
+
+    /// Sign in with Apple / OAuth 完了後に Supabase セッションを反映する。
+    @MainActor
+    func completeSupabaseSignIn(_ session: Session, displayNameOverride: String? = nil) -> Result<Void, AuthError> {
+        applySupabaseSession(session)
+        applySignUpDisplayName(displayNameOverride)
         return .success(())
     }
 
@@ -258,7 +266,29 @@ final class AccountSession {
         persistPreferences()
     }
 
-    // MARK: - モック（D2/D3 までの暫定）
+    // MARK: - モック（D3 までの暫定）
+
+    @MainActor
+    private func performSupabaseOAuthLogin(provider: AuthProvider, email: String?) async -> Result<Void, AuthError> {
+        guard supabaseEnabled else {
+            loginWithMock(provider: provider, email: email)
+            return .success(())
+        }
+        do {
+            let session = try await AuthService.signInWithGoogle()
+            applySupabaseSession(session)
+            return .success(())
+        } catch {
+            return .failure(.providerUnavailable(provider.title))
+        }
+    }
+
+    @MainActor
+    private func applySignUpDisplayName(_ displayName: String?) {
+        let name = (displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, let id = storedAccount?.id else { return }
+        updateDisplayName(name, for: id)
+    }
 
     @MainActor
     private func loginWithMock(provider: AuthProvider, email: String?) {

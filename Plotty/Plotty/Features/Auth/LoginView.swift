@@ -1,4 +1,6 @@
+import AuthenticationServices
 import SwiftUI
+import Supabase
 
 // MARK: - ログイン画面
 struct LoginView: View {
@@ -195,22 +197,13 @@ struct LoginView: View {
             .buttonStyle(LiquidGlassSNSButtonStyle())
             .disabled(isLoading || !connectivity.isOnline)
             
-            // Apple
-            Button {
-                login(with: .apple)
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "apple.logo")
-                        .font(.system(size: 20))
-                    Text("Appleでログイン")
-                        .font(.scaledBodyMedium().weight(.medium))
-                }
-                .foregroundStyle(primaryColor)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
+            // Apple（ネイティブ Sign in with Apple）
+            PlotAppleSignInButton(
+                label: .signIn,
+                isDisabled: isLoading || !connectivity.isOnline
+            ) { result in
+                handleAppleSignIn(result)
             }
-            .buttonStyle(LiquidGlassSNSButtonStyle())
-            .disabled(isLoading || !connectivity.isOnline)
         }
     }
     
@@ -258,7 +251,7 @@ struct LoginView: View {
         errorMessage = nil
         isLoading = true
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         Task {
             let result = await accountSession.performLogin(
                 provider: provider,
@@ -271,6 +264,29 @@ struct LoginView: View {
                 case .success:
                     break
                 case .failure(let error):
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func handleAppleSignIn(_ result: Result<AppleSignInPayload, Error>) {
+        errorMessage = nil
+        isLoading = true
+        Task {
+            let authResult: Result<Void, AuthError>
+            switch result {
+            case .success(let payload):
+                authResult = accountSession.completeSupabaseSignIn(
+                    payload.session,
+                    displayNameOverride: payload.suggestedDisplayName
+                )
+            case .failure:
+                authResult = .failure(.providerUnavailable(AuthProvider.apple.title))
+            }
+            await MainActor.run {
+                isLoading = false
+                if case .failure(let error) = authResult {
                     errorMessage = error.localizedDescription
                 }
             }
