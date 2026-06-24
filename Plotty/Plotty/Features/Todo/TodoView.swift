@@ -96,8 +96,10 @@ struct TodoView: View {
         }
         .sheet(item: $editingTodo) { todo in
             TodoEditSheet(todo: todo) { updated in
-                dataStore.updateTodo(updated)
-                editingTodo = nil
+                Task {
+                    let ok = await dataStore.updateTodo(updated, isOnline: connectivity.isOnline)
+                    if ok { editingTodo = nil }
+                }
             } onCancel: {
                 editingTodo = nil
             }
@@ -120,15 +122,15 @@ struct TodoView: View {
     
     private func toggleCompletion(id: UUID) {
         guard var todo = dataStore.todos.first(where: { $0.id == id }) else { return }
-        withAnimation(.quick) {
-            todo.isCompleted.toggle()
-            dataStore.updateTodo(todo)
+        todo.isCompleted.toggle()
+        Task {
+            _ = await dataStore.updateTodo(todo, isOnline: connectivity.isOnline)
         }
     }
     
     private func removeTodo(id: UUID) {
-        withAnimation(.standard) {
-            dataStore.deleteTodo(id: id)
+        Task {
+            _ = await dataStore.deleteTodo(id: id, isOnline: connectivity.isOnline)
         }
     }
     
@@ -180,7 +182,7 @@ struct TodoView: View {
 
 #Preview {
     TodoView(showCreateSheet: .constant(false), searchText: .constant(""))
-        .environment(\.plotDataStore, PlotDataStore())
+        .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)
 }

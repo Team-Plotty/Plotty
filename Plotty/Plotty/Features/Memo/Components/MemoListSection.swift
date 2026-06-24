@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - メモ一覧（ピン留め / その他）
 struct MemoListSection: View {
     @Environment(\.plotDataStore) private var dataStore
+    @Environment(\.connectivity) private var connectivity
     
     /// 検索・色フィルタ済みの表示順 ID（カード表示はストアから最新を参照）
     let filteredMemoIDs: [UUID]
@@ -55,8 +56,8 @@ struct MemoListSection: View {
                     title: memo.isPinned ? "ピン留めを外す" : "ピン留め",
                     systemImage: memo.isPinned ? "pin.slash" : "pin",
                     handler: {
-                        withAnimation(.standard) {
-                            dataStore.toggleMemoPin(id: id)
+                        Task {
+                            _ = await dataStore.toggleMemoPin(id: id, isOnline: connectivity.isOnline)
                         }
                     }
                 )

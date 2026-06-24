@@ -4,17 +4,17 @@
 
 ---
 
-## 現状サマリ（2026/06/10 時点）
+## 現状サマリ（2026/06/19 時点）
 
 | 領域 | 進捗 | 備考 |
 |---|---|---|
 | iOS UI（SwiftUI） | おおむね完成 | 全画面・Liquid Glass・共通状態 UI あり |
-| iOS ↔ Edge 接続 | 未着手 | `PlotAPIClient` 等なし。データはモック |
-| Edge API | **Phase B 完了** | B0〜B7 実装・本番 smoke 通過（`plotty-api` デプロイ済み） |
+| iOS ↔ Edge 接続 | **コード実装済み・検証未** | C1〜C7 を `feature/phase-c-ios-edge-connection` に実装。**本番 API での動作確認は意図的に後回し**（下記 Phase C §検証後回し） |
+| Edge API | **Phase B 完了** | B0〜B7 実装・本番 smoke 通過（`plotty-api` デプロイ済み）。`main` に merge 済み |
 | Supabase 運用 | Phase A/B コード完了 | B5/B7 migration 適用済み。A6 RLS migration は db push 待ち |
 | 認証 | 部分完成 | Google OAuth のみ実装。Apple / Email はモック |
 
-**ボトルネック:** iOS から Edge への接続と Supabase 本番化。UI シェルは先行しているため、以降は **バックエンド接続 → 認証本番化 → 体験仕上げ** の順が効率的。
+**ボトルネック:** Phase C の **E2E 検証**（要: 有効 JWT）。Edge（B）は完了済み。以降は **Phase D 最小（D1）→ Phase C 検証 → 認証本番化の残り → 体験仕上げ** の順が効率的。
 
 **作業ブランチ:** Phase A は **`feature/phase-a-supabase-foundation`**（A3 以降も同一ブランチでコミット → Phase 完了後に PR）。
 
@@ -88,7 +88,7 @@ README の `feature/<category>-<topic>` に従う。**1 Phase 1 ブランチ**�
 |---|---|---|
 | A | `feature/phase-a-supabase-foundation` | A1〜A6 完了・完了条件達成後 |
 | B | `feature/phase-b-edge-api` | B1〜B7 完了後 |
-| C | `feature/phase-c-ios-edge-connection` | C1〜C7 完了後 |
+| C | `feature/phase-c-ios-edge-connection` | C1〜C7 **コード完了**後（**E2E 検証は D1 後**。検証完了まで PR merge しない） |
 | D | `feature/phase-d-auth-production` | D1〜D8 完了後 |
 | E | `feature/phase-e-ux-polish` | E1〜E5 完了後 |
 | F | `feature/phase-f-release-gate` | `11` §6 全項目クリア後 |
@@ -191,19 +191,46 @@ flowchart TD
 
 **目的:** モックデータをやめ、docs 通りのデータフローに切り替える。
 
-| # | タスク | 参照 |
-|---|---|---|
-| C1 | `PlotAPIClient` 新設（Bearer JWT、`request_id` エラー mapping） | `06`, `10` |
-| C2 | Edge DTO ↔ 各 Item / ChatMessage mapper | `10` §4 |
-| C3 | `PlotDataStore.reload()` → `GET /api/v1/entities` | `02` §同期方針 |
-| C4 | 編集・削除・完了切替・ピン留め → PATCH / DELETE | `11` §3.4–3.6 |
-| C5 | `ChatView` 送信 → `POST /api/v1/chat/messages` + Store 更新 | `01`, `11` §3.7 |
-| C6 | 再分類 → `POST /api/v1/chat/reclassify`（B1 完了後） | `01`, `11` §3.7 |
-| C7 | 送信ごとに `client_message_id`（UUID）を付与 | `06` |
+| # | タスク | コード | 参照 |
+|---|---|---|---|
+| C1 | `PlotAPIClient` 新設（Bearer JWT、`request_id` エラー mapping） | ✅ | `06`, `10` |
+| C2 | Edge DTO ↔ 各 Item / ChatMessage mapper | ✅ | `10` §4 |
+| C3 | `PlotDataStore.reload()` → `GET /api/v1/entities` | ✅ | `02` §同期方針 |
+| C4 | 編集・削除・完了切替・ピン留め → PATCH / DELETE | ✅ | `11` §3.4–3.6 |
+| C5 | `ChatView` 送信 → `POST /api/v1/chat/messages` + Store 更新 | ✅ | `01`, `11` §3.7 |
+| C6 | 再分類 → `POST /api/v1/chat/reclassify`（B1 完了後） | ✅ | `01`, `11` §3.7 |
+| C7 | 送信ごとに `client_message_id`（UUID）を付与 | ✅ | `06` |
 
-**完了条件:** `11` §6 のチェック 5（チャット → 実体作成 → 各一覧反映）が本番 API で一連確認できる。
+**完了条件（未達）:** `11` §6 のチェック 5（チャット → 実体作成 → 各一覧反映）が **本番 API で一連確認できる**こと。
 
 **推奨作業順:** C1 → C2 → C3 → C4 → C5 + C7（同一コミット可）→ C6
+
+#### 検証後回し（2026/06/19 決定）
+
+C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する **動作確認（Plan A スモーク）は意図的に未実施**とする。Phase D 着手を優先し、検証は後段でまとめて行う。
+
+| 項目 | 内容 |
+|---|---|
+| **未実施の確認** | `11` §6 チェック 5（チャット送信 → 各一覧反映）、C4 の PATCH 永続化、C6 再分類、C7 冪等再送 |
+| **実施タイミング** | **Phase D 最小（D1: Google → Supabase session、`demoLaunchToChat` 廃止）の直後**。その前は `PlotDebug.demoLaunchToChat = true` のため JWT がなく API 検証が成立しない |
+| **PR / merge** | コードは `feature/phase-c-ios-edge-connection` に残す。**E2E 検証完了まで `main` へ merge しない** |
+| **本番 Edge** | `main` に Phase B merge 済み（reclassify・拡張 PATCH・冪等）。本番 deploy 版も B 相当であること |
+
+**検証時のスモーク手順（メモ）:**
+
+1. `PlotDebug.demoLaunchToChat = false`（D1 で恒久化予定）
+2. Google でログイン（Supabase JWT 取得）
+3. チャット送信 → ToDo / メモ / カレンダー各タブで反映確認
+4. 必要に応じて編集・削除・再分類
+
+**既知の未修正（検証時に確認）:**
+
+| 項目 | 内容 | 優先 |
+|---|---|---|
+| タイムアウト再送 | サーバー成功 + クライアント 10s タイムアウト後の再送で **AI メッセージが二重表示**しうる（`message_id` dedupe 未実装） | 検証で再現したら修正 |
+| 手動作成（＋ボタン） | ローカルのみ。reload 後に消える / PATCH・DELETE は `NOT_FOUND` | Phase C スコープ外。Phase E 以降または別タスク |
+| PATCH 一部フィールド | iOS は `is_completed` / `is_pinned` 等を送るが、**deploy 中の Edge が未対応版だとサーバーに反映されない** | B deploy 版で再確認 |
+| `ChatMockResponder.swift` | 未参照の dead code | Phase G で削除可 |
 
 ---
 
@@ -228,7 +255,7 @@ flowchart TD
 
 **推奨作業順:** D1 → D2 → D3 → D4 → D5 → D6 → D7 → D8
 
-**メモ:** Phase C と並行可能だが、**C1 以降は有効 JWT が必要**なため D1 は C5 より前に完了させるのが望ましい。
+**メモ:** Phase C と並行可能だが、**C1 以降は有効 JWT が必要**なため **実機 E2E は D1 完了後**に Phase C §検証後回し の手順で行う（C5 実装自体は JWT なしでは動作しない）。
 
 ---
 
@@ -264,7 +291,7 @@ flowchart TD
 | 2. 認証 3 方式 | Phase D |
 | 3. Apple Relay 導線 | Phase D（D5） |
 | 4. 共通 UI 状態 | Phase F 内で修正 |
-| 5. チャット → 一覧の一連 | Phase C |
+| 5. チャット → 一覧の一連 | Phase C（**コード済み・E2E 未**。D1 後に §検証後回し 参照） |
 | 6. 設定反映 | Phase E（E1） |
 | OSS ライセンス本文 | Phase F 内（E 相当の残タスク） |
 
@@ -357,3 +384,4 @@ flowchart TD
 - 2026/06/03: §2〜§4 の実装吸収項目・migration バックログ・doc 正本整理を **`docs/contracts/implementation-notes.md`** に集約。方針変更は不要、施工のみ。
 - 2026/06/03: **設計レビュー結論** — MVP 設計は実装開始可能（完成度 約 80–85%、実装 約 15–20%）。priority / due_date / doc 正本のズレ・Phase E 後回しは **いずれも実装で吸収可能**（ユーザー確認済み）。docs push 後の次手: Phase A → B。
 - 2026/06/07: **ブランチ戦略** — タスク単位（`feature/supabase-schema-migration` 等）から **Phase 単位 1 ブランチ**に変更。Phase 内はタスクごとにコミット、**push / PR は Phase 完了時**。Phase A ブランチ: `feature/phase-a-supabase-foundation`。
+- 2026/06/19: **Phase C** — C1〜C7 の iOS コード実装を `feature/phase-c-ios-edge-connection` で完了。**本番 API 動作確認（Plan A スモーク）は D1 後に実施**とし、現時点では後回し。Phase C の PR merge は E2E 検証完了まで保留。詳細は本ファイル §Phase C「検証後回し」。
