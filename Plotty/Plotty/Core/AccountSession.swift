@@ -128,11 +128,17 @@ final class AccountSession {
 
     #if DEBUG
     /// プレビュー用（Supabase には接続しない）。
-    static func preview(loggedIn: Bool = true, account: PlottyAccount = .preview) -> AccountSession {
+    static func preview(
+        loggedIn: Bool = true,
+        account: PlottyAccount = .preview,
+        lastProvider: AuthProvider? = nil
+    ) -> AccountSession {
         let session = AccountSession(supabaseEnabled: false)
         if loggedIn {
             session.storedAccount = account
-            session.lastUsedProvider = account.provider
+            session.lastUsedProvider = lastProvider ?? account.provider
+        } else if let lastProvider {
+            session.lastUsedProvider = lastProvider
         }
         return session
     }

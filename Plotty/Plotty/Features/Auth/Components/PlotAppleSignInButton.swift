@@ -15,6 +15,7 @@ struct PlotAppleSignInButton: View {
 
     let label: SignInWithAppleButton.Label
     let isDisabled: Bool
+    var isRecommended: Bool = false
     let onComplete: (Result<AppleSignInPayload, Error>) -> Void
 
     @State private var rawNonce = ""
@@ -34,6 +35,12 @@ struct PlotAppleSignInButton: View {
         .frame(maxWidth: .infinity)
         .frame(height: 50)
         .clipShape(RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+        .overlay {
+            if isRecommended, !isDisabled {
+                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1)
+            }
+        }
         .disabled(isDisabled)
         .opacity(isDisabled ? 0.5 : 1)
     }

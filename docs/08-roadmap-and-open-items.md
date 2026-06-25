@@ -12,7 +12,7 @@
 | iOS ↔ Edge 接続 | **main merge 済み・E2E 検証未** | C1〜C7 実装済み。**本番 API 動作確認は D1 後**（§Phase C 検証後回し） |
 | Edge API | **Phase B 完了** | B0〜B7 実装・本番 smoke 通過（`plotty-api` デプロイ済み）。`main` に merge 済み |
 | Supabase 運用 | Phase A/B コード完了 | B5/B7 migration 適用済み。A6 RLS migration は db push 待ち |
-| 認証 | **Phase D 進行中（D1–D3）** | Google / Apple / Email OTP → Supabase session |
+| 認証 | **Phase D 進行中（D1–D4）** | Google / Apple / Email OTP + 前回方式推奨 |
 
 **ボトルネック:** Phase C の **E2E 検証**（要: 有効 JWT）。D1 完了後に §検証後回し の手順で実施可能。
 
@@ -245,7 +245,7 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 | D1 | Google OAuth 成功 → Supabase session → `AccountSession`（samples 廃止） | `04` | ✅ コード完了（実機 OAuth 要確認） |
 | D2 | Sign in with Apple | `04` | ✅ コード完了（実機・entitlement 要確認） |
 | D3 | Email をマジックリンク / OTP に変更 | `04`, `11` §3.1 | ✅ コード完了（Supabase メールテンプレート要確認） |
-| D4 | 前回ログイン方式の推奨表示 | `04` §Apple Relay | 未着手 |
+| D4 | 前回ログイン方式の推奨表示 | `04` §Apple Relay | ✅ 完了 |
 | D5 | Apple Relay 時のヘルプ誘導（Login → Help 連携） | `11` §3.1 | 未着手 |
 | D6 | 新規登録時タイムゾーンを端末 → `public.users.timezone` | `11` §3.2 | 未着手 |
 | D7 | ログアウト / アカウント削除を Supabase + DB に接続 | `11` §3.3 | 未着手 |
@@ -388,3 +388,4 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 - 2026/06/03: **Phase D 着手** — D1: Google OAuth → Supabase session → `AccountSession` 接続、`PlottyAccount.samples` 廃止、`demoLaunchToChat = false`。ブランチ `feature/phase-d-auth-production`。
 - 2026/06/03: **Phase D** — D2: Sign in with Apple（`signInWithIdToken` + `PlotAppleSignInButton`）、`Plotty.entitlements` 追加。
 - 2026/06/03: **Phase D** — D3: Email 認証をパスワードから OTP / マジックリンクに変更（`EmailOTPVerificationView`）。
+- 2026/06/03: **Phase D** — D4: 前回ログイン方式の推奨バナー・並び替え・ハイライト（`PlotLastLoginRecommendationBanner`）。
