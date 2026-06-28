@@ -11,6 +11,8 @@ struct LoginView: View {
     @State private var email = ""
     @State private var showTerms = false
     @State private var showPrivacy = false
+    @State private var showRelayHelp = false
+    @State private var showRelayGuidance = false
     @State private var errorMessage: String?
     @State private var isLoading = false
     @State private var otpChallenge: EmailOTPChallenge?
@@ -36,6 +38,10 @@ struct LoginView: View {
 
                         if let recommendedProvider {
                             PlotLastLoginRecommendationBanner(provider: recommendedProvider)
+                        }
+
+                        if showRelayGuidance || recommendedProvider == .apple {
+                            relayHelpCard
                         }
 
                         if let errorMessage {
@@ -71,6 +77,14 @@ struct LoginView: View {
             .sheet(isPresented: $showPrivacy) {
                 NavigationStack {
                     LegalDocumentView(kind: .privacyPolicy)
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationSizing(.page)
+            }
+            .sheet(isPresented: $showRelayHelp) {
+                NavigationStack {
+                    HelpView(highlightRelay: true)
                 }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
@@ -277,6 +291,37 @@ struct LoginView: View {
         .padding(.top, Spacing.lg)
     }
 
+    private var relayHelpCard: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Image(systemName: "questionmark.circle.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Apple の非公開メールでお困りですか？")
+                    .font(.scaledBodySmall().weight(.semibold))
+                    .foregroundStyle(primaryColor)
+
+                Text("「Hide My Email」で別アカウント扱いになることがあります。解決手順をヘルプで確認できます。")
+                    .font(.scaledCaption())
+                    .foregroundStyle(secondaryColor)
+
+                Button("解決手順を見る") {
+                    showRelayHelp = true
+                }
+                .font(.scaledCaption().weight(.semibold))
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+    }
+
     private var canSendEmailOTP: Bool {
         isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
     }
@@ -285,6 +330,7 @@ struct LoginView: View {
         guard canSendEmailOTP else { return }
         isEmailFocused = false
         errorMessage = nil
+        showRelayGuidance = false
         isLoading = true
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -314,6 +360,7 @@ struct LoginView: View {
 
     private func login(with provider: AuthProvider) {
         errorMessage = nil
+        showRelayGuidance = false
         isLoading = true
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -347,12 +394,15 @@ struct LoginView: View {
                     displayNameOverride: payload.suggestedDisplayName
                 )
             case .failure:
-                authResult = .failure(.providerUnavailable(AuthProvider.apple.title))
+                authResult = .failure(.appleRelayHint)
             }
             await MainActor.run {
                 isLoading = false
                 if case .failure(let error) = authResult {
                     errorMessage = error.localizedDescription
+                    if error == .appleRelayHint {
+                        showRelayGuidance = true
+                    }
                 }
             }
         }
@@ -420,6 +470,7 @@ private struct LoginSNSButtonStyle: ButtonStyle {
     }
 }
 
+#if DEBUG
 #Preview("Google 推奨") {
     LoginView()
         .environment(\.accountSession, AccountSession.preview(loggedIn: false, lastProvider: .google))
@@ -431,3 +482,4 @@ private struct LoginSNSButtonStyle: ButtonStyle {
         .environment(\.accountSession, AccountSession.preview(loggedIn: false, lastProvider: .email))
         .environment(\.connectivity, ConnectivityMonitor())
 }
+#endif
