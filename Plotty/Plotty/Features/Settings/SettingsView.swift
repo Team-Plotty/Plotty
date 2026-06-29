@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - 設定タブ（メモ / TODO などと同じスクロール＋ガラスカードのリズム）
 struct SettingsView: View {
     @Environment(\.accountSession) private var accountSession
+    @Environment(\.connectivity) private var connectivity
     @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     @Binding var pendingRoute: SettingsRoute?
@@ -16,6 +17,8 @@ struct SettingsView: View {
     @State private var profileEditSheetPresented = false
     @State private var logoutConfirmPresented = false
     @State private var deleteAccountConfirmPresented = false
+    @State private var authActionError: String?
+    @State private var isAuthActionInFlight = false
     
     init(pendingRoute: Binding<SettingsRoute?> = .constant(nil)) {
         _pendingRoute = pendingRoute
@@ -115,6 +118,10 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                if let authActionError {
+                    PlotErrorBanner(message: authActionError, onRetry: nil)
+                }
             }
             .padding(.horizontal, Spacing.screenEdge)
             .padding(.top, Spacing.lg)
@@ -187,7 +194,9 @@ struct SettingsView: View {
         .alert("ログアウトしますか？", isPresented: $logoutConfirmPresented) {
             Button("キャンセル", role: .cancel) {}
             Button("ログアウト", role: .destructive) {
-                accountSession.logout()
+                runAuthAction {
+                    await accountSession.logout(isOnline: connectivity.isOnline)
+                }
             }
         } message: {
             Text("ログアウトすると、この端末でのログイン状態が解除されます。再度使うときはアカウントを選び直してください。")
@@ -195,10 +204,17 @@ struct SettingsView: View {
         .alert("アカウントを削除しますか？", isPresented: $deleteAccountConfirmPresented) {
             Button("キャンセル", role: .cancel) {}
             Button("削除", role: .destructive) {
-                accountSession.deleteAccount()
+                runAuthAction {
+                    await accountSession.deleteAccount(isOnline: connectivity.isOnline)
+                }
             }
         } message: {
-            Text("この端末のログイン状態が解除されます。クラウド上のデータ削除は API 接続後に有効になります。")
+            Text("クラウド上のプロフィール・予定・タスク・メモ・メッセージが削除されます。")
+        }
+        .overlay {
+            if isAuthActionInFlight {
+                PlotLoadingOverlay(message: "処理中…")
+            }
         }
         .onAppear { consumePendingRoute() }
         .onChange(of: pendingRoute) { _, _ in consumePendingRoute() }
@@ -209,8 +225,23 @@ struct SettingsView: View {
         accountSheetPresented = true
         pendingRoute = nil
     }
+
+    private func runAuthAction(
+        _ action: @escaping @MainActor () async -> Result<Void, AuthError>
+    ) {
+        authActionError = nil
+        isAuthActionInFlight = true
+        Task { @MainActor in
+            let result = await action()
+            isAuthActionInFlight = false
+            if case .failure(let error) = result {
+                authActionError = error.localizedDescription
+            }
+        }
+    }
 }
 
+#if DEBUG
 #Preview {
     SettingsView()
         .environment(\.appSettings, AppSettings())
@@ -218,3 +249,4 @@ struct SettingsView: View {
         .ambientBackground()
         .preferredColorScheme(.dark)
 }
+#endif
