@@ -1,6 +1,8 @@
 # Plotty
 日常の管理を、1つの会話で。
 
+iOS アプリの Xcode プロジェクトは **`Plotty/Plotty.xcodeproj`** を開いてください（`Plottyy/` は未使用のため削除済み）。
+
 
 
 
