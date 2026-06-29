@@ -104,6 +104,16 @@ final class AppSettings {
             }
         }
     }
+
+    /// クラウドから取得した値を端末へ反映する（`public.users` 同期用）。
+    func applyRemoteProfile(timezoneIdentifier: String?, aiPersona: AIPersonaConfig?) {
+        if let timezoneIdentifier, !timezoneIdentifier.isEmpty {
+            self.timezoneIdentifier = timezoneIdentifier
+        }
+        if let aiPersona {
+            self.aiPersona = aiPersona
+        }
+    }
     
     var timezone: TimeZone {
         TimeZone(identifier: timezoneIdentifier) ?? .current

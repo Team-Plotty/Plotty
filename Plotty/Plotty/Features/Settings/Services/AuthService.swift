@@ -60,12 +60,7 @@ enum AuthService {
     /// `public.users.timezone` を更新する（新規登録直後の初期同期用）。
     @MainActor
     static func updateCurrentUserTimezone(_ timezoneIdentifier: String) async throws {
-        let session = try await SupabaseManager.client.auth.session
-        try await SupabaseManager.client
-            .from("users")
-            .update(["timezone": AnyJSON.string(timezoneIdentifier)] as [String: AnyJSON])
-            .eq("id", value: session.user.id)
-            .execute()
+        try await UserProfileService.updateProfile(timezoneIdentifier: timezoneIdentifier)
     }
 
     /// 現在ユーザーの `public.users` 行を削除する（配下データは FK CASCADE で削除）。

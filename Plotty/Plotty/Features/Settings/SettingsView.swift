@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.accountSession) private var accountSession
     @Environment(\.connectivity) private var connectivity
+    @Environment(\.userSettingsSync) private var userSettingsSync
     @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     @Binding var pendingRoute: SettingsRoute?
@@ -122,6 +123,10 @@ struct SettingsView: View {
                 if let authActionError {
                     PlotErrorBanner(message: authActionError, onRetry: nil)
                 }
+
+                if let profileSyncError = userSettingsSync.lastError {
+                    PlotErrorBanner(message: profileSyncError, onRetry: nil)
+                }
             }
             .padding(.horizontal, Spacing.screenEdge)
             .padding(.top, Spacing.lg)
@@ -212,7 +217,7 @@ struct SettingsView: View {
             Text("クラウド上のプロフィール・予定・タスク・メモ・メッセージが削除されます。")
         }
         .overlay {
-            if isAuthActionInFlight {
+            if isAuthActionInFlight || userSettingsSync.isSyncing {
                 PlotLoadingOverlay(message: "処理中…")
             }
         }

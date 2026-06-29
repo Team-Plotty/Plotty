@@ -91,6 +91,10 @@ final class AccountSession {
     private(set) var lastUsedProvider: AuthProvider?
     private var displayNameOverrides: [String: String] = [:]
 
+    /// ログイン後に `public.users` から設定を引く（`UserSettingsSync` が設定する）。
+    @ObservationIgnored
+    var onProfileSyncNeeded: (@MainActor () async -> Void)?
+
     /// ログイン中のアカウント一覧（D1 時点では Supabase セッション 1 件のみ）。
     var availableAccounts: [PlottyAccount] {
         guard let currentAccount else { return [] }
@@ -263,10 +267,14 @@ final class AccountSession {
         guard isOnline else { return .failure(.offline) }
 
         if provider == .google {
-            let result = await performSupabaseOAuthLogin(provider: provider, email: email)
+            let result = await performSupabaseOAuthLogin(
+                provider: provider,
+                email: email,
+                pullProfile: false
+            )
             if case .success = result {
                 applySignUpDisplayName(displayName)
-                await syncDeviceTimezoneForSignUp()
+                await syncSignUpProfile(displayNameOverride: displayName)
             }
             return result
         }
@@ -291,11 +299,11 @@ final class AccountSession {
         displayNameOverride: String? = nil,
         isSignUp: Bool = false
     ) -> Result<Void, AuthError> {
-        applySupabaseSession(session)
+        applySupabaseSession(session, pullProfile: !isSignUp)
         applySignUpDisplayName(displayNameOverride)
         if isSignUp {
             Task { @MainActor in
-                await syncDeviceTimezoneForSignUp()
+                await syncSignUpProfile(displayNameOverride: displayNameOverride)
             }
         }
         return .success(())
@@ -322,6 +330,11 @@ final class AccountSession {
         updateDisplayName(name, for: accountID)
     }
 
+    /// クラウドの `display_name` を端末へ反映する。
+    func applyRemoteDisplayName(_ name: String) {
+        updateDisplayName(name)
+    }
+
     // MARK: - Supabase 連携
 
     @MainActor
@@ -332,7 +345,13 @@ final class AccountSession {
                 switch event {
                 case .signedOut, .userDeleted:
                     clearLocalSession()
-                case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
+                case .initialSession, .signedIn:
+                    if let session {
+                        applySupabaseSession(session, pullProfile: true)
+                    } else {
+                        clearLocalSession()
+                    }
+                case .tokenRefreshed, .userUpdated:
                     if let session {
                         applySupabaseSession(session)
                     } else {
@@ -346,7 +365,7 @@ final class AccountSession {
     }
 
     @MainActor
-    private func applySupabaseSession(_ session: Session) {
+    private func applySupabaseSession(_ session: Session, pullProfile: Bool = false) {
         var account = PlottyAccountMapper.makeAccount(from: session.user)
         if let override = displayNameOverrides[account.id.uuidString] {
             account.displayName = override
@@ -354,6 +373,9 @@ final class AccountSession {
         storedAccount = account
         lastUsedProvider = account.provider
         persistPreferences()
+        if pullProfile {
+            Task { await onProfileSyncNeeded?() }
+        }
     }
 
     @MainActor
@@ -397,14 +419,18 @@ final class AccountSession {
     // MARK: - モック（プレビュー用）
 
     @MainActor
-    private func performSupabaseOAuthLogin(provider: AuthProvider, email: String?) async -> Result<Void, AuthError> {
+    private func performSupabaseOAuthLogin(
+        provider: AuthProvider,
+        email: String?,
+        pullProfile: Bool = true
+    ) async -> Result<Void, AuthError> {
         guard supabaseEnabled else {
             loginWithMock(provider: provider, email: email)
             return .success(())
         }
         do {
             let session = try await AuthService.signInWithGoogle()
-            applySupabaseSession(session)
+            applySupabaseSession(session, pullProfile: pullProfile)
             return .success(())
         } catch {
             return .failure(.providerUnavailable(provider.title))
@@ -419,9 +445,22 @@ final class AccountSession {
     }
 
     @MainActor
-    private func syncDeviceTimezoneForSignUp() async {
+    private func syncSignUpProfile(displayNameOverride: String?) async {
         let timezoneIdentifier = TimeZone.current.identifier
-        try? await AuthService.updateCurrentUserTimezone(timezoneIdentifier)
+        let name = (displayNameOverride ?? storedAccount?.displayName ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            if name.isEmpty {
+                try await UserProfileService.updateProfile(timezoneIdentifier: timezoneIdentifier)
+            } else {
+                try await UserProfileService.updateProfile(
+                    displayName: name,
+                    timezoneIdentifier: timezoneIdentifier
+                )
+            }
+        } catch {
+            // 新規登録直後の初期同期はベストエフォート
+        }
     }
 
     @MainActor
