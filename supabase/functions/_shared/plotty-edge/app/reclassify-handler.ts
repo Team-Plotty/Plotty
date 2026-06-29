@@ -12,6 +12,7 @@ import type { CryptoService } from "../services/crypto.ts";
 import { entityReadModelToDto } from "../services/entity-dto-mapper.ts";
 import type { PersistenceRepository } from "../services/persistence.ts";
 import { reclassifyEntity } from "../services/reclassify.ts";
+import { RECLASSIFY_EXPIRED, reclassifyExpiredMessage } from "../services/reclassify-policy.ts";
 import type { RateLimiter } from "../services/rate-limit.ts";
 import type { UserSettingsRepository } from "../services/user-settings.ts";
 
@@ -36,7 +37,8 @@ const toErrorResponse = (
   code: ErrorCode,
   logger: Logger,
   startedAt: number,
-  userId?: string
+  userId?: string,
+  messageOverride?: string
 ): JsonResponse => {
   logger.error("Request failed", {
     request_id: requestId,
@@ -61,7 +63,7 @@ const toErrorResponse = (
   return jsonResponse(statusByCode[code], {
     error: {
       code,
-      message: errorMessageByCode[code],
+      message: messageOverride ?? errorMessageByCode[code],
       request_id: requestId
     }
   });
@@ -128,6 +130,16 @@ export const createReclassifyHandler = (deps: ReclassifyHandlerDeps) => {
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         return toErrorResponse(context.requestId, "NOT_FOUND", logger, context.startedAt, userId);
+      }
+      if (error instanceof Error && error.message === RECLASSIFY_EXPIRED) {
+        return toErrorResponse(
+          context.requestId,
+          "FORBIDDEN",
+          logger,
+          context.startedAt,
+          userId,
+          reclassifyExpiredMessage
+        );
       }
       return toErrorResponse(context.requestId, "INTERNAL_ERROR", logger, context.startedAt, userId);
     }

@@ -218,6 +218,63 @@ test("reclassify task to memo", async () => {
   assert.equal((memos.body as { items: unknown[] }).items.length, 1);
 });
 
+test("reclassify rejects source older than 30 days", async () => {
+  const db = createInMemoryDatabase();
+  const persistenceRepository = createInMemoryPersistenceRepository(db);
+  const cryptoService = createSimpleCryptoService();
+
+  const chatHandler = createChatMessagesHandler({
+    authVerifier,
+    userSettingsRepository,
+    groqClient,
+    groqUsageRepository: createInMemoryGroqUsageRepository(),
+    groqDailyTokenLimit: 50000,
+    cryptoService,
+    persistenceRepository
+  });
+
+  const createResult = await chatHandler({
+    authorizationHeader: "Bearer test-token",
+    body: {
+      text: "明日までに資料提出",
+      forced_category: null,
+      client_message_id: "client-reclassify-expired-1"
+    }
+  });
+  assert.equal(createResult.status, 200);
+  const created = createResult.body as {
+    created_entities: Array<{ id: string; type: "task" }>;
+  };
+  const taskId = created.created_entities[0]?.id;
+  assert.ok(taskId);
+
+  const userMessage = db.messages.find((message) => message.role === "user");
+  assert.ok(userMessage);
+  userMessage.createdAt = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { createReclassifyHandler } = await import("../app/reclassify-handler.js");
+  const { reclassifyExpiredMessage } = await import("../services/reclassify-policy.js");
+  const reclassifyHandler = createReclassifyHandler({
+    authVerifier,
+    cryptoService,
+    persistenceRepository,
+    userSettingsRepository
+  });
+
+  const reclassifyResult = await reclassifyHandler({
+    authorizationHeader: "Bearer test-token",
+    body: {
+      source: { type: "task", id: taskId },
+      target_type: "memo",
+      reason_text: "期限切れテスト"
+    }
+  });
+  assert.equal(reclassifyResult.status, 403);
+  const body = reclassifyResult.body as { error: { code: string; message: string } };
+  assert.equal(body.error.code, "FORBIDDEN");
+  assert.equal(body.error.message, reclassifyExpiredMessage);
+});
+
 test("chat messages idempotency returns same response", async () => {
   const db = createInMemoryDatabase();
   const persistenceRepository = createInMemoryPersistenceRepository(db);

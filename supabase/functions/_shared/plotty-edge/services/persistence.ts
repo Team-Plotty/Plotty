@@ -87,6 +87,7 @@ export interface EntityReadModel {
   createdAt?: string;
   updatedAt?: string;
   isDeleted?: boolean;
+  sourceMessageId?: string | null;
 }
 
 export interface EntityUpdateInput {
@@ -141,6 +142,10 @@ export interface PersistenceRepository {
     newType: EntityType;
   }): Promise<void>;
   listMessages(filter: MessageListFilter): Promise<MessageReadModel[]>;
+  findMessageById(
+    userId: string,
+    messageId: string
+  ): Promise<{ createdAt: string } | null>;
 }
 
 export interface BuildPersistenceInput {

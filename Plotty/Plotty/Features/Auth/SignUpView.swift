@@ -81,6 +81,7 @@ struct SignUpView: View {
                 PlotLoadingOverlay(message: "送信しています…")
             }
         }
+        .plotAnalyticsScreen(.signUp)
     }
     
     private var header: some View {

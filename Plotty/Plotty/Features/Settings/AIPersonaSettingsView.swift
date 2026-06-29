@@ -57,6 +57,7 @@ struct AIPersonaSettingsView: View {
             draft = appSettings.aiPersona
             saveError = nil
         }
+        .plotAnalyticsScreen(.aiPersona)
     }
     
     private var prohibitedTopicsText: Binding<String> {

@@ -5,6 +5,7 @@ struct ChatMessageBlock: View {
     let message: ChatMessage
     var isReclassifying: Bool = false
     var onReclassify: ((PlotChatCategory) -> Void)?
+    var reclassifyDisabledReason: String?
     
     var body: some View {
         ChatBubble(role: message.role, text: message.text, chips: message.chips)
@@ -13,7 +14,8 @@ struct ChatMessageBlock: View {
             ChatConfirmationCard(
                 summary: summary,
                 isReclassifying: isReclassifying,
-                onReclassify: onReclassify
+                onReclassify: onReclassify,
+                reclassifyDisabledReason: reclassifyDisabledReason
             )
             .padding(.leading, Spacing.md)
         }

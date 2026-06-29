@@ -53,6 +53,7 @@ struct HelpView: View {
                 Button("閉じる") { dismiss() }
             }
         }
+        .plotAnalyticsScreen(.help)
     }
     
     private var relaySection: some View {

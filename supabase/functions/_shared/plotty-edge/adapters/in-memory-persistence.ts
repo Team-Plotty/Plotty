@@ -14,9 +14,9 @@ import type {
 
 export interface InMemoryDatabase {
   messages: MessageWriteInput[];
-  schedules: ScheduleWriteInput[];
-  tasks: TaskWriteInput[];
-  memos: MemoWriteInput[];
+  schedules: Array<ScheduleWriteInput & { createdAt: string }>;
+  tasks: Array<TaskWriteInput & { createdAt: string }>;
+  memos: Array<MemoWriteInput & { createdAt: string }>;
   deletedEntityIds: Set<string>;
 }
 
@@ -50,13 +50,13 @@ export const createInMemoryPersistenceRepository = (
     }
   },
   async insertSchedule(input: ScheduleWriteInput): Promise<void> {
-    db.schedules.push(input);
+    db.schedules.push({ ...input, createdAt: nowIso() });
   },
   async insertTask(input: TaskWriteInput): Promise<void> {
-    db.tasks.push(input);
+    db.tasks.push({ ...input, createdAt: nowIso() });
   },
   async insertMemo(input: MemoWriteInput): Promise<void> {
-    db.memos.push(input);
+    db.memos.push({ ...input, createdAt: nowIso() });
   },
   async findUserMessageByClientMessageId(userId: string, clientMessageId: string) {
     const found = db.messages.find(
@@ -86,6 +86,8 @@ export const createInMemoryPersistenceRepository = (
       endAt: item.endAt,
       isAllDay: item.isAllDay,
       location: item.location,
+      createdAt: item.createdAt,
+      sourceMessageId: item.sourceMessageId,
       updatedAt: new Date(Date.now() - index * 1000).toISOString(),
       isDeleted: db.deletedEntityIds.has(item.id)
     }));
@@ -98,7 +100,8 @@ export const createInMemoryPersistenceRepository = (
       dueDate: item.dueDate,
       isCompleted: item.isCompleted,
       priority: item.priority,
-      createdAt: timestamp,
+      createdAt: item.createdAt,
+      sourceMessageId: item.sourceMessageId,
       updatedAt: new Date(Date.now() - (index + 100) * 1000).toISOString(),
       isDeleted: db.deletedEntityIds.has(item.id)
     }));
@@ -110,6 +113,8 @@ export const createInMemoryPersistenceRepository = (
       iv: item.iv,
       contentEncrypted: item.contentEncrypted,
       isPinned: item.isPinned,
+      createdAt: item.createdAt,
+      sourceMessageId: item.sourceMessageId,
       updatedAt: new Date(Date.now() - (index + 200) * 1000).toISOString(),
       isDeleted: db.deletedEntityIds.has(item.id)
     }));
@@ -143,6 +148,8 @@ export const createInMemoryPersistenceRepository = (
         endAt: found.endAt,
         isAllDay: found.isAllDay,
         location: found.location,
+        createdAt: found.createdAt,
+        sourceMessageId: found.sourceMessageId,
         updatedAt: timestamp
       };
     }
@@ -158,7 +165,8 @@ export const createInMemoryPersistenceRepository = (
         dueDate: found.dueDate,
         isCompleted: found.isCompleted,
         priority: found.priority,
-        createdAt: timestamp,
+        createdAt: found.createdAt,
+        sourceMessageId: found.sourceMessageId,
         updatedAt: timestamp
       };
     }
@@ -172,6 +180,8 @@ export const createInMemoryPersistenceRepository = (
       iv: found.iv,
       contentEncrypted: found.contentEncrypted,
       isPinned: found.isPinned,
+      createdAt: found.createdAt,
+      sourceMessageId: found.sourceMessageId,
       updatedAt: timestamp
     };
   },
@@ -291,5 +301,12 @@ export const createInMemoryPersistenceRepository = (
         relatedEntities: message.relatedEntities,
         createdAt: message.createdAt ?? nowIso()
       }));
+  },
+  async findMessageById(userId: string, messageId: string) {
+    const found = db.messages.find(
+      (message) => message.userId === userId && message.id === messageId
+    );
+    if (!found?.createdAt) return null;
+    return { createdAt: found.createdAt };
   }
 });

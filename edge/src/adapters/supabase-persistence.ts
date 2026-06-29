@@ -14,11 +14,11 @@ import type {
 } from "../services/persistence.js";
 
 const SCHEDULE_SELECT =
-  "id,user_id,title_encrypted,iv,origin_text_encrypted,start_at,end_at,is_all_day,location,updated_at";
+  "id,user_id,title_encrypted,iv,origin_text_encrypted,start_at,end_at,is_all_day,location,created_at,source_message_id,updated_at";
 const TASK_SELECT =
-  "id,user_id,title_encrypted,iv,due_date,is_completed,priority,created_at,updated_at";
+  "id,user_id,title_encrypted,iv,due_date,is_completed,priority,created_at,source_message_id,updated_at";
 const MEMO_SELECT =
-  "id,user_id,title_encrypted,iv,content_encrypted,is_pinned,updated_at";
+  "id,user_id,title_encrypted,iv,content_encrypted,is_pinned,created_at,source_message_id,updated_at";
 
 const rowToScheduleReadModel = (row: Record<string, unknown>): EntityReadModel => ({
   type: "schedule",
@@ -31,6 +31,8 @@ const rowToScheduleReadModel = (row: Record<string, unknown>): EntityReadModel =
   endAt: row.end_at ? String(row.end_at) : null,
   isAllDay: Boolean(row.is_all_day),
   location: row.location ? String(row.location) : null,
+  createdAt: row.created_at ? String(row.created_at) : undefined,
+  sourceMessageId: row.source_message_id ? String(row.source_message_id) : null,
   updatedAt: row.updated_at ? String(row.updated_at) : undefined
 });
 
@@ -44,6 +46,7 @@ const rowToTaskReadModel = (row: Record<string, unknown>): EntityReadModel => ({
   isCompleted: Boolean(row.is_completed),
   priority: row.priority ? (Number(row.priority) as 1 | 2 | 3) : 2,
   createdAt: row.created_at ? String(row.created_at) : undefined,
+  sourceMessageId: row.source_message_id ? String(row.source_message_id) : null,
   updatedAt: row.updated_at ? String(row.updated_at) : undefined
 });
 
@@ -55,6 +58,8 @@ const rowToMemoReadModel = (row: Record<string, unknown>): EntityReadModel => ({
   iv: String(row.iv),
   contentEncrypted: row.content_encrypted ? String(row.content_encrypted) : undefined,
   isPinned: Boolean(row.is_pinned),
+  createdAt: row.created_at ? String(row.created_at) : undefined,
+  sourceMessageId: row.source_message_id ? String(row.source_message_id) : null,
   updatedAt: row.updated_at ? String(row.updated_at) : undefined
 });
 
@@ -355,5 +360,16 @@ export const createSupabasePersistenceRepository = (
       relatedEntities: (row.related_entities ?? []) as RelatedEntityRef[],
       createdAt: String(row.created_at)
     }));
+  },
+  async findMessageById(userId: string, messageId: string) {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("id", messageId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data?.created_at) return null;
+    return { createdAt: String(data.created_at) };
   }
 });

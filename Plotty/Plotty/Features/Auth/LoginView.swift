@@ -95,6 +95,7 @@ struct LoginView: View {
                     PlotLoadingOverlay(message: "送信しています…")
                 }
             }
+            .plotAnalyticsScreen(.login)
         }
     }
 

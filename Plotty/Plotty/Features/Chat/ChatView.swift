@@ -7,7 +7,7 @@ private enum ChatScrollAnchor {
 
 private enum ChatSendError: Error {
     case timeout
-    case api(String)
+    case api(PlotAPIError)
 }
 
 private struct PendingChatRetry: Equatable {
@@ -131,11 +131,15 @@ struct ChatTabView: View {
                         ChatDayHeader(day: section.day)
                         
                         ForEach(section.messages) { message in
+                            let canReclassify = PlotChatReclassifyPolicy.isAllowed(for: message)
                             ChatMessageBlock(
                                 message: message,
                                 isReclassifying: reclassifyingMessageID == message.id,
-                                onReclassify: message.registrationSummary != nil
+                                onReclassify: message.registrationSummary != nil && canReclassify
                                     ? { category in reclassify(messageID: message.id, to: category) }
+                                    : nil,
+                                reclassifyDisabledReason: message.registrationSummary != nil && !canReclassify
+                                    ? PlotChatRetention.reclassifyDisabledMessage(language: appSettings.language)
                                     : nil
                             )
                             .id(message.id)
@@ -312,11 +316,13 @@ struct ChatTabView: View {
                 historyPhase = .idle
             } catch let error as PlotAPIError {
                 historyPhase = .error(error.localizedDescription ?? "履歴の取得に失敗しました。")
+                PlotAnalytics.trackFailure(action: "chat_history", error: error, screen: .chat)
                 if messages.isEmpty {
                     lastError = error.localizedDescription ?? "履歴の取得に失敗しました。"
                 }
             } catch {
                 historyPhase = .error("履歴の取得に失敗しました。")
+                PlotAnalytics.trackFailure(action: "chat_history", code: "unknown", screen: .chat)
                 if messages.isEmpty {
                     lastError = "履歴の取得に失敗しました。"
                 }
@@ -364,7 +370,8 @@ struct ChatTabView: View {
                 let result = try await fetchAIResponse(
                     body: body,
                     forcedCategory: forcedCategory,
-                    clientMessageId: clientMessageId
+                    clientMessageId: clientMessageId,
+                    sourceMessageCreatedAt: messages[userMessageIndex].timestamp
                 )
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
@@ -385,12 +392,14 @@ struct ChatTabView: View {
             } catch ChatSendError.timeout {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    PlotAnalytics.trackFailure(action: "chat_send", code: "client_timeout", screen: .chat)
                     handleTimeout(body: body, forcedCategory: forcedCategory, clientMessageId: clientMessageId)
                 }
-            } catch ChatSendError.api(let message) {
+            } catch ChatSendError.api(let error) {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    lastError = message
+                    PlotAnalytics.trackFailure(action: "chat_send", error: error, screen: .chat)
+                    lastError = error.localizedDescription ?? "エラーが発生しました"
                     pendingRetry = PendingChatRetry(
                         body: body,
                         forcedCategory: forcedCategory,
@@ -402,6 +411,7 @@ struct ChatTabView: View {
             } catch {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    PlotAnalytics.trackFailure(action: "chat_send", code: "unknown", screen: .chat)
                     lastError = "応答の取得に失敗しました。"
                     pendingRetry = PendingChatRetry(
                         body: body,
@@ -418,7 +428,8 @@ struct ChatTabView: View {
     private func fetchAIResponse(
         body: String,
         forcedCategory: PlotChatCategory?,
-        clientMessageId: UUID
+        clientMessageId: UUID,
+        sourceMessageCreatedAt: Date
     ) async throws -> ChatSendResult {
         #if DEBUG
         if PlotDebug.forceChatTimeout {
@@ -434,13 +445,14 @@ struct ChatTabView: View {
                         text: body,
                         forcedCategory: forcedCategory,
                         clientMessageId: clientMessageId,
+                        sourceMessageCreatedAt: sourceMessageCreatedAt,
                         language: appSettings.language
                     )
                 } catch let error as PlotAPIError {
                     if error.isGroqTimeout {
                         throw ChatSendError.timeout
                     }
-                    throw ChatSendError.api(error.localizedDescription ?? "エラーが発生しました")
+                    throw ChatSendError.api(error)
                 }
             }
             group.addTask {
@@ -491,6 +503,10 @@ struct ChatTabView: View {
         guard let index = messages.firstIndex(where: { $0.id == messageID }),
               let summary = messages[index].registrationSummary,
               summary.category != category else { return }
+        guard PlotChatReclassifyPolicy.isAllowed(for: messages[index]) else {
+            lastError = PlotChatRetention.reclassifyDisabledMessage(language: appSettings.language)
+            return
+        }
 
         reclassifyingMessageID = messageID
         lastError = nil
@@ -508,9 +524,11 @@ struct ChatTabView: View {
                 messages[index] = updated
                 reclassifyingMessageID = nil
             } catch let error as PlotAPIError {
+                PlotAnalytics.trackFailure(action: "chat_reclassify", error: error, screen: .chat)
                 lastError = error.localizedDescription ?? "再分類に失敗しました。"
                 reclassifyingMessageID = nil
             } catch {
+                PlotAnalytics.trackFailure(action: "chat_reclassify", code: "unknown", screen: .chat)
                 lastError = "再分類に失敗しました。"
                 reclassifyingMessageID = nil
             }

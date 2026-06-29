@@ -162,7 +162,10 @@ final class AccountSession {
 
     @MainActor
     func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: "login", error: .offline, provider: provider)
+            return .failure(.offline)
+        }
 
         if provider == .google {
             return await performSupabaseOAuthLogin(provider: provider, email: email)
@@ -178,6 +181,7 @@ final class AccountSession {
         }
 
         loginWithMock(provider: provider, email: email)
+        PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
         return .success(())
     }
 
@@ -189,13 +193,20 @@ final class AccountSession {
         displayName: String?,
         isOnline: Bool
     ) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_send" : "login_otp_send", error: .offline, provider: .email)
+            return .failure(.offline)
+        }
 
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isValidEmail(mail) else { return .failure(.invalidEmail) }
+        guard isValidEmail(mail) else {
+            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_send" : "login_otp_send", error: .invalidEmail, provider: .email)
+            return .failure(.invalidEmail)
+        }
 
         guard supabaseEnabled else {
             loginWithMock(provider: .email, email: mail)
+            PlotAnalytics.trackAuthSuccess(action: purpose == .signup ? "signup" : "login", provider: .email)
             return .success(())
         }
 
@@ -213,6 +224,11 @@ final class AccountSession {
             )
             return .success(())
         } catch {
+            PlotAnalytics.trackAuthFailure(
+                action: purpose == .signup ? "signup_otp_send" : "login_otp_send",
+                error: .otpDeliveryFailed,
+                provider: .email
+            )
             return .failure(.otpDeliveryFailed)
         }
     }
@@ -226,17 +242,22 @@ final class AccountSession {
         displayName: String?,
         isOnline: Bool
     ) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify", error: .offline, provider: .email)
+            return .failure(.offline)
+        }
 
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let token = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidEmail(mail), token.count == 6 else {
+            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify", error: .otpVerificationFailed, provider: .email)
             return .failure(.otpVerificationFailed)
         }
 
         guard supabaseEnabled else {
             loginWithMock(provider: .email, email: mail)
             applySignUpDisplayName(displayName)
+            PlotAnalytics.trackAuthSuccess(action: purpose == .signup ? "signup" : "login", provider: .email)
             return .success(())
         }
 
@@ -253,6 +274,11 @@ final class AccountSession {
             )
             return result
         } catch {
+            PlotAnalytics.trackAuthFailure(
+                action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify",
+                error: .otpVerificationFailed,
+                provider: .email
+            )
             return .failure(.otpVerificationFailed)
         }
     }
@@ -305,6 +331,9 @@ final class AccountSession {
             Task { @MainActor in
                 await syncSignUpProfile(displayNameOverride: displayNameOverride)
             }
+        }
+        if let provider = storedAccount?.provider {
+            PlotAnalytics.trackAuthSuccess(action: isSignUp ? "signup" : "login", provider: provider)
         }
         return .success(())
     }
@@ -380,32 +409,46 @@ final class AccountSession {
 
     @MainActor
     private func performLogout(isOnline: Bool) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: "logout", error: .offline, provider: storedAccount?.provider)
+            return .failure(.offline)
+        }
         if supabaseEnabled {
             do {
                 try await AuthService.signOut()
             } catch {
+                PlotAnalytics.trackAuthFailure(action: "logout", error: .logoutFailed, provider: storedAccount?.provider)
                 return .failure(.logoutFailed)
             }
         }
+        let provider = storedAccount?.provider ?? .email
         clearLocalSession()
+        PlotAnalytics.trackAuthSuccess(action: "logout", provider: provider)
         return .success(())
     }
 
     @MainActor
     private func performDeleteAccount(isOnline: Bool) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: "delete_account", error: .offline, provider: storedAccount?.provider)
+            return .failure(.offline)
+        }
         guard supabaseEnabled else {
+            let provider = storedAccount?.provider ?? .email
             clearLocalSession()
+            PlotAnalytics.trackAuthSuccess(action: "delete_account", provider: provider)
             return .success(())
         }
 
         do {
             try await AuthService.deleteCurrentUserData()
             try await AuthService.signOut()
+            let provider = storedAccount?.provider ?? .email
             clearLocalSession()
+            PlotAnalytics.trackAuthSuccess(action: "delete_account", provider: provider)
             return .success(())
         } catch {
+            PlotAnalytics.trackAuthFailure(action: "delete_account", error: .deleteAccountFailed, provider: storedAccount?.provider)
             return .failure(.deleteAccountFailed)
         }
     }
@@ -431,8 +474,10 @@ final class AccountSession {
         do {
             let session = try await AuthService.signInWithGoogle()
             applySupabaseSession(session, pullProfile: pullProfile)
+            PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
             return .success(())
         } catch {
+            PlotAnalytics.trackAuthFailure(action: "login", error: .providerUnavailable(provider.title), provider: provider)
             return .failure(.providerUnavailable(provider.title))
         }
     }

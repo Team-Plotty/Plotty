@@ -6,11 +6,13 @@ enum PlotChatMapper {
     static func assistantMessage(
         from response: PlotPostChatMessagesResponseDTO,
         sourceBody: String,
+        sourceMessageCreatedAt: Date,
         language: AppLanguage
     ) -> ChatMessage {
         let summary = registrationSummary(
             from: response.createdEntities.first,
             sourceBody: sourceBody,
+            sourceMessageCreatedAt: sourceMessageCreatedAt,
             language: language
         )
         return ChatMessage(
@@ -29,11 +31,13 @@ enum PlotChatMapper {
     ) -> [ChatMessage] {
         var result: [ChatMessage] = []
         var lastUserText = ""
+        var lastUserCreatedAt: Date?
 
         for item in items {
             switch item.role {
             case .user:
                 lastUserText = item.text
+                lastUserCreatedAt = item.createdAt
                 result.append(
                     ChatMessage(
                         id: item.id,
@@ -47,6 +51,7 @@ enum PlotChatMapper {
                 let summary = registrationSummary(
                     from: item.createdEntities?.first,
                     sourceBody: lastUserText,
+                    sourceMessageCreatedAt: lastUserCreatedAt,
                     language: language
                 )
                 result.append(
@@ -87,6 +92,7 @@ enum PlotChatMapper {
     static func registrationSummary(
         from entity: PlotCreatedEntityDTO?,
         sourceBody: String,
+        sourceMessageCreatedAt: Date? = nil,
         language: AppLanguage
     ) -> ChatRegistrationSummary? {
         guard let entity else { return nil }
@@ -95,13 +101,15 @@ enum PlotChatMapper {
             entityID: entity.id,
             title: entity.title,
             detail: detail(for: entity, language: language),
-            sourceBody: sourceBody
+            sourceBody: sourceBody,
+            sourceMessageCreatedAt: sourceMessageCreatedAt
         )
     }
 
     static func registrationSummary(
         from entity: PlotEntityListItemDTO,
         sourceBody: String,
+        sourceMessageCreatedAt: Date? = nil,
         language: AppLanguage
     ) -> ChatRegistrationSummary {
         registrationSummary(
@@ -109,7 +117,8 @@ enum PlotChatMapper {
             entityID: entity.id,
             title: entity.title,
             detail: detail(for: entity, language: language),
-            sourceBody: sourceBody
+            sourceBody: sourceBody,
+            sourceMessageCreatedAt: sourceMessageCreatedAt
         )
     }
 
@@ -170,14 +179,16 @@ enum PlotChatMapper {
         entityID: UUID,
         title: String,
         detail: String,
-        sourceBody: String
+        sourceBody: String,
+        sourceMessageCreatedAt: Date? = nil
     ) -> ChatRegistrationSummary {
         ChatRegistrationSummary(
             category: category,
             title: title,
             detail: detail,
             linkedEntityID: entityID,
-            sourceBody: sourceBody
+            sourceBody: sourceBody,
+            sourceMessageCreatedAt: sourceMessageCreatedAt
         )
     }
 

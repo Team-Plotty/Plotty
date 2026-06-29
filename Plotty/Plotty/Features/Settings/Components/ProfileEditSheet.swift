@@ -65,6 +65,7 @@ struct ProfileEditSheet: View {
                 saveError = nil
             }
         }
+        .plotAnalyticsScreen(.profileEdit)
         .frame(maxWidth: .infinity)
     }
     

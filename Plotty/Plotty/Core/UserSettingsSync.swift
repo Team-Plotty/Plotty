@@ -63,6 +63,7 @@ final class UserSettingsSync {
         } catch {
             isApplyingRemote = false
             lastError = UserProfileSyncError.pullFailed.localizedDescription
+            PlotAnalytics.trackFailure(action: "profile_pull", error: UserProfileSyncError.pullFailed, screen: .settings)
         }
     }
 
@@ -79,6 +80,7 @@ final class UserSettingsSync {
             return .success(())
         } catch {
             lastError = UserProfileSyncError.pushFailed.localizedDescription
+            PlotAnalytics.trackFailure(action: "profile_push_display_name", error: UserProfileSyncError.pushFailed, screen: .profileEdit)
             return .failure(.pushFailed)
         }
     }
@@ -96,6 +98,7 @@ final class UserSettingsSync {
             return .success(())
         } catch {
             lastError = UserProfileSyncError.pushFailed.localizedDescription
+            PlotAnalytics.trackFailure(action: "profile_push_timezone", error: UserProfileSyncError.pushFailed, screen: .settings)
             return .failure(.pushFailed)
         }
     }
@@ -113,6 +116,7 @@ final class UserSettingsSync {
             return .success(())
         } catch {
             lastError = UserProfileSyncError.pushFailed.localizedDescription
+            PlotAnalytics.trackFailure(action: "profile_push_ai_persona", error: UserProfileSyncError.pushFailed, screen: .aiPersona)
             return .failure(.pushFailed)
         }
     }
