@@ -1,4 +1,6 @@
+import AuthenticationServices
 import SwiftUI
+import Supabase
 
 // MARK: - 新規登録画面
 struct SignUpView: View {
@@ -9,17 +11,16 @@ struct SignUpView: View {
     
     @State private var username = ""
     @State private var email = ""
-    @State private var password = ""
-    @State private var confirmPassword = ""
     @State private var agreedToTerms = false
     @State private var showTerms = false
     @State private var showPrivacy = false
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var otpChallenge: EmailOTPChallenge?
     @FocusState private var focusedField: Field?
-    
+
     private enum Field {
-        case username, email, password, confirmPassword
+        case username, email
     }
     
     var body: some View {
@@ -58,6 +59,11 @@ struct SignUpView: View {
             focusedField = nil
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $otpChallenge) { challenge in
+            EmailOTPVerificationView(challenge: challenge) {
+                dismiss()
+            }
+        }
         .sheet(isPresented: $showTerms) {
             NavigationStack { LegalDocumentView(kind: .termsOfService) }
                 .presentationDetents([.medium, .large])
@@ -72,7 +78,7 @@ struct SignUpView: View {
         }
         .overlay {
             if isLoading {
-                PlotLoadingOverlay(message: "登録中…")
+                PlotLoadingOverlay(message: "送信しています…")
             }
         }
     }
@@ -126,54 +132,15 @@ struct SignUpView: View {
                     .textContentType(.emailAddress)
                     .autocorrectionDisabled()
                     .focused($focusedField, equals: .email)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .password }
-                    .modifier(InputFieldModifier(colorScheme: colorScheme))
-            }
-            
-            // パスワード
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("パスワード")
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
-                
-                SecureField("8文字以上", text: $password)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(primaryColor)
-                    .textContentType(.newPassword)
-                    .focused($focusedField, equals: .password)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .confirmPassword }
-                    .modifier(InputFieldModifier(colorScheme: colorScheme))
-                
-                if !password.isEmpty && password.count < 8 {
-                    Text("パスワードは8文字以上で入力してください")
-                        .font(.scaledCaption())
-                        .foregroundStyle(.red.opacity(0.8))
-                }
-            }
-            
-            // パスワード確認
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("パスワード（確認）")
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
-                
-                SecureField("パスワードを再入力", text: $confirmPassword)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(primaryColor)
-                    .textContentType(.newPassword)
-                    .focused($focusedField, equals: .confirmPassword)
                     .submitLabel(.done)
-                    .onSubmit { signUpWithEmail() }
+                    .onSubmit { sendEmailOTP() }
                     .modifier(InputFieldModifier(colorScheme: colorScheme))
-                
-                if !confirmPassword.isEmpty && password != confirmPassword {
-                    Text("パスワードが一致しません")
-                        .font(.scaledCaption())
-                        .foregroundStyle(.red.opacity(0.8))
-                }
             }
+
+            Text("認証コードまたは登録リンクをメールでお送りします。")
+                .font(.scaledCaption())
+                .foregroundStyle(secondaryColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
     
@@ -197,8 +164,8 @@ struct SignUpView: View {
     }
     
     private var signUpButton: some View {
-        Button(action: signUpWithEmail) {
-            Text("アカウントを作成")
+        Button(action: sendEmailOTP) {
+            Text(EmailOTPPurpose.signup.sendButtonTitle)
                 .font(.scaledBodyLarge().weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -246,22 +213,13 @@ struct SignUpView: View {
             .buttonStyle(LiquidGlassSNSButtonStyle())
             .disabled(isLoading || !connectivity.isOnline || !agreedToTerms)
             
-            // Apple
-            Button {
-                signUp(with: .apple)
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "apple.logo")
-                        .font(.system(size: 20))
-                    Text("Appleで登録")
-                        .font(.scaledBodyMedium().weight(.medium))
-                }
-                .foregroundStyle(primaryColor)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
+            // Apple（ネイティブ Sign in with Apple）
+            PlotAppleSignInButton(
+                label: .signUp,
+                isDisabled: isLoading || !connectivity.isOnline || !agreedToTerms
+            ) { result in
+                handleAppleSignUp(result)
             }
-            .buttonStyle(LiquidGlassSNSButtonStyle())
-            .disabled(isLoading || !connectivity.isOnline || !agreedToTerms)
             
             if !agreedToTerms {
                 Text("SNSで登録するには利用規約への同意が必要です")
@@ -275,26 +233,60 @@ struct SignUpView: View {
     private var canSubmit: Bool {
         agreedToTerms &&
         !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        password.count >= 8 &&
-        password == confirmPassword
+        isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
     }
-    
-    private func signUpWithEmail() {
-        guard canSubmit else { return }
+
+    private func sendEmailOTP() {
+        guard canSubmit else {
+            if !agreedToTerms {
+                errorMessage = "利用規約に同意してください。"
+            }
+            return
+        }
         focusedField = nil
-        signUp(with: .email)
+        errorMessage = nil
+        isLoading = true
+
+        let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        Task {
+            let result = await accountSession.sendEmailOTP(
+                email: mail,
+                purpose: .signup,
+                displayName: name.isEmpty ? nil : name,
+                isOnline: connectivity.isOnline
+            )
+            await MainActor.run {
+                isLoading = false
+                switch result {
+                case .success:
+                    otpChallenge = EmailOTPChallenge(
+                        email: mail,
+                        purpose: .signup,
+                        displayName: name.isEmpty ? nil : name
+                    )
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
     }
-    
+
+    private func isValidEmail(_ raw: String) -> Bool {
+        let pattern = #"^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
+        return raw.range(of: pattern, options: .regularExpression) != nil
+    }
+
     private func signUp(with provider: AuthProvider) {
         guard agreedToTerms else {
             errorMessage = "利用規約に同意してください。"
             return
         }
-        
+
         errorMessage = nil
         isLoading = true
-        
+
         Task {
             let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
             let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -307,6 +299,41 @@ struct SignUpView: View {
             await MainActor.run {
                 isLoading = false
                 switch result {
+                case .success:
+                    dismiss()
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func handleAppleSignUp(_ result: Result<AppleSignInPayload, Error>) {
+        guard agreedToTerms else {
+            errorMessage = "利用規約に同意してください。"
+            return
+        }
+
+        errorMessage = nil
+        isLoading = true
+        let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        Task {
+            let authResult: Result<Void, AuthError>
+            switch result {
+            case .success(let payload):
+                let resolvedName = name.isEmpty ? payload.suggestedDisplayName : name
+                authResult = accountSession.completeSupabaseSignIn(
+                    payload.session,
+                    displayNameOverride: resolvedName,
+                    isSignUp: true
+                )
+            case .failure:
+                authResult = .failure(.providerUnavailable(AuthProvider.apple.title))
+            }
+            await MainActor.run {
+                isLoading = false
+                switch authResult {
                 case .success:
                     dismiss()
                 case .failure(let error):
@@ -388,10 +415,12 @@ private struct LiquidGlassSNSButtonStyle: ButtonStyle {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         SignUpView()
-            .environment(\.accountSession, AccountSession())
+            .environment(\.accountSession, AccountSession.preview())
             .environment(\.connectivity, ConnectivityMonitor())
     }
 }
+#endif

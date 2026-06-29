@@ -12,7 +12,7 @@ struct RootView: View {
     
     var body: some View {
         Group {
-            // 本実装時削除: キーボード切り分け用デバッグ画面（PlotDebug ごと削除可）
+            #if DEBUG
             if PlotDebug.keyboardProbeOnly {
                 KeyboardProbeView()
             } else if accountSession.isAuthenticated {
@@ -20,6 +20,13 @@ struct RootView: View {
             } else {
                 LoginView()
             }
+            #else
+            if accountSession.isAuthenticated {
+                ContentView()
+            } else {
+                LoginView()
+            }
+            #endif
         }
         .preferredColorScheme(appSettings.theme.colorScheme)
         .environment(\.plotColorScheme, plotColorScheme)

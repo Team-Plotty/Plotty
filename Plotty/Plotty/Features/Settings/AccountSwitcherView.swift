@@ -100,11 +100,13 @@ struct AccountSwitcherView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         AccountSwitcherView()
-            .environment(\.accountSession, AccountSession())
+            .environment(\.accountSession, AccountSession.preview())
             .ambientBackground()
     }
     .preferredColorScheme(.dark)
 }
+#endif

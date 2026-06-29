@@ -9,12 +9,12 @@
 | 領域 | 進捗 | 備考 |
 |---|---|---|
 | iOS UI（SwiftUI） | おおむね完成 | 全画面・Liquid Glass・共通状態 UI あり |
-| iOS ↔ Edge 接続 | **コード実装済み・検証未** | C1〜C7 を `feature/phase-c-ios-edge-connection` に実装。**本番 API での動作確認は意図的に後回し**（下記 Phase C §検証後回し） |
+| iOS ↔ Edge 接続 | **main merge 済み・E2E 検証未** | C1〜C7 実装済み。**本番 API 動作確認は D1 後**（§Phase C 検証後回し） |
 | Edge API | **Phase B 完了** | B0〜B7 実装・本番 smoke 通過（`plotty-api` デプロイ済み）。`main` に merge 済み |
 | Supabase 運用 | Phase A/B コード完了 | B5/B7 migration 適用済み。A6 RLS migration は db push 待ち |
-| 認証 | 部分完成 | Google OAuth のみ実装。Apple / Email はモック |
+| 認証 | **Phase D 進行中（D1–D7）** | Google / Apple / Email OTP + Relay 導線 + signup timezone + logout/削除接続 |
 
-**ボトルネック:** Phase C の **E2E 検証**（要: 有効 JWT）。Edge（B）は完了済み。以降は **Phase D 最小（D1）→ Phase C 検証 → 認証本番化の残り → 体験仕上げ** の順が効率的。
+**ボトルネック:** Phase C の **E2E 検証**（要: 有効 JWT）。D1 完了後に §検証後回し の手順で実施可能。
 
 **作業ブランチ:** Phase A は **`feature/phase-a-supabase-foundation`**（A3 以降も同一ブランチでコミット → Phase 完了後に PR）。
 
@@ -240,16 +240,16 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 
 **目的:** `04` / `11` §3.1–3.2 の 3 方式を Supabase Auth で通す。
 
-| # | タスク | 参照 |
-|---|---|---|
-| D1 | Google OAuth 成功 → Supabase session → `AccountSession`（samples 廃止） | `04` |
-| D2 | Sign in with Apple | `04` |
-| D3 | Email をマジックリンク / OTP に変更 | `04`, `11` §3.1 |
-| D4 | 前回ログイン方式の推奨表示 | `04` §Apple Relay |
-| D5 | Apple Relay 時のヘルプ誘導（Login → Help 連携） | `11` §3.1 |
-| D6 | 新規登録時タイムゾーンを端末 → `public.users.timezone` | `11` §3.2 |
-| D7 | ログアウト / アカウント削除を Supabase + DB に接続 | `11` §3.3 |
-| D8 | `PlotDebug` デモフラグを本番ビルドから除外 | — |
+| # | タスク | 参照 | 状態 |
+|---|---|---|---|
+| D1 | Google OAuth 成功 → Supabase session → `AccountSession`（samples 廃止） | `04` | ✅ コード完了（実機 OAuth 要確認） |
+| D2 | Sign in with Apple | `04` | ✅ コード完了（実機・entitlement 要確認） |
+| D3 | Email をマジックリンク / OTP に変更 | `04`, `11` §3.1 | ✅ コード完了（Supabase メールテンプレート要確認） |
+| D4 | 前回ログイン方式の推奨表示 | `04` §Apple Relay | ✅ 完了 |
+| D5 | Apple Relay 時のヘルプ誘導（Login → Help 連携） | `11` §3.1 | ✅ 完了 |
+| D6 | 新規登録時タイムゾーンを端末 → `public.users.timezone` | `11` §3.2 | ✅ 完了 |
+| D7 | ログアウト / アカウント削除を Supabase + DB に接続 | `11` §3.3 | ✅ 完了 |
+| D8 | `PlotDebug` デモフラグを本番ビルドから除外 | — | ✅ 完了 |
 
 **完了条件:** `11` §6 のチェック 2・3 が通る。
 
@@ -304,7 +304,7 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 | 対象 | 備考 |
 |---|---|
 | `ChatMockResponder` / `*.sampleData` / `PlottyAccount.samples` | Phase G で一括削除 |
-| `PlotDebug` デモ用フラグ | Phase G または Phase D（D8）と重複しないよう整理 |
+| `PlotDebug` デモ用フラグ | D8 で Release から除外済み。Phase G でファイルごと削除可 |
 | `SupabaseDatabaseService` stub 整理 | Phase G |
 | `Plotty/Core/` 重複ファイル | Phase G |
 
@@ -330,7 +330,7 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 
 | 項目 | docs | 現コード | 解消 Phase |
 |---|---|---|---|
-| Email 認証 | マジックリンク / OTP | パスワードフォーム | D（D3） |
+| Email 認証 | マジックリンク / OTP | **OTP + リンク（D3 実装済み）** | — |
 | 種別 GET | `/schedules` 等 | **`GET /entities` のみ**（確定） | B（B3） |
 | PATCH / GET フィールド | UI 必須フィールド | 契約未反映 | B（B3） |
 | Edge ランタイム | Supabase Edge Functions | `edge/` が Workers 形式 | A（A4） |
@@ -385,3 +385,10 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 - 2026/06/03: **設計レビュー結論** — MVP 設計は実装開始可能（完成度 約 80–85%、実装 約 15–20%）。priority / due_date / doc 正本のズレ・Phase E 後回しは **いずれも実装で吸収可能**（ユーザー確認済み）。docs push 後の次手: Phase A → B。
 - 2026/06/07: **ブランチ戦略** — タスク単位（`feature/supabase-schema-migration` 等）から **Phase 単位 1 ブランチ**に変更。Phase 内はタスクごとにコミット、**push / PR は Phase 完了時**。Phase A ブランチ: `feature/phase-a-supabase-foundation`。
 - 2026/06/19: **Phase C** — C1〜C7 の iOS コード実装を `feature/phase-c-ios-edge-connection` で完了。**本番 API 動作確認（Plan A スモーク）は D1 後に実施**とし、現時点では後回し。Phase C の PR merge は E2E 検証完了まで保留。詳細は本ファイル §Phase C「検証後回し」。
+- 2026/06/03: **Phase D 着手** — D1: Google OAuth → Supabase session → `AccountSession` 接続、`PlottyAccount.samples` 廃止、`demoLaunchToChat = false`。ブランチ `feature/phase-d-auth-production`。
+- 2026/06/03: **Phase D** — D2: Sign in with Apple（`signInWithIdToken` + `PlotAppleSignInButton`）、`Plotty.entitlements` 追加。
+- 2026/06/03: **Phase D** — D3: Email 認証をパスワードから OTP / マジックリンクに変更（`EmailOTPVerificationView`）。
+- 2026/06/03: **Phase D** — D4: 前回ログイン方式の推奨バナー・並び替え・ハイライト（`PlotLastLoginRecommendationBanner`）。
+- 2026/06/03: **Phase D** — D5: Apple Relay ヘルプ導線を Login に接続（`HelpView(highlightRelay: true)` をシート表示）。
+- 2026/06/03: **Phase D** — D6: 新規登録完了時に端末タイムゾーンを `public.users.timezone` に同期（`AuthService.updateCurrentUserTimezone`）。
+- 2026/06/03: **Phase D** — D7: ログアウト/アカウント削除を Supabase + DB に接続（`users_delete_own` RLS + Settings 非同期処理）。

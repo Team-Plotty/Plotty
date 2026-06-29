@@ -126,11 +126,13 @@ struct AccountView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         AccountView()
-            .environment(\.accountSession, AccountSession())
+            .environment(\.accountSession, AccountSession.preview())
             .ambientBackground()
     }
     .preferredColorScheme(.dark)
 }
+#endif

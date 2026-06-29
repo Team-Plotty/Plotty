@@ -22,6 +22,10 @@ drop policy if exists "users_update_own" on public.users;
 create policy "users_update_own" on public.users
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
+drop policy if exists "users_delete_own" on public.users;
+create policy "users_delete_own" on public.users
+  for delete using (auth.uid() = id);
+
 -- messages
 drop policy if exists "messages_select_own" on public.messages;
 create policy "messages_select_own" on public.messages

@@ -329,10 +329,12 @@ private struct SearchOverlayContent: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ContentView()
         .environment(\.appSettings, AppSettings())
-        .environment(\.accountSession, AccountSession())
+        .environment(\.accountSession, AccountSession.preview())
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .environment(\.connectivity, ConnectivityMonitor())
 }
+#endif
