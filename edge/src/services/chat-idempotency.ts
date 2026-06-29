@@ -1,13 +1,10 @@
 import type { PostChatMessagesResponse } from "../contracts/chat-messages.js";
 import { llmExtractionResultSchema } from "../contracts/chat-messages.js";
-import type { CreatedEntityDto } from "../contracts/chat-messages.js";
 import type { CryptoService } from "./crypto.js";
 import {
-  entityReadModelToDto,
-  memoWriteToCreatedEntity,
-  scheduleWriteToCreatedEntity,
-  taskWriteToCreatedEntity
-} from "./entity-dto-mapper.js";
+  buildCreatedEntitiesFromRefs,
+  findAssistantMessageIdAfterUser
+} from "./chat-history.js";
 import type { PersistenceRepository } from "./persistence.js";
 
 interface StoredMessageRow {
@@ -35,55 +32,22 @@ export const rebuildChatResponseFromStoredMessage = async (
     return null;
   }
 
-  const createdEntities: CreatedEntityDto[] = [];
-  for (const ref of stored.relatedEntities) {
-    const entity = await repository.getEntityById({
-      userId,
-      type: ref.type,
-      id: ref.id
-    });
-    if (!entity) continue;
-    const dto = await entityReadModelToDto(cryptoService, entity);
-    if (dto.type === "schedule") {
-      createdEntities.push(
-        scheduleWriteToCreatedEntity(
-          {
-            id: dto.id,
-            startAt: dto.start_at,
-            endAt: dto.end_at,
-            isAllDay: dto.is_all_day,
-            location: dto.location,
-            originTextEncrypted: ""
-          },
-          dto.title,
-          dto.notes
-        )
-      );
-    } else if (dto.type === "task") {
-      createdEntities.push(
-        taskWriteToCreatedEntity(
-          {
-            id: dto.id,
-            dueDate: dto.due_date,
-            priority: dto.priority as 1 | 2 | 3,
-            isCompleted: dto.is_completed
-          },
-          dto.title
-        )
-      );
-    } else {
-      createdEntities.push(
-        memoWriteToCreatedEntity(
-          { id: dto.id, isPinned: dto.is_pinned },
-          dto.title,
-          dto.content
-        )
-      );
-    }
+  const createdEntities = await buildCreatedEntitiesFromRefs(
+    repository,
+    cryptoService,
+    userId,
+    stored.relatedEntities
+  );
+
+  const allMessages = await repository.listMessages({ userId, limit: 200 });
+  const assistantMessageId = findAssistantMessageIdAfterUser(allMessages, stored.id);
+  if (!assistantMessageId) {
+    return null;
   }
 
   return {
     message_id: stored.id,
+    assistant_message_id: assistantMessageId,
     confirmation_text: parsedAnalysis.data.reply_message,
     created_entities: createdEntities
   };

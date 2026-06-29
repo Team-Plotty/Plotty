@@ -18,6 +18,7 @@
 | メソッド | パス | 用途 |
 |---|---|---|
 | POST | `/api/v1/chat/messages` | 入力解析・`messages` + 実体作成 |
+| GET | `/api/v1/chat/messages` | チャット履歴取得（復号済み・`?limit=` 任意、E2） |
 | POST | `/api/v1/chat/reclassify` | 実体の種別変更（論理削除 + 新規作成） |
 | GET | `/api/v1/entities` | 一覧取得（`?type=` 任意。**MVP はこれのみ**） |
 | PATCH | `/api/v1/schedules/{id}` | 予定更新 |

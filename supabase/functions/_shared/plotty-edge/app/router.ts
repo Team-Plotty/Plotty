@@ -7,6 +7,10 @@ import {
   type DeleteEntityHandlerDeps
 } from "./delete-entity-handler.ts";
 import {
+  createGetChatMessagesHandler,
+  type GetChatMessagesHandlerDeps
+} from "./get-chat-messages-handler.ts";
+import {
   createGetEntitiesHandler,
   type GetEntitiesHandlerDeps
 } from "./get-entities-handler.ts";
@@ -20,6 +24,7 @@ import {
 } from "./reclassify-handler.ts";
 
 type RouterDeps = ChatMessagesHandlerDeps &
+  GetChatMessagesHandlerDeps &
   GetEntitiesHandlerDeps &
   PatchEntityHandlerDeps &
   DeleteEntityHandlerDeps &
@@ -70,6 +75,7 @@ const extractDeleteRoute = (pathname: string): { type: "schedule" | "task" | "me
 
 export const createAppRouter = (deps: RouterDeps) => {
   const chatHandler = createChatMessagesHandler(deps);
+  const getChatMessagesHandler = createGetChatMessagesHandler(deps);
   const getEntitiesHandler = createGetEntitiesHandler(deps);
   const patchEntityHandler = createPatchEntityHandler(deps);
   const deleteEntityHandler = createDeleteEntityHandler(deps);
@@ -83,6 +89,19 @@ export const createAppRouter = (deps: RouterDeps) => {
       const result = await chatHandler({
         authorizationHeader,
         body: await parseBody(request)
+      });
+      return new Response(JSON.stringify(result.body), {
+        status: result.status,
+        headers: jsonHeaders
+      });
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/chat/messages") {
+      const result = await getChatMessagesHandler({
+        authorizationHeader,
+        query: {
+          limit: url.searchParams.get("limit") ?? undefined
+        }
       });
       return new Response(JSON.stringify(result.body), {
         status: result.status,

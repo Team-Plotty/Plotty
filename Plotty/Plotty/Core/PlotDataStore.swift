@@ -16,6 +16,12 @@ enum PlotDataResource: String, CaseIterable {
     }
 }
 
+/// チャット送信 API の結果（ユーザー行 ID + アシスタント表示用メッセージ）。
+struct ChatSendResult: Sendable {
+    let userMessageId: UUID
+    let assistantMessage: ChatMessage
+}
+
 // MARK: - アプリ内データ
 @Observable
 final class PlotDataStore {
@@ -353,16 +359,15 @@ final class PlotDataStore {
         events.removeAll { $0.id == id }
     }
 
-    // MARK: - チャット（C5 + C7）
+    // MARK: - チャット（C5 + C7 + E2）
 
-    /// `POST /api/v1/chat/messages`。成功時は `created_entities` を Store に反映する。
     @MainActor
     func sendChatMessage(
         text: String,
         forcedCategory: PlotChatCategory?,
         clientMessageId: UUID,
         language: AppLanguage
-    ) async throws -> ChatMessage {
+    ) async throws -> ChatSendResult {
         let request = PlotPostChatMessagesRequestDTO(
             text: text,
             forcedCategory: forcedCategory?.entityType,
@@ -374,11 +379,25 @@ final class PlotDataStore {
             body: request
         )
         PlotChatMapper.applyCreatedEntities(response.createdEntities, to: self)
-        return PlotChatMapper.assistantMessage(
+        let assistantMessage = PlotChatMapper.assistantMessage(
             from: response,
             sourceBody: text,
             language: language
         )
+        return ChatSendResult(userMessageId: response.messageId, assistantMessage: assistantMessage)
+    }
+
+    /// `GET /api/v1/chat/messages`。復号済み履歴を `ChatMessage` 配列で返す（E2）。
+    @MainActor
+    func fetchChatHistory(language: AppLanguage, limit: Int = 100) async throws -> [ChatMessage] {
+        let response: PlotGetChatMessagesResponseDTO = try await apiClient.request(
+            method: .get,
+            path: PlotChatAPI.messagesPath,
+            queryItems: [
+                URLQueryItem(name: "limit", value: String(limit)),
+            ]
+        )
+        return PlotChatMapper.chatMessages(from: response.items, language: language)
     }
 
     /// `POST /api/v1/chat/reclassify`。成功時は Store の実体を差し替える。

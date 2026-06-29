@@ -14,13 +14,55 @@ enum PlotChatMapper {
             language: language
         )
         return ChatMessage(
-            id: response.messageId,
+            id: response.assistantMessageId,
             role: .ai,
             text: response.confirmationText,
             chips: [],
             timestamp: Date(),
             registrationSummary: summary
         )
+    }
+
+    static func chatMessages(
+        from items: [PlotChatHistoryMessageDTO],
+        language: AppLanguage
+    ) -> [ChatMessage] {
+        var result: [ChatMessage] = []
+        var lastUserText = ""
+
+        for item in items {
+            switch item.role {
+            case .user:
+                lastUserText = item.text
+                result.append(
+                    ChatMessage(
+                        id: item.id,
+                        role: .user,
+                        text: item.text,
+                        chips: [],
+                        timestamp: item.createdAt
+                    )
+                )
+            case .assistant:
+                let summary = registrationSummary(
+                    from: item.createdEntities?.first,
+                    sourceBody: lastUserText,
+                    language: language
+                )
+                result.append(
+                    ChatMessage(
+                        id: item.id,
+                        role: .ai,
+                        text: item.text,
+                        chips: [],
+                        timestamp: item.createdAt,
+                        registrationSummary: summary
+                    )
+                )
+            }
+        }
+
+        return result
     }
 
     static func assistantMessage(

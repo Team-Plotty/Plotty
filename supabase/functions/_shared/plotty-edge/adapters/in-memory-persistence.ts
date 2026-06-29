@@ -3,6 +3,8 @@ import type {
   EntityReadModel,
   EntityUpdateInput,
   MemoWriteInput,
+  MessageListFilter,
+  MessageReadModel,
   MessageWriteInput,
   PersistenceRepository,
   RelatedEntityRef,
@@ -32,7 +34,10 @@ export const createInMemoryPersistenceRepository = (
   db: InMemoryDatabase
 ): PersistenceRepository => ({
   async insertMessage(input: MessageWriteInput): Promise<void> {
-    db.messages.push(input);
+    db.messages.push({
+      ...input,
+      createdAt: input.createdAt ?? nowIso()
+    });
   },
   async updateMessageRelatedEntities(input: {
     id: string;
@@ -268,5 +273,23 @@ export const createInMemoryPersistenceRepository = (
       if (index < 0) continue;
       message.relatedEntities[index] = { type: input.newType, id: input.newEntityId };
     }
+  },
+  async listMessages(filter: MessageListFilter): Promise<MessageReadModel[]> {
+    return db.messages
+      .filter((message) => message.userId === filter.userId)
+      .sort(
+        (left, right) =>
+          Date.parse(left.createdAt ?? "") - Date.parse(right.createdAt ?? "")
+      )
+      .slice(0, filter.limit)
+      .map((message) => ({
+        id: message.id,
+        userId: message.userId,
+        role: message.role,
+        contentEncrypted: message.contentEncrypted,
+        iv: message.iv,
+        relatedEntities: message.relatedEntities,
+        createdAt: message.createdAt ?? nowIso()
+      }));
   }
 });

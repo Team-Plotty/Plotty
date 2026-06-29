@@ -268,7 +268,7 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 | # | タスク | 参照 |
 |---|---|---|
 | E1 | `ai_persona_config` / `timezone` / `display_name` を `public.users` と双方向同期 | `09` §3.2, `11` §3.3 | ✅ 完了 |
-| E2 | チャット履歴の取得・表示（必要なら Edge に messages GET を追加） | `11` §3.7 |
+| E2 | チャット履歴の取得・表示（必要なら Edge に messages GET を追加） | `11` §3.7 | ✅ 完了 |
 | E3 | AI 推論アシスト UI（500ms デバウンス、キー入力ごとの API 呼び出し禁止） | `01`, `09` §1.2 |
 | E4 | 元メッセージ 30 日経過後の再分類不可 | `01`, `09` §1.2 |
 | E5 | 主要イベント計測 + 失敗時 `request_id` 連携 | `11` §2.4 |
@@ -334,7 +334,7 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 | 種別 GET | `/schedules` 等 | **`GET /entities` のみ**（確定） | B（B3） |
 | PATCH / GET フィールド | UI 必須フィールド | 契約未反映 | B（B3） |
 | Edge ランタイム | Supabase Edge Functions | `edge/` が Workers 形式 | A（A4） |
-| チャット履歴 | `messages` 表示 | セッション内メモリのみ | E（E2） |
+| チャット履歴 | `messages` 表示 | **GET `/api/v1/chat/messages` + iOS 履歴読み込み（E2）** | — |
 | AI 推論アシスト | 入力中 UI | 未実装 | E（E3） |
 | OSS ライセンス | 利用ライブラリ一覧 | プレースホルダー | F |
 
@@ -391,4 +391,4 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 - 2026/06/03: **Phase D** — D4: 前回ログイン方式の推奨バナー・並び替え・ハイライト（`PlotLastLoginRecommendationBanner`）。
 - 2026/06/03: **Phase D** — D5: Apple Relay ヘルプ導線を Login に接続（`HelpView(highlightRelay: true)` をシート表示）。
 - 2026/06/03: **Phase D** — D6: 新規登録完了時に端末タイムゾーンを `public.users.timezone` に同期（`AuthService.updateCurrentUserTimezone`）。
-- 2026/06/26: **Phase E** — E1: `display_name` / `timezone` / `ai_persona_config` を `public.users` と双方向同期（`UserProfileService` + `UserSettingsSync`）。
+- 2026/06/29: **Phase E** — E2: `GET /api/v1/chat/messages` を Edge に追加し、チャットタブで履歴を読み込み表示。

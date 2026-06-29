@@ -4,6 +4,8 @@ import type {
   EntityReadModel,
   EntityUpdateInput,
   MemoWriteInput,
+  MessageListFilter,
+  MessageReadModel,
   MessageWriteInput,
   PersistenceRepository,
   RelatedEntityRef,
@@ -334,5 +336,24 @@ export const createSupabasePersistenceRepository = (
         .eq("user_id", input.userId);
       if (updateError) throw updateError;
     }
+  },
+  async listMessages(filter: MessageListFilter): Promise<MessageReadModel[]> {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id,user_id,role,content_encrypted,iv,related_entities,created_at")
+      .eq("user_id", filter.userId)
+      .order("created_at", { ascending: true })
+      .limit(filter.limit);
+    if (error) throw error;
+
+    return (data ?? []).map((row) => ({
+      id: String(row.id),
+      userId: String(row.user_id),
+      role: row.role as "user" | "assistant",
+      contentEncrypted: String(row.content_encrypted),
+      iv: String(row.iv),
+      relatedEntities: (row.related_entities ?? []) as RelatedEntityRef[],
+      createdAt: String(row.created_at)
+    }));
   }
 });

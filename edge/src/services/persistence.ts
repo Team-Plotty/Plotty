@@ -16,6 +16,22 @@ export interface MessageWriteInput {
   relatedEntities: RelatedEntityRef[];
   analysisResultsEncrypted?: EncryptedPayload;
   expiresAt: string;
+  createdAt?: string;
+}
+
+export interface MessageReadModel {
+  id: string;
+  userId: string;
+  role: "user" | "assistant";
+  contentEncrypted: string;
+  iv: string;
+  relatedEntities: RelatedEntityRef[];
+  createdAt: string;
+}
+
+export interface MessageListFilter {
+  userId: string;
+  limit: number;
 }
 
 export interface BaseEntityWriteInput {
@@ -124,6 +140,7 @@ export interface PersistenceRepository {
     newEntityId: string;
     newType: EntityType;
   }): Promise<void>;
+  listMessages(filter: MessageListFilter): Promise<MessageReadModel[]>;
 }
 
 export interface BuildPersistenceInput {

@@ -1,5 +1,6 @@
 export * from "./app/chat-messages-handler.ts";
 export * from "./app/delete-entity-handler.ts";
+export * from "./app/get-chat-messages-handler.ts";
 export * from "./app/get-entities-handler.ts";
 export * from "./app/patch-entity-handler.ts";
 export * from "./app/reclassify-handler.ts";
@@ -16,6 +17,7 @@ export * from "./core/env.ts";
 export * from "./core/http.ts";
 export * from "./core/logger.ts";
 export * from "./core/request-context.ts";
+export * from "./services/chat-history.ts";
 export * from "./services/chat-idempotency.ts";
 export * from "./services/chat-idempotency-lookup.ts";
 export * from "./services/crypto.ts";

@@ -48,6 +48,7 @@ struct ChatComposerDock: View {
 
 struct ChatTabView: View {
     @Environment(\.connectivity) private var connectivity
+    @Environment(\.accountSession) private var accountSession
     @Environment(\.plotDataStore) private var dataStore
     @Environment(\.appSettings) private var appSettings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -63,6 +64,7 @@ struct ChatTabView: View {
     
     @State private var messages: [ChatMessage] = []
     @State private var asyncPhase: PlotAsyncPhase = .idle
+    @State private var historyPhase: PlotAsyncPhase = .idle
     @State private var lastError: String?
     @State private var pendingRetry: PendingChatRetry?
     @State private var reclassifyingMessageID: UUID?
@@ -108,10 +110,18 @@ struct ChatTabView: View {
                         PlotErrorBanner(message: errorMessage) {
                             if let pendingRetry {
                                 retryPendingSend(pendingRetry)
+                            } else if case .error = historyPhase {
+                                loadChatHistory()
                             } else {
                                 lastError = nil
                             }
                         }
+                    }
+
+                    if historyPhase == .loading, messages.isEmpty {
+                        PlotLoadingOverlay(message: "履歴を読み込んでいます…")
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, Spacing.xl)
                     }
                     
                     ForEach(daySections) { section in
@@ -143,13 +153,23 @@ struct ChatTabView: View {
             .plotDismissTextInputWhenTappingOutside(isFocused: $isComposerFocused)
             .plotDismissTextInputOnNotification(isFocused: $isComposerFocused)
             .onAppear {
+                loadChatHistoryIfNeeded()
                 scrollToLatestExchange(using: proxy, animated: false)
             }
             .onChange(of: selectedTab) { _, newTab in
                 if newTab != .chat {
                     isComposerFocused = false
                 } else {
+                    loadChatHistoryIfNeeded()
                     scrollToLatestExchange(using: proxy, animated: false)
+                }
+            }
+            .onChange(of: accountSession.isAuthenticated) { _, isAuthenticated in
+                if isAuthenticated {
+                    loadChatHistoryIfNeeded(force: true)
+                } else {
+                    messages = []
+                    historyPhase = .idle
                 }
             }
             .onChange(of: messages.count) { _, _ in
@@ -174,7 +194,7 @@ struct ChatTabView: View {
     }
     
     private var showsEmptyGuide: Bool {
-        !messages.contains(where: { $0.role == .user })
+        historyPhase != .loading && !messages.contains(where: { $0.role == .user })
     }
     
     /// 入力ドック（オーバーレイ）の高さ分だけ末尾余白を確保する。
@@ -247,13 +267,67 @@ struct ChatTabView: View {
         selectedCategory = nil
         isComposerFocused = false
 
-        requestAIResponse(body: body, forcedCategory: forcedCategory, clientMessageId: clientMessageId)
+        requestAIResponse(
+            body: body,
+            forcedCategory: forcedCategory,
+            clientMessageId: clientMessageId,
+            userMessageIndex: messages.count - 1
+        )
+    }
+
+    private func loadChatHistoryIfNeeded(force: Bool = false) {
+        guard accountSession.isAuthenticated else { return }
+        guard connectivity.isOnline else { return }
+        guard force || historyPhase == .idle else { return }
+
+        loadChatHistory()
+    }
+
+    private func loadChatHistory() {
+        guard accountSession.isAuthenticated, connectivity.isOnline else { return }
+
+        historyPhase = .loading
+        lastError = nil
+
+        Task { @MainActor in
+            do {
+                let loaded = try await dataStore.fetchChatHistory(language: appSettings.language)
+                mergeHistory(loaded)
+                historyPhase = .idle
+            } catch let error as PlotAPIError {
+                historyPhase = .error(error.localizedDescription ?? "履歴の取得に失敗しました。")
+                if messages.isEmpty {
+                    lastError = error.localizedDescription ?? "履歴の取得に失敗しました。"
+                }
+            } catch {
+                historyPhase = .error("履歴の取得に失敗しました。")
+                if messages.isEmpty {
+                    lastError = "履歴の取得に失敗しました。"
+                }
+            }
+        }
+    }
+
+    private func mergeHistory(_ loaded: [ChatMessage]) {
+        guard !loaded.isEmpty else {
+            if messages.isEmpty {
+                messages = loaded
+            }
+            return
+        }
+
+        var merged = Dictionary(uniqueKeysWithValues: loaded.map { ($0.id, $0) })
+        for message in messages where merged[message.id] == nil {
+            merged[message.id] = message
+        }
+        messages = merged.values.sorted { $0.timestamp < $1.timestamp }
     }
 
     private func requestAIResponse(
         body: String,
         forcedCategory: PlotChatCategory?,
-        clientMessageId: UUID
+        clientMessageId: UUID,
+        userMessageIndex: Int
     ) {
         asyncPhase = .loading
         isAIProcessing = true
@@ -263,14 +337,21 @@ struct ChatTabView: View {
         aiTask?.cancel()
         aiTask = Task {
             do {
-                let aiMessage = try await fetchAIResponse(
+                let result = try await fetchAIResponse(
                     body: body,
                     forcedCategory: forcedCategory,
                     clientMessageId: clientMessageId
                 )
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    messages.append(aiMessage)
+                    if messages.indices.contains(userMessageIndex) {
+                        messages[userMessageIndex].id = result.userMessageId
+                    }
+                    if let existingIndex = messages.firstIndex(where: { $0.id == result.assistantMessage.id }) {
+                        messages[existingIndex] = result.assistantMessage
+                    } else {
+                        messages.append(result.assistantMessage)
+                    }
                     asyncPhase = .idle
                     isAIProcessing = false
                     pendingRetry = nil
@@ -314,7 +395,7 @@ struct ChatTabView: View {
         body: String,
         forcedCategory: PlotChatCategory?,
         clientMessageId: UUID
-    ) async throws -> ChatMessage {
+    ) async throws -> ChatSendResult {
         #if DEBUG
         if PlotDebug.forceChatTimeout {
             try await Task.sleep(for: PlotChatAPI.responseTimeout)
@@ -322,7 +403,7 @@ struct ChatTabView: View {
         }
         #endif
 
-        return try await withThrowingTaskGroup(of: ChatMessage.self) { group in
+        return try await withThrowingTaskGroup(of: ChatSendResult.self) { group in
             group.addTask { @MainActor in
                 do {
                     return try await dataStore.sendChatMessage(
@@ -368,10 +449,13 @@ struct ChatTabView: View {
 
     private func retryPendingSend(_ pending: PendingChatRetry) {
         lastError = nil
+        let userMessageIndex = messages.lastIndex(where: { $0.role == .user && $0.text == pending.body })
+            ?? messages.count - 1
         requestAIResponse(
             body: pending.body,
             forcedCategory: pending.forcedCategory,
-            clientMessageId: pending.clientMessageId
+            clientMessageId: pending.clientMessageId,
+            userMessageIndex: max(userMessageIndex, 0)
         )
     }
     

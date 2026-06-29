@@ -96,11 +96,34 @@ export type CreatedEntityDto = z.infer<typeof createdEntitySchema>;
 
 export const postChatMessagesResponseSchema = z.object({
   message_id: z.string().uuid(),
+  assistant_message_id: z.string().uuid(),
   confirmation_text: z.string().min(1),
   created_entities: z.array(createdEntitySchema)
 });
 
 export type PostChatMessagesResponse = z.infer<typeof postChatMessagesResponseSchema>;
+
+export const getChatMessagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(100)
+});
+
+export type GetChatMessagesQuery = z.infer<typeof getChatMessagesQuerySchema>;
+
+export const chatHistoryMessageSchema = z.object({
+  id: z.string().uuid(),
+  role: z.enum(["user", "assistant"]),
+  text: z.string(),
+  created_at: isoDateTimeSchema,
+  created_entities: z.array(createdEntitySchema).optional()
+});
+
+export type ChatHistoryMessage = z.infer<typeof chatHistoryMessageSchema>;
+
+export const getChatMessagesResponseSchema = z.object({
+  items: z.array(chatHistoryMessageSchema)
+});
+
+export type GetChatMessagesResponse = z.infer<typeof getChatMessagesResponseSchema>;
 
 export const getEntitiesQuerySchema = z.object({
   type: entityTypeSchema.optional(),
