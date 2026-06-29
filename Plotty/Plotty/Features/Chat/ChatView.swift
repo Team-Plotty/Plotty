@@ -315,10 +315,12 @@ struct ChatTabView: View {
         forcedCategory: PlotChatCategory?,
         clientMessageId: UUID
     ) async throws -> ChatMessage {
+        #if DEBUG
         if PlotDebug.forceChatTimeout {
             try await Task.sleep(for: PlotChatAPI.responseTimeout)
             throw ChatSendError.timeout
         }
+        #endif
 
         return try await withThrowingTaskGroup(of: ChatMessage.self) { group in
             group.addTask { @MainActor in

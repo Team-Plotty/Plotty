@@ -100,6 +100,7 @@ struct AccountSwitcherView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         AccountSwitcherView()
@@ -108,3 +109,4 @@ struct AccountSwitcherView: View {
     }
     .preferredColorScheme(.dark)
 }
+#endif

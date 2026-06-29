@@ -260,6 +260,7 @@ private struct EmailOTPAcceptButtonStyle: ButtonStyle {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         EmailOTPVerificationView(
@@ -270,3 +271,4 @@ private struct EmailOTPAcceptButtonStyle: ButtonStyle {
         .environment(\.connectivity, ConnectivityMonitor())
     }
 }
+#endif

@@ -329,6 +329,7 @@ private struct SearchOverlayContent: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ContentView()
         .environment(\.appSettings, AppSettings())
@@ -336,3 +337,4 @@ private struct SearchOverlayContent: View {
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .environment(\.connectivity, ConnectivityMonitor())
 }
+#endif

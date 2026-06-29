@@ -126,6 +126,7 @@ struct AccountView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         AccountView()
@@ -134,3 +135,4 @@ struct AccountView: View {
     }
     .preferredColorScheme(.dark)
 }
+#endif

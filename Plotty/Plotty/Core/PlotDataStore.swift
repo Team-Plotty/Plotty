@@ -68,10 +68,12 @@ final class PlotDataStore {
 
         syncPhase[resource] = .loading
 
+        #if DEBUG
         if PlotDebug.simulateDataLoadFailure {
             syncPhase[resource] = .error("データの取得に失敗しました。")
             return
         }
+        #endif
 
         do {
             let items = try await fetchEntities(type: resource.entityType)
