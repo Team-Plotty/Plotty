@@ -76,6 +76,7 @@ struct EmailOTPVerificationView: View {
                 resendCooldown -= 1
             }
         }
+        .plotAnalyticsScreen(.emailOTP)
     }
 
     private var header: some View {

@@ -104,7 +104,10 @@ export const persistExtractionResults = async (
   repository: PersistenceRepository,
   cryptoService: CryptoService,
   input: BuildPersistenceInput
-): Promise<PostChatMessagesResponse["created_entities"]> => {
+): Promise<{
+  createdEntities: PostChatMessagesResponse["created_entities"];
+  assistantMessageId: string;
+}> => {
   const relatedEntities: RelatedEntityRef[] = [];
   const createdEntities: PostChatMessagesResponse["created_entities"] = [];
 
@@ -184,8 +187,9 @@ export const persistExtractionResults = async (
     relatedEntities
   });
 
+  const assistantMessageId = crypto.randomUUID();
   await repository.insertMessage({
-    id: crypto.randomUUID(),
+    id: assistantMessageId,
     userId: input.userId,
     role: "assistant",
     contentEncrypted: input.assistantTextEncryption.data,
@@ -194,5 +198,5 @@ export const persistExtractionResults = async (
     expiresAt: addDays(new Date(), 30).toISOString()
   });
 
-  return createdEntities;
+  return { createdEntities, assistantMessageId };
 };

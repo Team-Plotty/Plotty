@@ -4,6 +4,8 @@ import SwiftUI
 struct SettingsTimezoneRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.appSettings) private var appSettings
+    @Environment(\.userSettingsSync) private var userSettingsSync
+    @Environment(\.connectivity) private var connectivity
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -25,6 +27,12 @@ struct SettingsTimezoneRow: View {
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.md)
+        .onChange(of: appSettings.timezoneIdentifier) { oldValue, newValue in
+            guard oldValue != newValue, !userSettingsSync.isApplyingRemote else { return }
+            Task { @MainActor in
+                _ = await userSettingsSync.pushTimezone(newValue, isOnline: connectivity.isOnline)
+            }
+        }
     }
     
     private var textColor: Color {

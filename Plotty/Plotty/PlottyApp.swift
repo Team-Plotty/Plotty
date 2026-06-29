@@ -12,10 +12,16 @@ import SwiftUI
 struct PlottyApp: App {
     @State private var appSettings = AppSettings()
     @State private var accountSession = AccountSession()
+    @State private var userSettingsSync: UserSettingsSync
     @State private var plotDataStore = PlotDataStore()
     @State private var connectivity = ConnectivityMonitor()
     
     init() {
+        let settings = AppSettings()
+        let session = AccountSession()
+        _appSettings = State(initialValue: settings)
+        _accountSession = State(initialValue: session)
+        _userSettingsSync = State(initialValue: UserSettingsSync(appSettings: settings, accountSession: session))
         // 日本の祝日データをプリロード（Holidays JP API）
         PlotJapaneseCalendar.preload()
     }
@@ -25,6 +31,7 @@ struct PlottyApp: App {
             RootView()
                 .environment(\.appSettings, appSettings)
                 .environment(\.accountSession, accountSession)
+                .environment(\.userSettingsSync, userSettingsSync)
                 .environment(\.plotDataStore, plotDataStore)
                 .environment(\.connectivity, connectivity)
                 .onOpenURL { url in

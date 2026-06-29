@@ -49,6 +49,7 @@ struct OpenSourceLicensesView: View {
                 Button("閉じる") { dismiss() }
             }
         }
+        .plotAnalyticsScreen(.openSource)
     }
     
     private var primaryColor: Color {

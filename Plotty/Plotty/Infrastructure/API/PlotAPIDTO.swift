@@ -127,6 +127,7 @@ struct PlotPostChatMessagesRequestDTO: Encodable, Sendable {
 
 struct PlotPostChatMessagesResponseDTO: Decodable, Sendable {
     let messageId: UUID
+    let assistantMessageId: UUID
     let confirmationText: String
     let createdEntities: [PlotCreatedEntityDTO]
 }
@@ -163,4 +164,23 @@ struct PlotPostReclassifyRequestDTO: Encodable, Sendable {
 struct PlotPostReclassifyResponseDTO: Decodable, Sendable {
     let confirmationText: String
     let migratedEntity: PlotEntityListItemDTO
+}
+
+// MARK: - GET /chat/messages
+
+enum PlotChatHistoryRole: String, Decodable, Sendable {
+    case user
+    case assistant
+}
+
+struct PlotGetChatMessagesResponseDTO: Decodable, Sendable {
+    let items: [PlotChatHistoryMessageDTO]
+}
+
+struct PlotChatHistoryMessageDTO: Decodable, Sendable {
+    let id: UUID
+    let role: PlotChatHistoryRole
+    let text: String
+    let createdAt: Date
+    let createdEntities: [PlotCreatedEntityDTO]?
 }

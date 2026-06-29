@@ -16,6 +16,12 @@ enum PlotDataResource: String, CaseIterable {
     }
 }
 
+/// チャット送信 API の結果（ユーザー行 ID + アシスタント表示用メッセージ）。
+struct ChatSendResult: Sendable {
+    let userMessageId: UUID
+    let assistantMessage: ChatMessage
+}
+
 // MARK: - アプリ内データ
 @Observable
 final class PlotDataStore {
@@ -80,7 +86,7 @@ final class PlotDataStore {
             applyFetched(resource, items: items)
             syncPhase[resource] = .idle
         } catch {
-            syncPhase[resource] = .error(userFacingMessage(for: error))
+            syncPhase[resource] = .error(syncErrorMessage(error, action: "entity_list", resource: resource))
         }
     }
 
@@ -129,6 +135,16 @@ final class PlotDataStore {
             return apiError.localizedDescription
         }
         return error.localizedDescription
+    }
+
+    private func syncErrorMessage(_ error: Error, action: String, resource: PlotDataResource) -> String {
+        PlotAnalytics.trackFailure(
+            action: action,
+            error: error,
+            screen: resource.analyticsScreen,
+            entityType: resource.entityType
+        )
+        return userFacingMessage(for: error)
     }
 
     private func requireOnline(_ resource: PlotDataResource, isOnline: Bool) -> Bool {
@@ -193,10 +209,11 @@ final class PlotDataStore {
             )
             memos[index] = PlotEntityMapper.merge(memo, with: dto, accent: accent)
             markMutationSuccess(.memos)
+            PlotAnalytics.trackUpdate(entityType: .memo, source: "memo_edit", screen: .memo)
             return true
         } catch {
             memos[index] = previous
-            syncPhase[.memos] = .error(userFacingMessage(for: error))
+            syncPhase[.memos] = .error(syncErrorMessage(error, action: "entity_update", resource: .memos))
             return false
         }
     }
@@ -213,10 +230,11 @@ final class PlotDataStore {
         do {
             try await deleteEntity(type: .memo, id: id)
             markMutationSuccess(.memos)
+            PlotAnalytics.trackDelete(entityType: .memo, source: "memo_delete", screen: .memo)
             return true
         } catch {
             memos.insert(removed, at: index)
-            syncPhase[.memos] = .error(userFacingMessage(for: error))
+            syncPhase[.memos] = .error(syncErrorMessage(error, action: "entity_delete", resource: .memos))
             return false
         }
     }
@@ -251,10 +269,11 @@ final class PlotDataStore {
             )
             todos[index] = PlotEntityMapper.merge(todo, with: dto)
             markMutationSuccess(.todos)
+            PlotAnalytics.trackUpdate(entityType: .task, source: "todo_edit", screen: .todo)
             return true
         } catch {
             todos[index] = previous
-            syncPhase[.todos] = .error(userFacingMessage(for: error))
+            syncPhase[.todos] = .error(syncErrorMessage(error, action: "entity_update", resource: .todos))
             return false
         }
     }
@@ -271,10 +290,11 @@ final class PlotDataStore {
         do {
             try await deleteEntity(type: .task, id: id)
             markMutationSuccess(.todos)
+            PlotAnalytics.trackDelete(entityType: .task, source: "todo_delete", screen: .todo)
             return true
         } catch {
             todos.insert(removed, at: index)
-            syncPhase[.todos] = .error(userFacingMessage(for: error))
+            syncPhase[.todos] = .error(syncErrorMessage(error, action: "entity_delete", resource: .todos))
             return false
         }
     }
@@ -301,10 +321,11 @@ final class PlotDataStore {
             )
             events[index] = PlotEntityMapper.merge(event, with: dto, swatch: swatch)
             markMutationSuccess(.events)
+            PlotAnalytics.trackUpdate(entityType: .schedule, source: "schedule_edit", screen: .calendar)
             return true
         } catch {
             events[index] = previous
-            syncPhase[.events] = .error(userFacingMessage(for: error))
+            syncPhase[.events] = .error(syncErrorMessage(error, action: "entity_update", resource: .events))
             return false
         }
     }
@@ -321,10 +342,11 @@ final class PlotDataStore {
         do {
             try await deleteEntity(type: .schedule, id: id)
             markMutationSuccess(.events)
+            PlotAnalytics.trackDelete(entityType: .schedule, source: "schedule_delete", screen: .calendar)
             return true
         } catch {
             events.insert(removed, at: index)
-            syncPhase[.events] = .error(userFacingMessage(for: error))
+            syncPhase[.events] = .error(syncErrorMessage(error, action: "entity_delete", resource: .events))
             return false
         }
     }
@@ -353,16 +375,16 @@ final class PlotDataStore {
         events.removeAll { $0.id == id }
     }
 
-    // MARK: - チャット（C5 + C7）
+    // MARK: - チャット（C5 + C7 + E2）
 
-    /// `POST /api/v1/chat/messages`。成功時は `created_entities` を Store に反映する。
     @MainActor
     func sendChatMessage(
         text: String,
         forcedCategory: PlotChatCategory?,
         clientMessageId: UUID,
+        sourceMessageCreatedAt: Date = Date(),
         language: AppLanguage
-    ) async throws -> ChatMessage {
+    ) async throws -> ChatSendResult {
         let request = PlotPostChatMessagesRequestDTO(
             text: text,
             forcedCategory: forcedCategory?.entityType,
@@ -374,11 +396,29 @@ final class PlotDataStore {
             body: request
         )
         PlotChatMapper.applyCreatedEntities(response.createdEntities, to: self)
-        return PlotChatMapper.assistantMessage(
+        for entity in response.createdEntities {
+            PlotAnalytics.trackCreate(entityType: entity.type, source: "chat_send", screen: .chat)
+        }
+        let assistantMessage = PlotChatMapper.assistantMessage(
             from: response,
             sourceBody: text,
+            sourceMessageCreatedAt: sourceMessageCreatedAt,
             language: language
         )
+        return ChatSendResult(userMessageId: response.messageId, assistantMessage: assistantMessage)
+    }
+
+    /// `GET /api/v1/chat/messages`。復号済み履歴を `ChatMessage` 配列で返す（E2）。
+    @MainActor
+    func fetchChatHistory(language: AppLanguage, limit: Int = 100) async throws -> [ChatMessage] {
+        let response: PlotGetChatMessagesResponseDTO = try await apiClient.request(
+            method: .get,
+            path: PlotChatAPI.messagesPath,
+            queryItems: [
+                URLQueryItem(name: "limit", value: String(limit)),
+            ]
+        )
+        return PlotChatMapper.chatMessages(from: response.items, language: language)
     }
 
     /// `POST /api/v1/chat/reclassify`。成功時は Store の実体を差し替える。
@@ -418,9 +458,30 @@ final class PlotDataStore {
         let newSummary = PlotChatMapper.registrationSummary(
             from: response.migratedEntity,
             sourceBody: summary.sourceBody,
+            sourceMessageCreatedAt: summary.sourceMessageCreatedAt,
             language: language
         )
+        PlotAnalytics.trackCreate(
+            entityType: response.migratedEntity.type,
+            source: "chat_reclassify",
+            screen: .chat
+        )
+        PlotAnalytics.trackDelete(
+            entityType: summary.category.entityType,
+            source: "chat_reclassify",
+            screen: .chat
+        )
         return (response.confirmationText, newSummary)
+    }
+}
+
+private extension PlotDataResource {
+    var analyticsScreen: PlotAnalyticsScreen {
+        switch self {
+        case .memos: return .memo
+        case .todos: return .todo
+        case .events: return .calendar
+        }
     }
 }
 

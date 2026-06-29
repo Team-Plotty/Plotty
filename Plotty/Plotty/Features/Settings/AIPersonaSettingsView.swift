@@ -4,9 +4,13 @@ import SwiftUI
 struct AIPersonaSettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.appSettings) private var appSettings
+    @Environment(\.userSettingsSync) private var userSettingsSync
+    @Environment(\.connectivity) private var connectivity
     @Environment(\.dismiss) private var dismiss
     
     @State private var draft: AIPersonaConfig = .default
+    @State private var saveError: String?
+    @State private var isSaving = false
     
     var body: some View {
         Form {
@@ -24,6 +28,12 @@ struct AIPersonaSettingsView: View {
             } footer: {
                 Text("政治・宗教など、AI が避ける話題を指定します。")
             }
+
+            if let saveError {
+                Section {
+                    PlotErrorBanner(message: saveError, onRetry: nil)
+                }
+            }
         }
         .scrollContentBackground(.hidden)
         .navigationTitle("AI の口調")
@@ -31,17 +41,23 @@ struct AIPersonaSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("閉じる") { dismiss() }
+                    .disabled(isSaving)
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("保存") {
-                    appSettings.aiPersona = draft
-                    dismiss()
-                }
+                Button("保存") { save() }
+                    .disabled(isSaving)
+            }
+        }
+        .overlay {
+            if isSaving {
+                PlotLoadingOverlay(message: "保存しています…")
             }
         }
         .onAppear {
             draft = appSettings.aiPersona
+            saveError = nil
         }
+        .plotAnalyticsScreen(.aiPersona)
     }
     
     private var prohibitedTopicsText: Binding<String> {
@@ -54,6 +70,23 @@ struct AIPersonaSettingsView: View {
                     .filter { !$0.isEmpty }
             }
         )
+    }
+
+    private func save() {
+        saveError = nil
+        isSaving = true
+        appSettings.aiPersona = draft
+
+        Task { @MainActor in
+            let result = await userSettingsSync.pushAIPersona(draft, isOnline: connectivity.isOnline)
+            isSaving = false
+            switch result {
+            case .success:
+                dismiss()
+            case .failure(let error):
+                saveError = error.localizedDescription
+            }
+        }
     }
 }
 

@@ -169,7 +169,7 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
       const assistantMessageEncryption = await deps.cryptoService.encryptText(extractionReply);
       const messageId = crypto.randomUUID();
 
-      createdEntities = await persistExtractionResults(
+      const persistenceResult = await persistExtractionResults(
         deps.persistenceRepository,
         deps.cryptoService,
         {
@@ -183,9 +183,12 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
           assistantTextEncryption: assistantMessageEncryption
         }
       );
+      createdEntities = persistenceResult.createdEntities;
+      const assistantMessageId = persistenceResult.assistantMessageId;
 
       const responseBody: PostChatMessagesResponse = {
         message_id: messageId,
+        assistant_message_id: assistantMessageId,
         confirmation_text: extractionReply,
         created_entities: createdEntities
       };

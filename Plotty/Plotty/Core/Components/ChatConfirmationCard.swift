@@ -8,6 +8,8 @@ struct ChatRegistrationSummary: Identifiable {
     var detail: String
     var linkedEntityID: UUID?
     var sourceBody: String
+    /// 再分類の期限判定に使う元ユーザーメッセージの作成日時
+    var sourceMessageCreatedAt: Date?
 }
 
 struct ChatConfirmationCard: View {
@@ -16,6 +18,7 @@ struct ChatConfirmationCard: View {
     let summary: ChatRegistrationSummary
     var isReclassifying: Bool = false
     var onReclassify: ((PlotChatCategory) -> Void)?
+    var reclassifyDisabledReason: String?
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -73,6 +76,11 @@ struct ChatConfirmationCard: View {
                     }
                 }
                 .accessibilityElement(children: .contain)
+            } else if let reclassifyDisabledReason {
+                Text(reclassifyDisabledReason)
+                    .font(.scaledCaption())
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(reclassifyDisabledReason)
             }
         }
         .padding(Spacing.md)

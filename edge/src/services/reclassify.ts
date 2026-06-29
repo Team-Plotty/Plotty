@@ -7,6 +7,7 @@ import type {
   ScheduleWriteInput,
   TaskWriteInput
 } from "./persistence.js";
+import { assertReclassifyAllowed } from "./reclassify-policy.js";
 
 export interface ReclassifyInput {
   userId: string;
@@ -75,6 +76,8 @@ export const reclassifyEntity = async (
   if (!source) {
     throw new Error("NOT_FOUND");
   }
+
+  await assertReclassifyAllowed(repository, input.userId, source);
 
   const title = await decryptTitle(cryptoService, source);
   const originText = await decryptOrigin(cryptoService, source);

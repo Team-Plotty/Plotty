@@ -8,6 +8,7 @@ struct ChatComposerBar: View {
     @Binding var text: String
     @Binding var selectedCategory: PlotChatCategory?
     @FocusState.Binding var isFocused: Bool
+    var inferenceModel: ChatCategoryInferenceModel?
     var isAIProcessing: Bool = false
     var onSend: () -> Void
     
@@ -50,13 +51,25 @@ struct ChatComposerBar: View {
             if isFocused {
                 ChatCategoryQuickActions { category in
                     selectedCategory = category
+                    inferenceModel?.reset()
                 }
                 .transition(.identity)
+            }
+
+            if let suggestion = inferenceModel?.suggestion,
+               selectedCategory == nil,
+               isFocused {
+                ChatCategoryInferenceSuggestion(suggestion: suggestion) {
+                    selectedCategory = suggestion.category
+                    inferenceModel?.reset()
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             
             composerBottomRow
         }
         .animation(isFocused ? composerExpansionAnimation : nil, value: isFocused)
+        .animation(composerExpansionAnimation, value: inferenceModel?.suggestion)
     }
     
     /// 入力ボックス＋閉じるボタン（padding と × の opacity を同一アニメで同期）
@@ -171,6 +184,7 @@ struct ChatComposerBar: View {
     
     private func dismissComposer() {
         selectedCategory = nil
+        inferenceModel?.reset()
         withAnimation(composerExpansionAnimation) {
             isFocused = false
         }

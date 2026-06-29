@@ -1,5 +1,6 @@
 export * from "./app/chat-messages-handler.js";
 export * from "./app/delete-entity-handler.js";
+export * from "./app/get-chat-messages-handler.js";
 export * from "./app/get-entities-handler.js";
 export * from "./app/patch-entity-handler.js";
 export * from "./app/reclassify-handler.js";
@@ -16,6 +17,7 @@ export * from "./core/env.js";
 export * from "./core/http.js";
 export * from "./core/logger.js";
 export * from "./core/request-context.js";
+export * from "./services/chat-history.js";
 export * from "./services/chat-idempotency.js";
 export * from "./services/chat-idempotency-lookup.js";
 export * from "./services/crypto.js";

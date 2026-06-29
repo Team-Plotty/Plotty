@@ -12,7 +12,7 @@
 | iOS ↔ Edge 接続 | **main merge 済み・E2E 検証未** | C1〜C7 実装済み。**本番 API 動作確認は D1 後**（§Phase C 検証後回し） |
 | Edge API | **Phase B 完了** | B0〜B7 実装・本番 smoke 通過（`plotty-api` デプロイ済み）。`main` に merge 済み |
 | Supabase 運用 | Phase A/B コード完了 | B5/B7 migration 適用済み。A6 RLS migration は db push 待ち |
-| 認証 | **Phase D 進行中（D1–D7）** | Google / Apple / Email OTP + Relay 導線 + signup timezone + logout/削除接続 |
+| 認証 | **Phase D 完了** | Google / Apple / Email OTP + Relay 導線 + signup timezone + logout/削除接続 |
 
 **ボトルネック:** Phase C の **E2E 検証**（要: 有効 JWT）。D1 完了後に §検証後回し の手順で実施可能。
 
@@ -267,11 +267,11 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 
 | # | タスク | 参照 |
 |---|---|---|
-| E1 | `ai_persona_config` / `timezone` / `display_name` を `public.users` と双方向同期 | `09` §3.2, `11` §3.3 |
-| E2 | チャット履歴の取得・表示（必要なら Edge に messages GET を追加） | `11` §3.7 |
-| E3 | AI 推論アシスト UI（500ms デバウンス、キー入力ごとの API 呼び出し禁止） | `01`, `09` §1.2 |
-| E4 | 元メッセージ 30 日経過後の再分類不可 | `01`, `09` §1.2 |
-| E5 | 主要イベント計測 + 失敗時 `request_id` 連携 | `11` §2.4 |
+| E1 | `ai_persona_config` / `timezone` / `display_name` を `public.users` と双方向同期 | `09` §3.2, `11` §3.3 | ✅ 完了 |
+| E2 | チャット履歴の取得・表示（必要なら Edge に messages GET を追加） | `11` §3.7 | ✅ 完了 |
+| E3 | AI 推論アシスト UI（500ms デバウンス、キー入力ごとの API 呼び出し禁止） | `01`, `09` §1.2 | ✅ 完了 |
+| E4 | 元メッセージ 30 日経過後の再分類不可 | `01`, `09` §1.2 | ✅ 完了 |
+| E5 | 主要イベント計測 + 失敗時 `request_id` 連携 | `11` §2.4 | ✅ 完了 |
 
 **完了条件:** `11` §6 のチェック 6 が通る。
 
@@ -334,8 +334,8 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 | 種別 GET | `/schedules` 等 | **`GET /entities` のみ**（確定） | B（B3） |
 | PATCH / GET フィールド | UI 必須フィールド | 契約未反映 | B（B3） |
 | Edge ランタイム | Supabase Edge Functions | `edge/` が Workers 形式 | A（A4） |
-| チャット履歴 | `messages` 表示 | セッション内メモリのみ | E（E2） |
-| AI 推論アシスト | 入力中 UI | 未実装 | E（E3） |
+| チャット履歴 | `messages` 表示 | **GET `/api/v1/chat/messages` + iOS 履歴読み込み（E2）** | — |
+| AI 推論アシスト | 入力中 UI | **ローカル推論 + 500ms デバウンス（E3）** | — |
 | OSS ライセンス | 利用ライブラリ一覧 | プレースホルダー | F |
 
 ---
@@ -391,4 +391,5 @@ C1〜C7 の **iOS コード実装は完了**したが、本番 API に対する 
 - 2026/06/03: **Phase D** — D4: 前回ログイン方式の推奨バナー・並び替え・ハイライト（`PlotLastLoginRecommendationBanner`）。
 - 2026/06/03: **Phase D** — D5: Apple Relay ヘルプ導線を Login に接続（`HelpView(highlightRelay: true)` をシート表示）。
 - 2026/06/03: **Phase D** — D6: 新規登録完了時に端末タイムゾーンを `public.users.timezone` に同期（`AuthService.updateCurrentUserTimezone`）。
-- 2026/06/03: **Phase D** — D7: ログアウト/アカウント削除を Supabase + DB に接続（`users_delete_own` RLS + Settings 非同期処理）。
+- 2026/06/29: **Phase E** — E3: AI 推論アシスト UI（ローカルヒューリスティック + 500ms デバウンス、API 呼び出しなし）。
+- 2026/06/29: **Phase E** — E2: `GET /api/v1/chat/messages` を Edge に追加し、チャットタブで履歴を読み込み表示。

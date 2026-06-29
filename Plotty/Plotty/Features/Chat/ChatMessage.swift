@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - チャットメッセージ
 struct ChatMessage: Identifiable {
-    let id: UUID
+    var id: UUID
     let role: MessageRole
     var text: String
     let chips: [String]

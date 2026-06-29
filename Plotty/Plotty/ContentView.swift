@@ -60,9 +60,11 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            PlotAnalytics.trackScreen(selectedTab.analyticsScreen)
             focusChatComposerIfNeeded()
         }
         .onChange(of: selectedTab) { _, newTab in
+            PlotAnalytics.trackScreen(newTab.analyticsScreen)
             // 検索を閉じる
             if isSearchExpanded {
                 closeSearch()

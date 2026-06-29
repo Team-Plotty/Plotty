@@ -60,6 +60,7 @@ struct AccountView: View {
                 .presentationDragIndicator(.visible)
                 .presentationSizing(.page)
         }
+        .plotAnalyticsScreen(.account)
     }
     
     private func profileCard(_ account: PlottyAccount) -> some View {

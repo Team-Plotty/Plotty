@@ -91,6 +91,10 @@ final class AccountSession {
     private(set) var lastUsedProvider: AuthProvider?
     private var displayNameOverrides: [String: String] = [:]
 
+    /// ログイン後に `public.users` から設定を引く（`UserSettingsSync` が設定する）。
+    @ObservationIgnored
+    var onProfileSyncNeeded: (@MainActor () async -> Void)?
+
     /// ログイン中のアカウント一覧（D1 時点では Supabase セッション 1 件のみ）。
     var availableAccounts: [PlottyAccount] {
         guard let currentAccount else { return [] }
@@ -158,7 +162,10 @@ final class AccountSession {
 
     @MainActor
     func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: "login", error: .offline, provider: provider)
+            return .failure(.offline)
+        }
 
         if provider == .google {
             return await performSupabaseOAuthLogin(provider: provider, email: email)
@@ -174,6 +181,7 @@ final class AccountSession {
         }
 
         loginWithMock(provider: provider, email: email)
+        PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
         return .success(())
     }
 
@@ -185,13 +193,20 @@ final class AccountSession {
         displayName: String?,
         isOnline: Bool
     ) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_send" : "login_otp_send", error: .offline, provider: .email)
+            return .failure(.offline)
+        }
 
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isValidEmail(mail) else { return .failure(.invalidEmail) }
+        guard isValidEmail(mail) else {
+            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_send" : "login_otp_send", error: .invalidEmail, provider: .email)
+            return .failure(.invalidEmail)
+        }
 
         guard supabaseEnabled else {
             loginWithMock(provider: .email, email: mail)
+            PlotAnalytics.trackAuthSuccess(action: purpose == .signup ? "signup" : "login", provider: .email)
             return .success(())
         }
 
@@ -209,6 +224,11 @@ final class AccountSession {
             )
             return .success(())
         } catch {
+            PlotAnalytics.trackAuthFailure(
+                action: purpose == .signup ? "signup_otp_send" : "login_otp_send",
+                error: .otpDeliveryFailed,
+                provider: .email
+            )
             return .failure(.otpDeliveryFailed)
         }
     }
@@ -222,17 +242,22 @@ final class AccountSession {
         displayName: String?,
         isOnline: Bool
     ) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify", error: .offline, provider: .email)
+            return .failure(.offline)
+        }
 
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let token = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidEmail(mail), token.count == 6 else {
+            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify", error: .otpVerificationFailed, provider: .email)
             return .failure(.otpVerificationFailed)
         }
 
         guard supabaseEnabled else {
             loginWithMock(provider: .email, email: mail)
             applySignUpDisplayName(displayName)
+            PlotAnalytics.trackAuthSuccess(action: purpose == .signup ? "signup" : "login", provider: .email)
             return .success(())
         }
 
@@ -249,6 +274,11 @@ final class AccountSession {
             )
             return result
         } catch {
+            PlotAnalytics.trackAuthFailure(
+                action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify",
+                error: .otpVerificationFailed,
+                provider: .email
+            )
             return .failure(.otpVerificationFailed)
         }
     }
@@ -263,10 +293,14 @@ final class AccountSession {
         guard isOnline else { return .failure(.offline) }
 
         if provider == .google {
-            let result = await performSupabaseOAuthLogin(provider: provider, email: email)
+            let result = await performSupabaseOAuthLogin(
+                provider: provider,
+                email: email,
+                pullProfile: false
+            )
             if case .success = result {
                 applySignUpDisplayName(displayName)
-                await syncDeviceTimezoneForSignUp()
+                await syncSignUpProfile(displayNameOverride: displayName)
             }
             return result
         }
@@ -291,12 +325,15 @@ final class AccountSession {
         displayNameOverride: String? = nil,
         isSignUp: Bool = false
     ) -> Result<Void, AuthError> {
-        applySupabaseSession(session)
+        applySupabaseSession(session, pullProfile: !isSignUp)
         applySignUpDisplayName(displayNameOverride)
         if isSignUp {
             Task { @MainActor in
-                await syncDeviceTimezoneForSignUp()
+                await syncSignUpProfile(displayNameOverride: displayNameOverride)
             }
+        }
+        if let provider = storedAccount?.provider {
+            PlotAnalytics.trackAuthSuccess(action: isSignUp ? "signup" : "login", provider: provider)
         }
         return .success(())
     }
@@ -322,6 +359,11 @@ final class AccountSession {
         updateDisplayName(name, for: accountID)
     }
 
+    /// クラウドの `display_name` を端末へ反映する。
+    func applyRemoteDisplayName(_ name: String) {
+        updateDisplayName(name)
+    }
+
     // MARK: - Supabase 連携
 
     @MainActor
@@ -332,7 +374,13 @@ final class AccountSession {
                 switch event {
                 case .signedOut, .userDeleted:
                     clearLocalSession()
-                case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
+                case .initialSession, .signedIn:
+                    if let session {
+                        applySupabaseSession(session, pullProfile: true)
+                    } else {
+                        clearLocalSession()
+                    }
+                case .tokenRefreshed, .userUpdated:
                     if let session {
                         applySupabaseSession(session)
                     } else {
@@ -346,7 +394,7 @@ final class AccountSession {
     }
 
     @MainActor
-    private func applySupabaseSession(_ session: Session) {
+    private func applySupabaseSession(_ session: Session, pullProfile: Bool = false) {
         var account = PlottyAccountMapper.makeAccount(from: session.user)
         if let override = displayNameOverrides[account.id.uuidString] {
             account.displayName = override
@@ -354,36 +402,53 @@ final class AccountSession {
         storedAccount = account
         lastUsedProvider = account.provider
         persistPreferences()
+        if pullProfile {
+            Task { await onProfileSyncNeeded?() }
+        }
     }
 
     @MainActor
     private func performLogout(isOnline: Bool) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: "logout", error: .offline, provider: storedAccount?.provider)
+            return .failure(.offline)
+        }
         if supabaseEnabled {
             do {
                 try await AuthService.signOut()
             } catch {
+                PlotAnalytics.trackAuthFailure(action: "logout", error: .logoutFailed, provider: storedAccount?.provider)
                 return .failure(.logoutFailed)
             }
         }
+        let provider = storedAccount?.provider ?? .email
         clearLocalSession()
+        PlotAnalytics.trackAuthSuccess(action: "logout", provider: provider)
         return .success(())
     }
 
     @MainActor
     private func performDeleteAccount(isOnline: Bool) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: "delete_account", error: .offline, provider: storedAccount?.provider)
+            return .failure(.offline)
+        }
         guard supabaseEnabled else {
+            let provider = storedAccount?.provider ?? .email
             clearLocalSession()
+            PlotAnalytics.trackAuthSuccess(action: "delete_account", provider: provider)
             return .success(())
         }
 
         do {
             try await AuthService.deleteCurrentUserData()
             try await AuthService.signOut()
+            let provider = storedAccount?.provider ?? .email
             clearLocalSession()
+            PlotAnalytics.trackAuthSuccess(action: "delete_account", provider: provider)
             return .success(())
         } catch {
+            PlotAnalytics.trackAuthFailure(action: "delete_account", error: .deleteAccountFailed, provider: storedAccount?.provider)
             return .failure(.deleteAccountFailed)
         }
     }
@@ -397,16 +462,22 @@ final class AccountSession {
     // MARK: - モック（プレビュー用）
 
     @MainActor
-    private func performSupabaseOAuthLogin(provider: AuthProvider, email: String?) async -> Result<Void, AuthError> {
+    private func performSupabaseOAuthLogin(
+        provider: AuthProvider,
+        email: String?,
+        pullProfile: Bool = true
+    ) async -> Result<Void, AuthError> {
         guard supabaseEnabled else {
             loginWithMock(provider: provider, email: email)
             return .success(())
         }
         do {
             let session = try await AuthService.signInWithGoogle()
-            applySupabaseSession(session)
+            applySupabaseSession(session, pullProfile: pullProfile)
+            PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
             return .success(())
         } catch {
+            PlotAnalytics.trackAuthFailure(action: "login", error: .providerUnavailable(provider.title), provider: provider)
             return .failure(.providerUnavailable(provider.title))
         }
     }
@@ -419,9 +490,22 @@ final class AccountSession {
     }
 
     @MainActor
-    private func syncDeviceTimezoneForSignUp() async {
+    private func syncSignUpProfile(displayNameOverride: String?) async {
         let timezoneIdentifier = TimeZone.current.identifier
-        try? await AuthService.updateCurrentUserTimezone(timezoneIdentifier)
+        let name = (displayNameOverride ?? storedAccount?.displayName ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            if name.isEmpty {
+                try await UserProfileService.updateProfile(timezoneIdentifier: timezoneIdentifier)
+            } else {
+                try await UserProfileService.updateProfile(
+                    displayName: name,
+                    timezoneIdentifier: timezoneIdentifier
+                )
+            }
+        } catch {
+            // 新規登録直後の初期同期はベストエフォート
+        }
     }
 
     @MainActor

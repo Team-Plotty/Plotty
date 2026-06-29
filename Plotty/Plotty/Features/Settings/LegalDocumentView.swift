@@ -51,6 +51,9 @@ struct LegalDocumentView: View {
                 Button("閉じる") { dismiss() }
             }
         }
+        .onAppear {
+            PlotAnalytics.trackScreen(kind == .termsOfService ? .terms : .privacy)
+        }
     }
     
     private var sections: [(title: String, body: String)] {

@@ -4,9 +4,13 @@ import SwiftUI
 struct ProfileEditSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accountSession) private var accountSession
+    @Environment(\.userSettingsSync) private var userSettingsSync
+    @Environment(\.connectivity) private var connectivity
     @Environment(\.dismiss) private var dismiss
     
     @State private var draftName: String = ""
+    @State private var saveError: String?
+    @State private var isSaving = false
     
     var body: some View {
         NavigationStack {
@@ -25,6 +29,10 @@ struct ProfileEditSheet: View {
                         )
                     }
                     
+                    if let saveError {
+                        PlotErrorBanner(message: saveError, onRetry: nil)
+                    }
+                    
                     Text("アイコンの変更は今後のアップデートで対応予定です。")
                         .font(.scaledCaption())
                         .foregroundStyle(.secondary)
@@ -37,22 +45,48 @@ struct ProfileEditSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("キャンセル") { dismiss() }
+                        .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
-                        .disabled(draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(
+                            isSaving
+                                || draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
+                }
+            }
+            .overlay {
+                if isSaving {
+                    PlotLoadingOverlay(message: "保存しています…")
                 }
             }
             .onAppear {
                 draftName = accountSession.currentAccount?.displayName ?? ""
+                saveError = nil
             }
         }
+        .plotAnalyticsScreen(.profileEdit)
         .frame(maxWidth: .infinity)
     }
     
     private func save() {
-        accountSession.updateDisplayName(draftName)
-        dismiss()
+        let trimmed = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        saveError = nil
+        isSaving = true
+        accountSession.updateDisplayName(trimmed)
+
+        Task { @MainActor in
+            let result = await userSettingsSync.pushDisplayName(trimmed, isOnline: connectivity.isOnline)
+            isSaving = false
+            switch result {
+            case .success:
+                dismiss()
+            case .failure(let error):
+                saveError = error.localizedDescription
+            }
+        }
     }
     
     private var textColor: Color {
