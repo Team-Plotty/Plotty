@@ -24,6 +24,7 @@ struct ChatComposerDock: View {
     @Binding var selectedCategory: PlotChatCategory?
     @FocusState.Binding var isComposerFocused: Bool
     @Binding var sendRequested: Bool
+    var inferenceModel: ChatCategoryInferenceModel
     var isAIProcessing: Bool
     
     var body: some View {
@@ -69,6 +70,7 @@ struct ChatTabView: View {
     @State private var pendingRetry: PendingChatRetry?
     @State private var reclassifyingMessageID: UUID?
     @State private var aiTask: Task<Void, Never>?
+    @State private var categoryInference = ChatCategoryInferenceModel()
     
     /// キーボード表示時の入力欄の上方向オフセット
     private var composerKeyboardOffset: CGFloat {
@@ -88,6 +90,7 @@ struct ChatTabView: View {
                 selectedCategory: $selectedCategory,
                 isComposerFocused: $isComposerFocused,
                 sendRequested: $sendRequested,
+                inferenceModel: categoryInference,
                 isAIProcessing: isAIProcessing
             )
             .padding(.bottom, Spacing.chatComposerGapAboveTabBar)
@@ -190,6 +193,15 @@ struct ChatTabView: View {
                 commitDraft()
                 sendRequested = false
             }
+            .onChange(of: draftMessage) { _, _ in
+                refreshCategoryInference()
+            }
+            .onChange(of: selectedCategory) { _, _ in
+                refreshCategoryInference()
+            }
+            .onChange(of: isComposerFocused) { _, _ in
+                refreshCategoryInference()
+            }
         }
     }
     
@@ -206,6 +218,9 @@ struct ChatTabView: View {
         if isComposerFocused {
             let rowCount = CGFloat(PlotChatCategory.quickActionOrder.count)
             height += rowCount * Spacing.minTouchTarget + Spacing.xxs * 2 + Spacing.xs
+            if categoryInference.suggestion != nil, selectedCategory == nil {
+                height += Spacing.minTouchTarget + Spacing.xs
+            }
         }
         return height + Spacing.chatComposerGapAboveTabBar + Spacing.md
     }
@@ -266,6 +281,7 @@ struct ChatTabView: View {
         draftMessage = ""
         selectedCategory = nil
         isComposerFocused = false
+        categoryInference.reset()
 
         requestAIResponse(
             body: body,
@@ -321,6 +337,14 @@ struct ChatTabView: View {
             merged[message.id] = message
         }
         messages = merged.values.sorted { $0.timestamp < $1.timestamp }
+    }
+
+    private func refreshCategoryInference() {
+        categoryInference.updateDraft(
+            draftMessage,
+            language: appSettings.language,
+            isEnabled: isComposerFocused && selectedCategory == nil
+        )
     }
 
     private func requestAIResponse(
