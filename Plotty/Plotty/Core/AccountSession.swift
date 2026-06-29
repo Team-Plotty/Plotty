@@ -9,6 +9,8 @@ enum AuthError: LocalizedError, Equatable {
     case appleRelayHint
     case otpDeliveryFailed
     case otpVerificationFailed
+    case logoutFailed
+    case deleteAccountFailed
 
     var errorDescription: String? {
         switch self {
@@ -24,6 +26,10 @@ enum AuthError: LocalizedError, Equatable {
             return "認証コードの送信に失敗しました。メールアドレスを確認して、もう一度お試しください。"
         case .otpVerificationFailed:
             return "認証コードが正しくないか、有効期限が切れています。もう一度お試しください。"
+        case .logoutFailed:
+            return "ログアウトに失敗しました。通信状態を確認して、もう一度お試しください。"
+        case .deleteAccountFailed:
+            return "アカウント削除に失敗しました。しばらくしてから再試行してください。"
         }
     }
 }
@@ -115,11 +121,17 @@ final class AccountSession {
             displayNameOverrides = decoded
         }
 
+        #if DEBUG
         if PlotDebug.demoLaunchToChat, supabaseEnabled {
             bootstrapDemoSession()
         } else if supabaseEnabled {
             startAuthObservation()
         }
+        #else
+        if supabaseEnabled {
+            startAuthObservation()
+        }
+        #endif
     }
 
     deinit {
@@ -230,7 +242,12 @@ final class AccountSession {
                 token: token,
                 type: purpose.verificationType
             )
-            return completeSupabaseSignIn(session, displayNameOverride: displayName)
+            let result = completeSupabaseSignIn(
+                session,
+                displayNameOverride: displayName,
+                isSignUp: purpose == .signup
+            )
+            return result
         } catch {
             return .failure(.otpVerificationFailed)
         }
@@ -249,6 +266,7 @@ final class AccountSession {
             let result = await performSupabaseOAuthLogin(provider: provider, email: email)
             if case .success = result {
                 applySignUpDisplayName(displayName)
+                await syncDeviceTimezoneForSignUp()
             }
             return result
         }
@@ -268,9 +286,18 @@ final class AccountSession {
 
     /// Sign in with Apple / OAuth 完了後に Supabase セッションを反映する。
     @MainActor
-    func completeSupabaseSignIn(_ session: Session, displayNameOverride: String? = nil) -> Result<Void, AuthError> {
+    func completeSupabaseSignIn(
+        _ session: Session,
+        displayNameOverride: String? = nil,
+        isSignUp: Bool = false
+    ) -> Result<Void, AuthError> {
         applySupabaseSession(session)
         applySignUpDisplayName(displayNameOverride)
+        if isSignUp {
+            Task { @MainActor in
+                await syncDeviceTimezoneForSignUp()
+            }
+        }
         return .success(())
     }
 
@@ -280,14 +307,14 @@ final class AccountSession {
         persistPreferences()
     }
 
-    func logout() {
-        Task { @MainActor in
-            await performLogout()
-        }
+    @MainActor
+    func logout(isOnline: Bool) async -> Result<Void, AuthError> {
+        await performLogout(isOnline: isOnline)
     }
 
-    func deleteAccount() {
-        logout()
+    @MainActor
+    func deleteAccount(isOnline: Bool) async -> Result<Void, AuthError> {
+        await performDeleteAccount(isOnline: isOnline)
     }
 
     func updateDisplayName(_ name: String) {
@@ -330,11 +357,35 @@ final class AccountSession {
     }
 
     @MainActor
-    private func performLogout() async {
+    private func performLogout(isOnline: Bool) async -> Result<Void, AuthError> {
+        guard isOnline else { return .failure(.offline) }
         if supabaseEnabled {
-            try? await AuthService.signOut()
+            do {
+                try await AuthService.signOut()
+            } catch {
+                return .failure(.logoutFailed)
+            }
         }
         clearLocalSession()
+        return .success(())
+    }
+
+    @MainActor
+    private func performDeleteAccount(isOnline: Bool) async -> Result<Void, AuthError> {
+        guard isOnline else { return .failure(.offline) }
+        guard supabaseEnabled else {
+            clearLocalSession()
+            return .success(())
+        }
+
+        do {
+            try await AuthService.deleteCurrentUserData()
+            try await AuthService.signOut()
+            clearLocalSession()
+            return .success(())
+        } catch {
+            return .failure(.deleteAccountFailed)
+        }
     }
 
     @MainActor
@@ -365,6 +416,12 @@ final class AccountSession {
         let name = (displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, let id = storedAccount?.id else { return }
         updateDisplayName(name, for: id)
+    }
+
+    @MainActor
+    private func syncDeviceTimezoneForSignUp() async {
+        let timezoneIdentifier = TimeZone.current.identifier
+        try? await AuthService.updateCurrentUserTimezone(timezoneIdentifier)
     }
 
     @MainActor

@@ -325,7 +325,8 @@ struct SignUpView: View {
                 let resolvedName = name.isEmpty ? payload.suggestedDisplayName : name
                 authResult = accountSession.completeSupabaseSignIn(
                     payload.session,
-                    displayNameOverride: resolvedName
+                    displayNameOverride: resolvedName,
+                    isSignUp: true
                 )
             case .failure:
                 authResult = .failure(.providerUnavailable(AuthProvider.apple.title))
@@ -414,6 +415,7 @@ private struct LiquidGlassSNSButtonStyle: ButtonStyle {
     }
 }
 
+#if DEBUG
 #Preview {
     NavigationStack {
         SignUpView()
@@ -421,3 +423,4 @@ private struct LiquidGlassSNSButtonStyle: ButtonStyle {
             .environment(\.connectivity, ConnectivityMonitor())
     }
 }
+#endif
