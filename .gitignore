@@ -15,6 +15,9 @@
 #
 # gitignore 貢献者向け: Global/Xcode.gitignore, Objective-C.gitignore, Swift.gitignore も更新すること
 
+# 誤作成された未使用プロジェクト（本番は Plotty/Plotty.xcodeproj）
+Plottyy/
+
 ## ユーザー設定
 xcuserdata/
 
