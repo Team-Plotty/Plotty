@@ -7,7 +7,10 @@ struct SignUpView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accountSession) private var accountSession
     @Environment(\.connectivity) private var connectivity
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.plotCrossDissolveDismiss) private var dismiss
+    
+    /// 認証コードを送信できたとき、コード入力画面への遷移を親に依頼する。
+    let onRequestOTP: (EmailOTPChallenge) -> Void
     
     @State private var username = ""
     @State private var email = ""
@@ -16,7 +19,6 @@ struct SignUpView: View {
     @State private var showPrivacy = false
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var otpChallenge: EmailOTPChallenge?
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -59,11 +61,6 @@ struct SignUpView: View {
             focusedField = nil
         }
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $otpChallenge) { challenge in
-            EmailOTPVerificationView(challenge: challenge) {
-                dismiss()
-            }
-        }
         .sheet(isPresented: $showTerms) {
             NavigationStack { LegalDocumentView(kind: .termsOfService) }
                 .presentationDetents([.medium, .large])
@@ -254,11 +251,11 @@ struct SignUpView: View {
                 isLoading = false
                 switch result {
                 case .success:
-                    otpChallenge = EmailOTPChallenge(
+                    onRequestOTP(EmailOTPChallenge(
                         email: mail,
                         purpose: .signup,
                         displayName: name.isEmpty ? nil : name
-                    )
+                    ))
                 case .failure(let error):
                     errorMessage = error.localizedDescription
                 }
@@ -396,7 +393,7 @@ private struct LiquidGlassAccentButtonStyle: ButtonStyle {
 #if DEBUG
 #Preview {
     NavigationStack {
-        SignUpView()
+        SignUpView(onRequestOTP: { _ in })
             .environment(\.accountSession, AccountSession.preview())
             .environment(\.connectivity, ConnectivityMonitor())
     }

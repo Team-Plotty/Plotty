@@ -2,6 +2,13 @@ import AuthenticationServices
 import SwiftUI
 import Supabase
 
+// MARK: - 認証フローの経路
+/// ログイン画面の上にクロスディゾルブで重ねる画面。
+private enum AuthRoute: Hashable {
+    case signUp
+    case emailOTP(EmailOTPChallenge)
+}
+
 // MARK: - ログイン画面
 struct LoginView: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -15,7 +22,7 @@ struct LoginView: View {
     @State private var showRelayGuidance = false
     @State private var errorMessage: String?
     @State private var isLoading = false
-    @State private var otpChallenge: EmailOTPChallenge?
+    @State private var path: [AuthRoute] = []
     @FocusState private var isEmailFocused: Bool
 
     private var recommendedProvider: AuthProvider? {
@@ -23,80 +30,92 @@ struct LoginView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AmbientBackground()
-
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.xl) {
-                        header
-                            .padding(.top, Spacing.xxl)
-
-                        if !connectivity.isOnline {
-                            PlotOfflineBanner()
-                        }
-
-                        if let recommendedProvider {
-                            PlotLastLoginRecommendationBanner(provider: recommendedProvider)
-                        }
-
-                        if showRelayGuidance || recommendedProvider == .apple {
-                            relayHelpCard
-                        }
-
-                        if let errorMessage {
-                            PlotErrorBanner(message: errorMessage, onRetry: nil)
-                        }
-
-                        authMethodSections
-
-                        signUpLink
-
-                        legalLinks
-                    }
-                    .padding(.horizontal, Spacing.screenEdge)
-                    .padding(.bottom, Spacing.xl)
+        PlotCrossDissolveStack(path: $path) {
+            loginContent
+        } destination: { route in
+            switch route {
+            case .signUp:
+                SignUpView { challenge in
+                    path.append(.emailOTP(challenge))
                 }
-                .scrollDismissesKeyboard(.interactively)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                isEmailFocused = false
-            }
-            .navigationDestination(item: $otpChallenge) { challenge in
-                EmailOTPVerificationView(challenge: challenge, onSuccess: {})
-            }
-            .sheet(isPresented: $showTerms) {
-                NavigationStack {
-                    LegalDocumentView(kind: .termsOfService)
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationSizing(.page)
-            }
-            .sheet(isPresented: $showPrivacy) {
-                NavigationStack {
-                    LegalDocumentView(kind: .privacyPolicy)
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationSizing(.page)
-            }
-            .sheet(isPresented: $showRelayHelp) {
-                NavigationStack {
-                    HelpView(highlightRelay: true)
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationSizing(.page)
-            }
-            .overlay {
-                if isLoading {
-                    PlotLoadingOverlay(message: "送信しています…")
+            case .emailOTP(let challenge):
+                EmailOTPVerificationView(challenge: challenge) {
+                    path.removeAll()
                 }
             }
-            .plotAnalyticsScreen(.login)
         }
+    }
+
+    private var loginContent: some View {
+        ZStack {
+            AmbientBackground()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    header
+                        .padding(.top, Spacing.xxl)
+
+                    if !connectivity.isOnline {
+                        PlotOfflineBanner()
+                    }
+
+                    if let recommendedProvider {
+                        PlotLastLoginRecommendationBanner(provider: recommendedProvider)
+                    }
+
+                    if showRelayGuidance || recommendedProvider == .apple {
+                        relayHelpCard
+                    }
+
+                    if let errorMessage {
+                        PlotErrorBanner(message: errorMessage, onRetry: nil)
+                    }
+
+                    authMethodSections
+
+                    signUpLink
+
+                    legalLinks
+                }
+                .padding(.horizontal, Spacing.screenEdge)
+                .padding(.bottom, Spacing.xl)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isEmailFocused = false
+        }
+        .sheet(isPresented: $showTerms) {
+            NavigationStack {
+                LegalDocumentView(kind: .termsOfService)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
+        }
+        .sheet(isPresented: $showPrivacy) {
+            NavigationStack {
+                LegalDocumentView(kind: .privacyPolicy)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
+        }
+        .sheet(isPresented: $showRelayHelp) {
+            NavigationStack {
+                HelpView(highlightRelay: true)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
+        }
+        .overlay {
+            if isLoading {
+                PlotLoadingOverlay(message: "送信しています…")
+            }
+        }
+        .plotAnalyticsScreen(.login)
     }
 
     @ViewBuilder
@@ -261,8 +280,8 @@ struct LoginView: View {
                 .font(.scaledBodySmall())
                 .foregroundStyle(secondaryColor)
 
-            NavigationLink {
-                SignUpView()
+            Button {
+                path.append(.signUp)
             } label: {
                 Text("新規登録")
                     .font(.scaledBodySmall().weight(.semibold))
@@ -338,7 +357,7 @@ struct LoginView: View {
                 isLoading = false
                 switch result {
                 case .success:
-                    otpChallenge = EmailOTPChallenge(email: mail, purpose: .login)
+                    path.append(.emailOTP(EmailOTPChallenge(email: mail, purpose: .login)))
                 case .failure(let error):
                     errorMessage = error.localizedDescription
                 }

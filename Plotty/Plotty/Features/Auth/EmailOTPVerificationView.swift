@@ -3,11 +3,11 @@ import SwiftUI
 // MARK: - メール OTP 入力（ログイン / 新規登録共通）
 struct EmailOTPVerificationView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.accountSession) private var accountSession
     @Environment(\.connectivity) private var connectivity
 
     let challenge: EmailOTPChallenge
+    /// 認証成功時の後片付け（認証フローの画面を閉じる等）は呼び出し側が決める。
     let onSuccess: () -> Void
 
     @State private var otpCode = ""
@@ -53,11 +53,6 @@ struct EmailOTPVerificationView: View {
         }
         .navigationTitle(challenge.purpose.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("戻る") { dismiss() }
-            }
-        }
         .onAppear {
             infoMessage = "\(challenge.email) に認証コードを送信しました。"
             isOTPFocused = true
@@ -180,7 +175,6 @@ struct EmailOTPVerificationView: View {
                 switch result {
                 case .success:
                     onSuccess()
-                    dismiss()
                 case .failure(let error):
                     errorMessage = error.localizedDescription
                     isOTPFocused = true
