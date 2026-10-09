@@ -227,17 +227,9 @@ struct LoginView: View {
             Button {
                 login(with: .google)
             } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "g.circle.fill")
-                        .font(.system(size: 20))
-                    Text("Googleでログイン")
-                        .font(.scaledBodyMedium().weight(.medium))
-                }
-                .foregroundStyle(primaryColor)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
+                PlotSocialSignInLabel(title: "Googleでログイン", icon: Image(.googleLogo))
             }
-            .buttonStyle(LoginSNSButtonStyle(isRecommended: isRecommended))
+            .buttonStyle(PlotSocialSignInButtonStyle(isRecommended: isRecommended))
             .disabled(isLoading || !connectivity.isOnline)
         }
     }
@@ -254,7 +246,7 @@ struct LoginView: View {
             }
 
             PlotAppleSignInButton(
-                label: .signIn,
+                purpose: .signIn,
                 isDisabled: isLoading || !connectivity.isOnline,
                 isRecommended: isRecommended
             ) { result in
@@ -444,28 +436,6 @@ private struct LoginAccentButtonStyle: ButtonStyle {
                 }
             }
             .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-private struct LoginSNSButtonStyle: ButtonStyle {
-    var isRecommended: Bool = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                    .fill(Color.clear)
-                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-            }
-            .overlay {
-                if isRecommended {
-                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                        .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1)
-                }
-            }
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }

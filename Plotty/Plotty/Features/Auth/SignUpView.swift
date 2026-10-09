@@ -201,22 +201,14 @@ struct SignUpView: View {
             Button {
                 signUp(with: .google)
             } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "g.circle.fill")
-                        .font(.system(size: 20))
-                    Text("Googleで登録")
-                        .font(.scaledBodyMedium().weight(.medium))
-                }
-                .foregroundStyle(primaryColor)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
+                PlotSocialSignInLabel(title: "Googleで登録", icon: Image(.googleLogo))
             }
-            .buttonStyle(LiquidGlassSNSButtonStyle())
+            .buttonStyle(PlotSocialSignInButtonStyle())
             .disabled(isLoading || !connectivity.isOnline || !agreedToTerms)
             
-            // Apple（ネイティブ Sign in with Apple）
+            // Apple
             PlotAppleSignInButton(
-                label: .signUp,
+                purpose: .signUp,
                 isDisabled: isLoading || !connectivity.isOnline || !agreedToTerms
             ) { result in
                 handleAppleSignUp(result)
@@ -396,21 +388,6 @@ private struct LiquidGlassAccentButtonStyle: ButtonStyle {
             }
             .glassEffect(isEnabled ? .regular.interactive() : .regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
             .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-// MARK: - Liquid Glass ボタンスタイル（SNS）
-private struct LiquidGlassSNSButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                    .fill(Color.clear)
-                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-            }
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
