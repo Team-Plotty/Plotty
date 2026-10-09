@@ -6,6 +6,8 @@ import Supabase
 /// ログイン画面の上にクロスディゾルブで重ねる画面。
 private enum AuthRoute: Hashable {
     case signUp
+    /// 入力済みのメールアドレスを引き継いで開く。
+    case passwordRecovery(email: String)
     case emailOTP(EmailOTPChallenge)
 }
 
@@ -16,6 +18,7 @@ struct LoginView: View {
     @Environment(\.connectivity) private var connectivity
 
     @State private var email = ""
+    @State private var password = ""
     @State private var showTerms = false
     @State private var showPrivacy = false
     @State private var showRelayHelp = false
@@ -23,7 +26,11 @@ struct LoginView: View {
     @State private var errorMessage: String?
     @State private var isLoading = false
     @State private var path: [AuthRoute] = []
-    @FocusState private var isEmailFocused: Bool
+    @FocusState private var focusedField: Field?
+
+    private enum Field {
+        case email, password
+    }
 
     private var recommendedProvider: AuthProvider? {
         accountSession.lastUsedProvider
@@ -35,7 +42,9 @@ struct LoginView: View {
         } destination: { route in
             switch route {
             case .signUp:
-                SignUpView { challenge in
+                SignUpView()
+            case .passwordRecovery(let email):
+                PasswordRecoveryView(initialEmail: email) { challenge in
                     path.append(.emailOTP(challenge))
                 }
             case .emailOTP(let challenge):
@@ -52,7 +61,7 @@ struct LoginView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
-                    header
+                    PlotAuthHeader(subtitle: "チャットから予定・タスク・メモを整理")
                         .padding(.top, Spacing.xxl)
 
                     if !connectivity.isOnline {
@@ -73,7 +82,9 @@ struct LoginView: View {
 
                     authMethodSections
 
-                    signUpLink
+                    PlotAuthSwitchLink(prompt: "アカウントをお持ちでない方", actionTitle: "新規登録") {
+                        path.append(.signUp)
+                    }
 
                     legalLinks
                 }
@@ -84,7 +95,7 @@ struct LoginView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            isEmailFocused = false
+            focusedField = nil
         }
         .sheet(isPresented: $showTerms) {
             NavigationStack {
@@ -112,7 +123,7 @@ struct LoginView: View {
         }
         .overlay {
             if isLoading {
-                PlotLoadingOverlay(message: "送信しています…")
+                PlotLoadingOverlay(message: "ログインしています…")
             }
         }
         .plotAnalyticsScreen(.login)
@@ -122,27 +133,13 @@ struct LoginView: View {
     private var authMethodSections: some View {
         if recommendedProvider == .google || recommendedProvider == .apple {
             snsLoginButtons
-            divider
+            PlotAuthDivider()
             emailLoginForm
         } else {
             emailLoginForm
-            divider
+            PlotAuthDivider()
             snsLoginButtons
         }
-    }
-
-    private var header: some View {
-        VStack(alignment: .center, spacing: Spacing.sm) {
-            Text("Plotty")
-                .font(.system(size: 42, weight: .bold, design: .rounded))
-                .foregroundStyle(primaryColor)
-
-            Text("チャットから予定・タスク・メモを整理")
-                .font(.scaledBodyMedium())
-                .foregroundStyle(secondaryColor)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, Spacing.lg)
     }
 
     private var emailLoginForm: some View {
@@ -164,60 +161,41 @@ struct LoginView: View {
                 .foregroundStyle(primaryColor)
                 .textInputAutocapitalization(.never)
                 .keyboardType(.emailAddress)
-                .textContentType(.emailAddress)
+                .textContentType(.username)
                 .autocorrectionDisabled()
-                .focused($isEmailFocused)
-                .submitLabel(.done)
-                .onSubmit { sendEmailOTP() }
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-                .frame(minHeight: 50)
-                .background {
-                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                        .fill(Color.clear)
-                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-                }
-                .overlay {
-                    if isRecommended {
-                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                            .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1)
-                    }
-                }
+                .focused($focusedField, equals: .email)
+                .submitLabel(.next)
+                .onSubmit { focusedField = .password }
+                .plotAuthInputField(isHighlighted: isRecommended)
+                // ラベルと入力欄の組の境目を分かりやすくする
+                .padding(.bottom, Spacing.xs)
 
-            Text("認証コードまたはログインリンクをメールでお送りします。")
-                .font(.scaledCaption())
-                .foregroundStyle(secondaryColor)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            fieldLabel("パスワード")
 
-            Button(action: sendEmailOTP) {
-                Text(EmailOTPPurpose.login.sendButtonTitle)
-                    .font(.scaledBodyLarge().weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
+            PlotAuthPasswordField(text: $password, isHighlighted: isRecommended)
+                .focused($focusedField, equals: .password)
+                .submitLabel(.go)
+                .onSubmit(loginWithPassword)
+
+            Button("パスワードをお忘れの方") {
+                path.append(.passwordRecovery(email: email.trimmingCharacters(in: .whitespacesAndNewlines)))
             }
-            .disabled(!canSendEmailOTP || isLoading)
-            .buttonStyle(LoginAccentButtonStyle(isEnabled: canSendEmailOTP && !isLoading, isRecommended: isRecommended))
-            .padding(.top, Spacing.sm)
+            .font(.scaledBodySmall().weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+
+            Button("ログイン", action: loginWithPassword)
+                .disabled(!canLoginWithPassword || isLoading)
+                .buttonStyle(PlotAuthPrimaryButtonStyle(isEnabled: canLoginWithPassword && !isLoading, isRecommended: isRecommended))
+                .padding(.top, Spacing.sm)
         }
     }
 
-    private var divider: some View {
-        HStack {
-            Rectangle()
-                .fill(dividerColor)
-                .frame(height: 1)
-
-            Text("または")
-                .font(.scaledCaption())
-                .foregroundStyle(secondaryColor)
-                .padding(.horizontal, Spacing.sm)
-
-            Rectangle()
-                .fill(dividerColor)
-                .frame(height: 1)
-        }
-        .padding(.vertical, Spacing.md)
+    private func fieldLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.scaledCaption())
+            .foregroundStyle(secondaryColor)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var snsLoginButtons: some View {
@@ -274,24 +252,6 @@ struct LoginView: View {
         }
     }
 
-    private var signUpLink: some View {
-        HStack {
-            Text("アカウントをお持ちでない方")
-                .font(.scaledBodySmall())
-                .foregroundStyle(secondaryColor)
-
-            Button {
-                path.append(.signUp)
-            } label: {
-                Text("新規登録")
-                    .font(.scaledBodySmall().weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, Spacing.md)
-    }
-
     private var legalLinks: some View {
         HStack(spacing: Spacing.lg) {
             Button("利用規約") { showTerms = true }
@@ -334,31 +294,26 @@ struct LoginView: View {
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
     }
 
-    private var canSendEmailOTP: Bool {
-        isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
+    private var canLoginWithPassword: Bool {
+        isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines)) && !password.isEmpty
     }
 
-    private func sendEmailOTP() {
-        guard canSendEmailOTP else { return }
-        isEmailFocused = false
+    private func loginWithPassword() {
+        guard canLoginWithPassword else { return }
+        focusedField = nil
         errorMessage = nil
         showRelayGuidance = false
         isLoading = true
-        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         Task {
-            let result = await accountSession.sendEmailOTP(
-                email: mail,
-                purpose: .login,
-                displayName: nil,
+            let result = await accountSession.signInWithPassword(
+                email: email,
+                password: password,
                 isOnline: connectivity.isOnline
             )
             await MainActor.run {
                 isLoading = false
-                switch result {
-                case .success:
-                    path.append(.emailOTP(EmailOTPChallenge(email: mail, purpose: .login)))
-                case .failure(let error):
+                if case .failure(let error) = result {
                     errorMessage = error.localizedDescription
                 }
             }
@@ -427,36 +382,7 @@ struct LoginView: View {
     }
 
     private var secondaryColor: Color {
-        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
-    }
-
-    private var dividerColor: Color {
-        colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.1)
-    }
-}
-
-// MARK: - ボタンスタイル
-
-private struct LoginAccentButtonStyle: ButtonStyle {
-    let isEnabled: Bool
-    var isRecommended: Bool = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                    .fill(isEnabled ? Color.accentColor : Color.gray.opacity(0.5))
-            }
-            .glassEffect(isEnabled ? .regular.interactive() : .regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-            .overlay {
-                if isRecommended, isEnabled {
-                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.35), lineWidth: 1)
-                }
-            }
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+        PlotAuthPalette.secondary(colorScheme)
     }
 }
 

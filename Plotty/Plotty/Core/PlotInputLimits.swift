@@ -8,6 +8,8 @@ enum PlotInputLimits {
     static let location = 100
     static let eventNotes = 500
     static let chatMessage = 2_000
+    /// Supabase Auth の `minimum_password_length`（supabase/config.toml）と揃える。
+    static let passwordMinimum = 6
     
     static func clamp(_ text: String, max: Int) -> String {
         String(text.prefix(max))

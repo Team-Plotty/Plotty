@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var ossSheetPresented = false
     @State private var aiPersonaSheetPresented = false
     @State private var profileEditSheetPresented = false
+    @State private var passwordSheetPresented = false
     @State private var logoutConfirmPresented = false
     @State private var deleteAccountConfirmPresented = false
     @State private var authActionError: String?
@@ -36,6 +37,13 @@ struct SettingsView: View {
                             profileEditSheetPresented = true
                         }
                         SettingsInsetDivider()
+                        // Google / Apple のアカウントはパスワードを持たないため、メール登録のときだけ出す
+                        if account.provider == .email {
+                            SettingsRowChevron(icon: "key", label: "パスワードを設定") {
+                                passwordSheetPresented = true
+                            }
+                            SettingsInsetDivider()
+                        }
                     } else {
                         SettingsSignedOutSummary()
                         SettingsInsetDivider()
@@ -192,6 +200,12 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $profileEditSheetPresented) {
             ProfileEditSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationSizing(.page)
+        }
+        .sheet(isPresented: $passwordSheetPresented) {
+            PasswordSettingsSheet()
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
                 .presentationSizing(.page)

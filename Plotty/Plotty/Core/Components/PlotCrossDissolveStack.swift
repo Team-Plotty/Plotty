@@ -45,16 +45,11 @@ struct PlotCrossDissolveStack<Route: Hashable, Root: View, Destination: View>: V
                 // タイトルやツールバーが他の層と混ざらないよう、層ごとに NavigationStack を持たせる
                 NavigationStack {
                     destination(route)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button {
-                                    pop(from: index)
-                                } label: {
-                                    Image(systemName: "chevron.backward")
-                                }
-                                .accessibilityLabel("戻る")
-                            }
-                        }
+                        // ナビゲーションバーを出すとその高さ分だけ中身が下がり、ルート画面と配置が揃わなくなるため隠す
+                        .toolbar(.hidden, for: .navigationBar)
+                }
+                .overlay(alignment: .topLeading) {
+                    backButton { pop(from: index) }
                 }
                 .environment(\.plotCrossDissolveDismiss, PlotCrossDissolveDismissAction { pop(from: index) })
                 .allowsHitTesting(isTop)
@@ -65,6 +60,21 @@ struct PlotCrossDissolveStack<Route: Hashable, Root: View, Destination: View>: V
             }
         }
         .animation(.crossDissolve, value: path)
+    }
+
+    /// レイアウトに影響しないよう画面左上に重ねる戻るボタン。
+    /// 重ねた画面側は、見出しがこのボタン（高さ 44pt）と重ならない上余白を取ること。
+    private func backButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "chevron.backward")
+                .font(.title3.weight(.semibold))
+                .frame(width: Spacing.minTouchTarget, height: Spacing.minTouchTarget)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: Circle())
+        .padding(.leading, Spacing.md)
+        .accessibilityLabel("戻る")
     }
 
     /// `index` の層とそれより上の層をまとめて閉じる。

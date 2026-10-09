@@ -1,8 +1,28 @@
 import Foundation
 import Supabase
 
-/// Plotty が利用する認証エントリ（Google OAuth / Sign in with Apple / Email OTP など）。
+/// Plotty が利用する認証エントリ（メール＋パスワード / Google OAuth / Sign in with Apple / Email OTP）。
 enum AuthService {
+    /// メールアドレスとパスワードでアカウントを作成する。
+    /// メール確認をオフにしている前提なので、成功時はそのままセッションが返る。
+    /// 確認がオンのままだとセッションが付かないため `nil` を返す（呼び出し側でエラー扱い）。
+    @MainActor
+    static func signUpWithPassword(email: String, password: String) async throws -> Session? {
+        try await SupabaseManager.client.auth.signUp(email: email, password: password).session
+    }
+
+    /// メールアドレスとパスワードでサインインする。
+    @MainActor
+    static func signInWithPassword(email: String, password: String) async throws -> Session {
+        try await SupabaseManager.client.auth.signIn(email: email, password: password)
+    }
+
+    /// ログイン中ユーザーのパスワードを設定・変更する。
+    @MainActor
+    static func updatePassword(_ password: String) async throws {
+        _ = try await SupabaseManager.client.auth.update(user: UserAttributes(password: password))
+    }
+
     /// Google アカウントで Supabase にサインインする（ブラウザセッションを表示）。
     @MainActor
     static func signInWithGoogle() async throws -> Session {
@@ -21,32 +41,24 @@ enum AuthService {
         )
     }
 
-    /// メールに OTP / マジックリンクを送信する。
+    /// 既存アカウントのメールに OTP / マジックリンクを送信する（パスワードを忘れたときのログイン用）。
+    /// 新規作成はパスワード登録に一本化したため、ここではアカウントを作らない。
     @MainActor
-    static func sendEmailOTP(
-        email: String,
-        createUser: Bool,
-        data: [String: AnyJSON]? = nil
-    ) async throws {
+    static func sendEmailOTP(email: String) async throws {
         try await SupabaseManager.client.auth.signInWithOTP(
             email: email,
             redirectTo: PlottyAuthRedirect.callbackURL,
-            shouldCreateUser: createUser,
-            data: data
+            shouldCreateUser: false
         )
     }
 
     /// メール OTP を検証してセッションを確立する。
     @MainActor
-    static func verifyEmailOTP(
-        email: String,
-        token: String,
-        type: EmailOTPType
-    ) async throws -> Session {
+    static func verifyEmailOTP(email: String, token: String) async throws -> Session {
         let response = try await SupabaseManager.client.auth.verifyOTP(
             email: email,
             token: token,
-            type: type,
+            type: .email,
             redirectTo: PlottyAuthRedirect.callbackURL
         )
         switch response {

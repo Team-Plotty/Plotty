@@ -3,17 +3,15 @@ import SwiftUI
 import Supabase
 
 // MARK: - 新規登録画面
+/// メールアドレスとパスワードだけで登録を完了する。表示名は登録後に設定画面から任意で登録してもらう。
 struct SignUpView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accountSession) private var accountSession
     @Environment(\.connectivity) private var connectivity
     @Environment(\.plotCrossDissolveDismiss) private var dismiss
     
-    /// 認証コードを送信できたとき、コード入力画面への遷移を親に依頼する。
-    let onRequestOTP: (EmailOTPChallenge) -> Void
-    
-    @State private var username = ""
     @State private var email = ""
+    @State private var password = ""
     @State private var agreedToTerms = false
     @State private var showTerms = false
     @State private var showPrivacy = false
@@ -22,7 +20,7 @@ struct SignUpView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field {
-        case username, email
+        case email, password
     }
     
     var body: some View {
@@ -30,8 +28,9 @@ struct SignUpView: View {
             AmbientBackground()
             
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.lg) {
-                    header
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    PlotAuthHeader(subtitle: "アカウントを作成してはじめましょう")
+                        .padding(.top, Spacing.xxl)
                     
                     if !connectivity.isOnline {
                         PlotOfflineBanner()
@@ -41,18 +40,18 @@ struct SignUpView: View {
                         PlotErrorBanner(message: errorMessage, onRetry: nil)
                     }
                     
-                    signUpForm
+                    emailSignUpForm
                     
-                    termsSection
-                    
-                    signUpButton
-                    
-                    divider
+                    PlotAuthDivider()
                     
                     snsSignUpButtons
+                    
+                    PlotAuthSwitchLink(prompt: "すでにアカウントをお持ちの方", actionTitle: "ログイン") {
+                        dismiss()
+                    }
                 }
                 .padding(.horizontal, Spacing.screenEdge)
-                .padding(.vertical, Spacing.xl)
+                .padding(.bottom, Spacing.xl)
             }
             .scrollDismissesKeyboard(.interactively)
         }
@@ -75,121 +74,60 @@ struct SignUpView: View {
         }
         .overlay {
             if isLoading {
-                PlotLoadingOverlay(message: "送信しています…")
+                PlotLoadingOverlay(message: "登録しています…")
             }
         }
         .plotAnalyticsScreen(.signUp)
     }
     
-    private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text("新規登録")
-                .font(.system(size: 32, weight: .bold))
+    /// ログイン画面のメールフォームと同じ並び（ラベル → 入力欄 → 補足 → ボタン）に揃えている。
+    private var emailSignUpForm: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            fieldLabel("メールアドレス")
+            
+            TextField("example@email.com", text: $email)
+                .font(.scaledBodyLarge())
                 .foregroundStyle(primaryColor)
-            
-            Text("アカウントを作成してPlottyを始めましょう")
-                .font(.scaledBodyMedium())
-                .foregroundStyle(secondaryColor)
-        }
-        .padding(.top, Spacing.md)
-    }
-    
-    private var signUpForm: some View {
-        VStack(spacing: Spacing.md) {
-            // ユーザー名
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("ユーザー名")
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
-                
-                TextField("ユーザー名を入力", text: $username)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(primaryColor)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .username)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .email }
-                    .onChange(of: username) { _, newValue in
-                        username = PlotInputLimits.clamp(newValue, max: PlotInputLimits.displayName)
-                    }
-                    .modifier(InputFieldModifier(colorScheme: colorScheme))
-            }
-            
-            // メールアドレス
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("メールアドレス")
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
-                
-                TextField("example@email.com", text: $email)
-                    .font(.scaledBodyLarge())
-                    .foregroundStyle(primaryColor)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-                    .textContentType(.emailAddress)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .email)
-                    .submitLabel(.done)
-                    .onSubmit { sendEmailOTP() }
-                    .modifier(InputFieldModifier(colorScheme: colorScheme))
-            }
+                .textInputAutocapitalization(.never)
+                .keyboardType(.emailAddress)
+                .textContentType(.username)
+                .autocorrectionDisabled()
+                .focused($focusedField, equals: .email)
+                .submitLabel(.next)
+                .onSubmit { focusedField = .password }
+                .plotAuthInputField()
+                // ラベルと入力欄の組の境目を分かりやすくする
+                .padding(.bottom, Spacing.xs)
 
-            Text("認証コードまたは登録リンクをメールでお送りします。")
+            fieldLabel("パスワード")
+
+            PlotAuthPasswordField(text: $password, isNewPassword: true)
+                .focused($focusedField, equals: .password)
+                .submitLabel(.done)
+                .onSubmit(signUpWithPassword)
+
+            Text("\(PlotInputLimits.passwordMinimum)文字以上で入力してください。表示名はあとから設定画面で登録できます。")
                 .font(.scaledCaption())
                 .foregroundStyle(secondaryColor)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            
+            PlotTermsConsentRow(
+                isAgreed: $agreedToTerms,
+                onShowTerms: { showTerms = true },
+                onShowPrivacy: { showPrivacy = true }
+            )
+            
+            Button("登録する", action: signUpWithPassword)
+                .disabled(!canSubmit || isLoading)
+                .buttonStyle(PlotAuthPrimaryButtonStyle(isEnabled: canSubmit && !isLoading))
+                .padding(.top, Spacing.sm)
         }
     }
     
-    private var termsSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Toggle(isOn: $agreedToTerms) {
-                Text("利用規約とプライバシーポリシーに同意する")
-                    .font(.scaledBodySmall())
-                    .foregroundStyle(primaryColor)
-            }
-            .tint(.accentColor)
-            
-            HStack(spacing: Spacing.md) {
-                Button("利用規約を見る") { showTerms = true }
-                Button("プライバシーポリシーを見る") { showPrivacy = true }
-            }
+    private func fieldLabel(_ title: String) -> some View {
+        Text(title)
             .font(.scaledCaption())
-            .foregroundStyle(Color.accentColor)
-        }
-        .padding(.top, Spacing.sm)
-    }
-    
-    private var signUpButton: some View {
-        Button(action: sendEmailOTP) {
-            Text(EmailOTPPurpose.signup.sendButtonTitle)
-                .font(.scaledBodyLarge().weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-        }
-        .disabled(!canSubmit || isLoading)
-        .buttonStyle(LiquidGlassAccentButtonStyle(isEnabled: canSubmit && !isLoading))
-        .padding(.top, Spacing.md)
-    }
-    
-    private var divider: some View {
-        HStack {
-            Rectangle()
-                .fill(dividerColor)
-                .frame(height: 1)
-            
-            Text("または")
-                .font(.scaledCaption())
-                .foregroundStyle(secondaryColor)
-                .padding(.horizontal, Spacing.sm)
-            
-            Rectangle()
-                .fill(dividerColor)
-                .frame(height: 1)
-        }
-        .padding(.vertical, Spacing.md)
+            .foregroundStyle(secondaryColor)
     }
     
     private var snsSignUpButtons: some View {
@@ -222,11 +160,11 @@ struct SignUpView: View {
     
     private var canSubmit: Bool {
         agreedToTerms &&
-        !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
+        isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines)) &&
+        password.count >= PlotInputLimits.passwordMinimum
     }
 
-    private func sendEmailOTP() {
+    private func signUpWithPassword() {
         guard canSubmit else {
             if !agreedToTerms {
                 errorMessage = "利用規約に同意してください。"
@@ -237,26 +175,15 @@ struct SignUpView: View {
         errorMessage = nil
         isLoading = true
 
-        let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-
         Task {
-            let result = await accountSession.sendEmailOTP(
-                email: mail,
-                purpose: .signup,
-                displayName: name.isEmpty ? nil : name,
+            let result = await accountSession.signUpWithPassword(
+                email: email,
+                password: password,
                 isOnline: connectivity.isOnline
             )
             await MainActor.run {
                 isLoading = false
-                switch result {
-                case .success:
-                    onRequestOTP(EmailOTPChallenge(
-                        email: mail,
-                        purpose: .signup,
-                        displayName: name.isEmpty ? nil : name
-                    ))
-                case .failure(let error):
+                if case .failure(let error) = result {
                     errorMessage = error.localizedDescription
                 }
             }
@@ -278,11 +205,8 @@ struct SignUpView: View {
         isLoading = true
 
         Task {
-            let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
-            let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
             let result = await accountSession.performSignUp(
-                displayName: name.isEmpty ? "ユーザー" : name,
-                email: mail,
+                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                 provider: provider,
                 isOnline: connectivity.isOnline
             )
@@ -306,16 +230,14 @@ struct SignUpView: View {
 
         errorMessage = nil
         isLoading = true
-        let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
 
         Task {
             let authResult: Result<Void, AuthError>
             switch result {
             case .success(let payload):
-                let resolvedName = name.isEmpty ? payload.suggestedDisplayName : name
                 authResult = accountSession.completeSupabaseSignIn(
                     payload.session,
-                    displayNameOverride: resolvedName,
+                    displayNameOverride: payload.suggestedDisplayName,
                     isSignUp: true
                 )
             case .failure:
@@ -340,60 +262,14 @@ struct SignUpView: View {
     }
     
     private var secondaryColor: Color {
-        colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.5)
-    }
-    
-    private var inputBackgroundColor: Color {
-        colorScheme == .dark ? .white.opacity(0.08) : .black.opacity(0.04)
-    }
-    
-    private var inputBorderColor: Color {
-        colorScheme == .dark ? .white.opacity(0.15) : .black.opacity(0.1)
-    }
-    
-    private var dividerColor: Color {
-        colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.1)
-    }
-}
-
-// MARK: - 入力フィールドのスタイル（Liquid Glass）
-private struct InputFieldModifier: ViewModifier {
-    let colorScheme: ColorScheme
-    
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.sm)
-            .frame(minHeight: 50)
-            .background {
-                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                    .fill(Color.clear)
-                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-            }
-    }
-}
-
-// MARK: - Liquid Glass ボタンスタイル（アクセント）
-private struct LiquidGlassAccentButtonStyle: ButtonStyle {
-    let isEnabled: Bool
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                    .fill(isEnabled ? Color.accentColor : Color.gray.opacity(0.5))
-            }
-            .glassEffect(isEnabled ? .regular.interactive() : .regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+        PlotAuthPalette.secondary(colorScheme)
     }
 }
 
 #if DEBUG
 #Preview {
     NavigationStack {
-        SignUpView(onRequestOTP: { _ in })
+        SignUpView()
             .environment(\.accountSession, AccountSession.preview())
             .environment(\.connectivity, ConnectivityMonitor())
     }
