@@ -6,7 +6,8 @@ enum AuthError: LocalizedError, Equatable {
     case invalidEmail
     case offline
     case providerUnavailable(String)
-    case appleRelayHint
+    // [SNS認証停止] Apple の非公開メール（Hide My Email）向けの案内
+    // case appleRelayHint
     case otpDeliveryFailed
     case otpVerificationFailed
     case invalidCredentials
@@ -39,8 +40,9 @@ enum AuthError: LocalizedError, Equatable {
             return "インターネットに接続してから、もう一度お試しください。"
         case .providerUnavailable(let provider):
             return "\(provider)でのログインに失敗しました。しばらくしてから再試行してください。"
-        case .appleRelayHint:
-            return "Hide My Email を使っている場合、既存アカウントと紐づいていないことがあります。別のメールアドレスでログインするか、ヘルプをご確認ください。"
+        // [SNS認証停止]
+        // case .appleRelayHint:
+        //     return "Hide My Email を使っている場合、既存アカウントと紐づいていないことがあります。別のメールアドレスでログインするか、ヘルプをご確認ください。"
         case .otpDeliveryFailed:
             return "認証コードの送信に失敗しました。メールアドレスを確認して、もう一度お試しください。"
         case .otpVerificationFailed:
@@ -90,7 +92,7 @@ struct PlottyAccount: Identifiable, Hashable, Codable {
         id: UUID(uuidString: "A1000001-0000-4000-8000-000000000001")!,
         displayName: "プレビューユーザー",
         email: "preview@plotty.app",
-        provider: .google
+        provider: .email
     )
 }
 
@@ -179,30 +181,31 @@ final class AccountSession {
     }
     #endif
 
-    @MainActor
-    func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
-        guard isOnline else {
-            PlotAnalytics.trackAuthFailure(action: "login", error: .offline, provider: provider)
-            return .failure(.offline)
-        }
-
-        if provider == .google {
-            return await performSupabaseOAuthLogin(provider: provider, email: email)
-        }
-
-        if provider == .apple {
-            // Apple は PlotAppleSignInButton → completeSupabaseSignIn 経由
-            return .failure(.providerUnavailable(provider.title))
-        }
-
-        if provider == .email {
-            return .failure(.providerUnavailable(provider.title))
-        }
-
-        loginWithMock(provider: provider, email: email)
-        PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
-        return .success(())
-    }
+    // [SNS認証停止] 認証はメールのみで運用するため Google / Apple のログイン入口は無効化中
+    // @MainActor
+    // func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
+    //     guard isOnline else {
+    //         PlotAnalytics.trackAuthFailure(action: "login", error: .offline, provider: provider)
+    //         return .failure(.offline)
+    //     }
+    //
+    //     if provider == .google {
+    //         return await performSupabaseOAuthLogin(provider: provider, email: email)
+    //     }
+    //
+    //     if provider == .apple {
+    //         // Apple は PlotAppleSignInButton → completeSupabaseSignIn 経由
+    //         return .failure(.providerUnavailable(provider.title))
+    //     }
+    //
+    //     if provider == .email {
+    //         return .failure(.providerUnavailable(provider.title))
+    //     }
+    //
+    //     loginWithMock(provider: provider, email: email)
+    //     PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
+    //     return .success(())
+    // }
 
     // MARK: - メール＋パスワード
 
@@ -375,32 +378,33 @@ final class AccountSession {
 
     // MARK: - SNS で新規登録
 
-    /// Google で新規登録する（表示名は Google のプロフィール名を使い、変更は設定画面から行う）。
-    @MainActor
-    func performSignUp(email: String, provider: AuthProvider, isOnline: Bool) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+    // [SNS認証停止] 認証はメールのみで運用するため Google / Apple の登録入口は無効化中
+    // /// Google で新規登録する（表示名は Google のプロフィール名を使い、変更は設定画面から行う）。
+    // @MainActor
+    // func performSignUp(email: String, provider: AuthProvider, isOnline: Bool) async -> Result<Void, AuthError> {
+    //     guard isOnline else { return .failure(.offline) }
+    //
+    //     if provider == .google {
+    //         let result = await performSupabaseOAuthLogin(
+    //             provider: provider,
+    //             email: email,
+    //             pullProfile: false
+    //         )
+    //         if case .success = result {
+    //             await syncSignUpProfile(displayNameOverride: nil)
+    //         }
+    //         return result
+    //     }
+    //
+    //     if provider == .apple || provider == .email {
+    //         return .failure(.providerUnavailable(provider.title))
+    //     }
+    //
+    //     loginWithMock(provider: provider, email: email)
+    //     return .success(())
+    // }
 
-        if provider == .google {
-            let result = await performSupabaseOAuthLogin(
-                provider: provider,
-                email: email,
-                pullProfile: false
-            )
-            if case .success = result {
-                await syncSignUpProfile(displayNameOverride: nil)
-            }
-            return result
-        }
-
-        if provider == .apple || provider == .email {
-            return .failure(.providerUnavailable(provider.title))
-        }
-
-        loginWithMock(provider: provider, email: email)
-        return .success(())
-    }
-
-    /// Sign in with Apple / OAuth 完了後に Supabase セッションを反映する。
+    /// ログイン / 新規登録の完了後に Supabase セッションを反映する。
     @MainActor
     func completeSupabaseSignIn(
         _ session: Session,
@@ -543,26 +547,27 @@ final class AccountSession {
 
     // MARK: - モック（プレビュー用）
 
-    @MainActor
-    private func performSupabaseOAuthLogin(
-        provider: AuthProvider,
-        email: String?,
-        pullProfile: Bool = true
-    ) async -> Result<Void, AuthError> {
-        guard supabaseEnabled else {
-            loginWithMock(provider: provider, email: email)
-            return .success(())
-        }
-        do {
-            let session = try await AuthService.signInWithGoogle()
-            applySupabaseSession(session, pullProfile: pullProfile)
-            PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
-            return .success(())
-        } catch {
-            PlotAnalytics.trackAuthFailure(action: "login", error: .providerUnavailable(provider.title), provider: provider)
-            return .failure(.providerUnavailable(provider.title))
-        }
-    }
+    // [SNS認証停止] 認証はメールのみで運用するため Google OAuth は無効化中
+    // @MainActor
+    // private func performSupabaseOAuthLogin(
+    //     provider: AuthProvider,
+    //     email: String?,
+    //     pullProfile: Bool = true
+    // ) async -> Result<Void, AuthError> {
+    //     guard supabaseEnabled else {
+    //         loginWithMock(provider: provider, email: email)
+    //         return .success(())
+    //     }
+    //     do {
+    //         let session = try await AuthService.signInWithGoogle()
+    //         applySupabaseSession(session, pullProfile: pullProfile)
+    //         PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
+    //         return .success(())
+    //     } catch {
+    //         PlotAnalytics.trackAuthFailure(action: "login", error: .providerUnavailable(provider.title), provider: provider)
+    //         return .failure(.providerUnavailable(provider.title))
+    //     }
+    // }
 
     @MainActor
     private func applySignUpDisplayName(_ displayName: String?) {

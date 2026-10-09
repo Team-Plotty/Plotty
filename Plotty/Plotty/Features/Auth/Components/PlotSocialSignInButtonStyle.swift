@@ -1,3 +1,5 @@
+// [SNS認証停止] 認証はメールのみで運用するため Google / Apple のボタン部品は無効化中（ファイル全体をコメントアウト）
+/*
 import SwiftUI
 
 /// SNS ログインボタン共通のラベル（ロゴ左寄せ・タイトル中央）。
@@ -93,3 +95,4 @@ struct PlotSocialSignInButtonStyle: ButtonStyle {
     .padding()
 }
 #endif
+*/

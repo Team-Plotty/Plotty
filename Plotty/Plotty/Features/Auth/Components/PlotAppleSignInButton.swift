@@ -1,3 +1,5 @@
+// [SNS認証停止] 認証はメールのみで運用するため Sign in with Apple は無効化中（ファイル全体をコメントアウト）
+/*
 import AuthenticationServices
 import Supabase
 import SwiftUI
@@ -97,3 +99,4 @@ enum AppleSignInError: LocalizedError {
         }
     }
 }
+*/

@@ -37,13 +37,12 @@ struct SettingsView: View {
                             profileEditSheetPresented = true
                         }
                         SettingsInsetDivider()
-                        // Google / Apple のアカウントはパスワードを持たないため、メール登録のときだけ出す
-                        if account.provider == .email {
-                            SettingsRowChevron(icon: "key", label: "パスワードを設定") {
-                                passwordSheetPresented = true
-                            }
-                            SettingsInsetDivider()
+                        // ログインはメールのみ。既存の Google / Apple ユーザーも認証コードでログインした後に
+                        // ここでパスワードを登録してメールログインへ移れるよう、アカウント種別に関係なく出す
+                        SettingsRowChevron(icon: "key", label: "パスワードを設定") {
+                            passwordSheetPresented = true
                         }
+                        SettingsInsetDivider()
                     } else {
                         SettingsSignedOutSummary()
                         SettingsInsetDivider()

@@ -214,7 +214,7 @@ extension AuthError {
         case .invalidEmail: return "invalid_email"
         case .offline: return "offline"
         case .providerUnavailable: return "provider_unavailable"
-        case .appleRelayHint: return "apple_relay_hint"
+        // [SNS認証停止] case .appleRelayHint: return "apple_relay_hint"
         case .otpDeliveryFailed: return "otp_delivery_failed"
         case .otpVerificationFailed: return "otp_verification_failed"
         case .invalidCredentials: return "invalid_credentials"

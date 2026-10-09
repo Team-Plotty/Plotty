@@ -1,4 +1,5 @@
-import AuthenticationServices
+// [SNS認証停止] 認証はメールのみで運用するため Google / Apple は無効化中
+// import AuthenticationServices
 import SwiftUI
 import Supabase
 
@@ -21,8 +22,9 @@ struct LoginView: View {
     @State private var password = ""
     @State private var showTerms = false
     @State private var showPrivacy = false
-    @State private var showRelayHelp = false
-    @State private var showRelayGuidance = false
+    // [SNS認証停止] Apple の非公開メール（Hide My Email）案内用
+    // @State private var showRelayHelp = false
+    // @State private var showRelayGuidance = false
     @State private var errorMessage: String?
     @State private var isLoading = false
     @State private var path: [AuthRoute] = []
@@ -32,9 +34,10 @@ struct LoginView: View {
         case email, password
     }
 
-    private var recommendedProvider: AuthProvider? {
-        accountSession.lastUsedProvider
-    }
+    // [SNS認証停止] ログイン方法がメールのみになり「前回の方法」の推奨は不要
+    // private var recommendedProvider: AuthProvider? {
+    //     accountSession.lastUsedProvider
+    // }
 
     var body: some View {
         PlotCrossDissolveStack(path: $path) {
@@ -68,19 +71,20 @@ struct LoginView: View {
                         PlotOfflineBanner()
                     }
 
-                    if let recommendedProvider {
-                        PlotLastLoginRecommendationBanner(provider: recommendedProvider)
-                    }
-
-                    if showRelayGuidance || recommendedProvider == .apple {
-                        relayHelpCard
-                    }
+                    // [SNS認証停止]
+                    // if let recommendedProvider {
+                    //     PlotLastLoginRecommendationBanner(provider: recommendedProvider)
+                    // }
+                    //
+                    // if showRelayGuidance || recommendedProvider == .apple {
+                    //     relayHelpCard
+                    // }
 
                     if let errorMessage {
                         PlotErrorBanner(message: errorMessage, onRetry: nil)
                     }
 
-                    authMethodSections
+                    emailLoginForm
 
                     PlotAuthSwitchLink(prompt: "アカウントをお持ちでない方", actionTitle: "新規登録") {
                         path.append(.signUp)
@@ -113,14 +117,15 @@ struct LoginView: View {
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
         }
-        .sheet(isPresented: $showRelayHelp) {
-            NavigationStack {
-                HelpView(highlightRelay: true)
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationSizing(.page)
-        }
+        // [SNS認証停止]
+        // .sheet(isPresented: $showRelayHelp) {
+        //     NavigationStack {
+        //         HelpView(highlightRelay: true)
+        //     }
+        //     .presentationDetents([.medium, .large])
+        //     .presentationDragIndicator(.visible)
+        //     .presentationSizing(.page)
+        // }
         .overlay {
             if isLoading {
                 PlotLoadingOverlay(message: "ログインしています…")
@@ -129,32 +134,23 @@ struct LoginView: View {
         .plotAnalyticsScreen(.login)
     }
 
-    @ViewBuilder
-    private var authMethodSections: some View {
-        if recommendedProvider == .google || recommendedProvider == .apple {
-            snsLoginButtons
-            PlotAuthDivider()
-            emailLoginForm
-        } else {
-            emailLoginForm
-            PlotAuthDivider()
-            snsLoginButtons
-        }
-    }
+    // [SNS認証停止] 前回の方法に応じて SNS ボタンとメールフォームの順番を入れ替えていた
+    // @ViewBuilder
+    // private var authMethodSections: some View {
+    //     if recommendedProvider == .google || recommendedProvider == .apple {
+    //         snsLoginButtons
+    //         PlotAuthDivider()
+    //         emailLoginForm
+    //     } else {
+    //         emailLoginForm
+    //         PlotAuthDivider()
+    //         snsLoginButtons
+    //     }
+    // }
 
     private var emailLoginForm: some View {
-        let isRecommended = recommendedProvider == .email
-
-        return VStack(spacing: Spacing.md) {
-            HStack {
-                Text("メールアドレス")
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
-                Spacer(minLength: 0)
-                if isRecommended {
-                    PlotRecommendedProviderBadge()
-                }
-            }
+        VStack(spacing: Spacing.md) {
+            fieldLabel("メールアドレス")
 
             TextField("example@email.com", text: $email)
                 .font(.scaledBodyLarge())
@@ -166,13 +162,13 @@ struct LoginView: View {
                 .focused($focusedField, equals: .email)
                 .submitLabel(.next)
                 .onSubmit { focusedField = .password }
-                .plotAuthInputField(isHighlighted: isRecommended)
+                .plotAuthInputField()
                 // ラベルと入力欄の組の境目を分かりやすくする
                 .padding(.bottom, Spacing.xs)
 
             fieldLabel("パスワード")
 
-            PlotAuthPasswordField(text: $password, isHighlighted: isRecommended)
+            PlotAuthPasswordField(text: $password)
                 .focused($focusedField, equals: .password)
                 .submitLabel(.go)
                 .onSubmit(loginWithPassword)
@@ -186,7 +182,7 @@ struct LoginView: View {
 
             Button("ログイン", action: loginWithPassword)
                 .disabled(!canLoginWithPassword || isLoading)
-                .buttonStyle(PlotAuthPrimaryButtonStyle(isEnabled: canLoginWithPassword && !isLoading, isRecommended: isRecommended))
+                .buttonStyle(PlotAuthPrimaryButtonStyle(isEnabled: canLoginWithPassword && !isLoading))
                 .padding(.top, Spacing.sm)
         }
     }
@@ -198,59 +194,60 @@ struct LoginView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var snsLoginButtons: some View {
-        VStack(spacing: Spacing.sm) {
-            if recommendedProvider == .apple {
-                appleSignInButton
-                googleSignInButton
-            } else {
-                googleSignInButton
-                appleSignInButton
-            }
-        }
-    }
-
-    private var googleSignInButton: some View {
-        let isRecommended = recommendedProvider == .google
-
-        return VStack(spacing: Spacing.xs) {
-            if isRecommended {
-                HStack {
-                    Spacer(minLength: 0)
-                    PlotRecommendedProviderBadge()
-                }
-            }
-
-            Button {
-                login(with: .google)
-            } label: {
-                PlotSocialSignInLabel(title: "Googleでログイン", icon: Image(.googleLogo))
-            }
-            .buttonStyle(PlotSocialSignInButtonStyle(isRecommended: isRecommended))
-            .disabled(isLoading || !connectivity.isOnline)
-        }
-    }
-
-    private var appleSignInButton: some View {
-        let isRecommended = recommendedProvider == .apple
-
-        return VStack(spacing: Spacing.xs) {
-            if isRecommended {
-                HStack {
-                    Spacer(minLength: 0)
-                    PlotRecommendedProviderBadge()
-                }
-            }
-
-            PlotAppleSignInButton(
-                purpose: .signIn,
-                isDisabled: isLoading || !connectivity.isOnline,
-                isRecommended: isRecommended
-            ) { result in
-                handleAppleSignIn(result)
-            }
-        }
-    }
+    // [SNS認証停止] Google / Apple のログインボタン
+    // private var snsLoginButtons: some View {
+    //     VStack(spacing: Spacing.sm) {
+    //         if recommendedProvider == .apple {
+    //             appleSignInButton
+    //             googleSignInButton
+    //         } else {
+    //             googleSignInButton
+    //             appleSignInButton
+    //         }
+    //     }
+    // }
+    //
+    // private var googleSignInButton: some View {
+    //     let isRecommended = recommendedProvider == .google
+    //
+    //     return VStack(spacing: Spacing.xs) {
+    //         if isRecommended {
+    //             HStack {
+    //                 Spacer(minLength: 0)
+    //                 PlotRecommendedProviderBadge()
+    //             }
+    //         }
+    //
+    //         Button {
+    //             login(with: .google)
+    //         } label: {
+    //             PlotSocialSignInLabel(title: "Googleでログイン", icon: Image(.googleLogo))
+    //         }
+    //         .buttonStyle(PlotSocialSignInButtonStyle(isRecommended: isRecommended))
+    //         .disabled(isLoading || !connectivity.isOnline)
+    //     }
+    // }
+    //
+    // private var appleSignInButton: some View {
+    //     let isRecommended = recommendedProvider == .apple
+    //
+    //     return VStack(spacing: Spacing.xs) {
+    //         if isRecommended {
+    //             HStack {
+    //                 Spacer(minLength: 0)
+    //                 PlotRecommendedProviderBadge()
+    //             }
+    //         }
+    //
+    //         PlotAppleSignInButton(
+    //             purpose: .signIn,
+    //             isDisabled: isLoading || !connectivity.isOnline,
+    //             isRecommended: isRecommended
+    //         ) { result in
+    //             handleAppleSignIn(result)
+    //         }
+    //     }
+    // }
 
     private var legalLinks: some View {
         HStack(spacing: Spacing.lg) {
@@ -263,36 +260,37 @@ struct LoginView: View {
         .padding(.top, Spacing.lg)
     }
 
-    private var relayHelpCard: some View {
-        HStack(alignment: .top, spacing: Spacing.sm) {
-            Image(systemName: "questionmark.circle.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("Apple の非公開メールでお困りですか？")
-                    .font(.scaledBodySmall().weight(.semibold))
-                    .foregroundStyle(primaryColor)
-
-                Text("「Hide My Email」で別アカウント扱いになることがあります。解決手順をヘルプで確認できます。")
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
-
-                Button("解決手順を見る") {
-                    showRelayHelp = true
-                }
-                .font(.scaledCaption().weight(.semibold))
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
-    }
+    // [SNS認証停止] Apple の非公開メール（Hide My Email）案内カード
+    // private var relayHelpCard: some View {
+    //     HStack(alignment: .top, spacing: Spacing.sm) {
+    //         Image(systemName: "questionmark.circle.fill")
+    //             .font(.system(size: 16, weight: .semibold))
+    //             .foregroundStyle(Color.accentColor)
+    //             .accessibilityHidden(true)
+    //
+    //         VStack(alignment: .leading, spacing: Spacing.xs) {
+    //             Text("Apple の非公開メールでお困りですか？")
+    //                 .font(.scaledBodySmall().weight(.semibold))
+    //                 .foregroundStyle(primaryColor)
+    //
+    //             Text("「Hide My Email」で別アカウント扱いになることがあります。解決手順をヘルプで確認できます。")
+    //                 .font(.scaledCaption())
+    //                 .foregroundStyle(secondaryColor)
+    //
+    //             Button("解決手順を見る") {
+    //                 showRelayHelp = true
+    //             }
+    //             .font(.scaledCaption().weight(.semibold))
+    //             .buttonStyle(.borderedProminent)
+    //             .controlSize(.small)
+    //         }
+    //
+    //         Spacer(minLength: 0)
+    //     }
+    //     .padding(Spacing.md)
+    //     .frame(maxWidth: .infinity, alignment: .leading)
+    //     .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+    // }
 
     private var canLoginWithPassword: Bool {
         isValidEmail(email.trimmingCharacters(in: .whitespacesAndNewlines)) && !password.isEmpty
@@ -302,7 +300,6 @@ struct LoginView: View {
         guard canLoginWithPassword else { return }
         focusedField = nil
         errorMessage = nil
-        showRelayGuidance = false
         isLoading = true
 
         Task {
@@ -325,55 +322,56 @@ struct LoginView: View {
         return raw.range(of: pattern, options: .regularExpression) != nil
     }
 
-    private func login(with provider: AuthProvider) {
-        errorMessage = nil
-        showRelayGuidance = false
-        isLoading = true
-        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        Task {
-            let result = await accountSession.performLogin(
-                provider: provider,
-                email: mail.isEmpty ? nil : mail,
-                isOnline: connectivity.isOnline
-            )
-            await MainActor.run {
-                isLoading = false
-                switch result {
-                case .success:
-                    break
-                case .failure(let error):
-                    errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func handleAppleSignIn(_ result: Result<AppleSignInPayload, Error>) {
-        errorMessage = nil
-        isLoading = true
-        Task {
-            let authResult: Result<Void, AuthError>
-            switch result {
-            case .success(let payload):
-                authResult = accountSession.completeSupabaseSignIn(
-                    payload.session,
-                    displayNameOverride: payload.suggestedDisplayName
-                )
-            case .failure:
-                authResult = .failure(.appleRelayHint)
-            }
-            await MainActor.run {
-                isLoading = false
-                if case .failure(let error) = authResult {
-                    errorMessage = error.localizedDescription
-                    if error == .appleRelayHint {
-                        showRelayGuidance = true
-                    }
-                }
-            }
-        }
-    }
+    // [SNS認証停止] Google / Apple のログイン処理
+    // private func login(with provider: AuthProvider) {
+    //     errorMessage = nil
+    //     showRelayGuidance = false
+    //     isLoading = true
+    //     let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+    //
+    //     Task {
+    //         let result = await accountSession.performLogin(
+    //             provider: provider,
+    //             email: mail.isEmpty ? nil : mail,
+    //             isOnline: connectivity.isOnline
+    //         )
+    //         await MainActor.run {
+    //             isLoading = false
+    //             switch result {
+    //             case .success:
+    //                 break
+    //             case .failure(let error):
+    //                 errorMessage = error.localizedDescription
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // private func handleAppleSignIn(_ result: Result<AppleSignInPayload, Error>) {
+    //     errorMessage = nil
+    //     isLoading = true
+    //     Task {
+    //         let authResult: Result<Void, AuthError>
+    //         switch result {
+    //         case .success(let payload):
+    //             authResult = accountSession.completeSupabaseSignIn(
+    //                 payload.session,
+    //                 displayNameOverride: payload.suggestedDisplayName
+    //             )
+    //         case .failure:
+    //             authResult = .failure(.appleRelayHint)
+    //         }
+    //         await MainActor.run {
+    //             isLoading = false
+    //             if case .failure(let error) = authResult {
+    //                 errorMessage = error.localizedDescription
+    //                 if error == .appleRelayHint {
+    //                     showRelayGuidance = true
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     // MARK: - Colors
 
@@ -387,15 +385,9 @@ struct LoginView: View {
 }
 
 #if DEBUG
-#Preview("Google 推奨") {
+#Preview {
     LoginView()
-        .environment(\.accountSession, AccountSession.preview(loggedIn: false, lastProvider: .google))
-        .environment(\.connectivity, ConnectivityMonitor())
-}
-
-#Preview("メール推奨") {
-    LoginView()
-        .environment(\.accountSession, AccountSession.preview(loggedIn: false, lastProvider: .email))
+        .environment(\.accountSession, AccountSession.preview(loggedIn: false))
         .environment(\.connectivity, ConnectivityMonitor())
 }
 #endif

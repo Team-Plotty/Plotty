@@ -1,7 +1,7 @@
 import Foundation
 import Supabase
 
-/// Plotty が利用する認証エントリ（メール＋パスワード / Google OAuth / Sign in with Apple / Email OTP）。
+/// Plotty が利用する認証エントリ（メール＋パスワード / Email OTP）。
 enum AuthService {
     /// メールアドレスとパスワードでアカウントを作成する。
     /// メール確認をオフにしている前提なので、成功時はそのままセッションが返る。
@@ -23,23 +23,24 @@ enum AuthService {
         _ = try await SupabaseManager.client.auth.update(user: UserAttributes(password: password))
     }
 
-    /// Google アカウントで Supabase にサインインする（ブラウザセッションを表示）。
-    @MainActor
-    static func signInWithGoogle() async throws -> Session {
-        try await SupabaseManager.client.auth.signInWithOAuth(provider: .google)
-    }
-
-    /// Sign in with Apple の ID トークンで Supabase にサインインする。
-    @MainActor
-    static func signInWithApple(idToken: String, nonce: String) async throws -> Session {
-        try await SupabaseManager.client.auth.signInWithIdToken(
-            credentials: OpenIDConnectCredentials(
-                provider: .apple,
-                idToken: idToken,
-                nonce: nonce
-            )
-        )
-    }
+    // [SNS認証停止] 認証はメールのみで運用するため Google / Apple は無効化中
+    // /// Google アカウントで Supabase にサインインする（ブラウザセッションを表示）。
+    // @MainActor
+    // static func signInWithGoogle() async throws -> Session {
+    //     try await SupabaseManager.client.auth.signInWithOAuth(provider: .google)
+    // }
+    //
+    // /// Sign in with Apple の ID トークンで Supabase にサインインする。
+    // @MainActor
+    // static func signInWithApple(idToken: String, nonce: String) async throws -> Session {
+    //     try await SupabaseManager.client.auth.signInWithIdToken(
+    //         credentials: OpenIDConnectCredentials(
+    //             provider: .apple,
+    //             idToken: idToken,
+    //             nonce: nonce
+    //         )
+    //     )
+    // }
 
     /// 既存アカウントのメールに OTP / マジックリンクを送信する（パスワードを忘れたときのログイン用）。
     /// 新規作成はパスワード登録に一本化したため、ここではアカウントを作らない。

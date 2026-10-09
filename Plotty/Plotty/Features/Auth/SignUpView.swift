@@ -1,4 +1,5 @@
-import AuthenticationServices
+// [SNS認証停止] 認証はメールのみで運用するため Google / Apple は無効化中
+// import AuthenticationServices
 import SwiftUI
 import Supabase
 
@@ -42,9 +43,10 @@ struct SignUpView: View {
                     
                     emailSignUpForm
                     
-                    PlotAuthDivider()
-                    
-                    snsSignUpButtons
+                    // [SNS認証停止]
+                    // PlotAuthDivider()
+                    //
+                    // snsSignUpButtons
                     
                     PlotAuthSwitchLink(prompt: "すでにアカウントをお持ちの方", actionTitle: "ログイン") {
                         dismiss()
@@ -130,33 +132,34 @@ struct SignUpView: View {
             .foregroundStyle(secondaryColor)
     }
     
-    private var snsSignUpButtons: some View {
-        VStack(spacing: Spacing.sm) {
-            // Google
-            Button {
-                signUp(with: .google)
-            } label: {
-                PlotSocialSignInLabel(title: "Googleで登録", icon: Image(.googleLogo))
-            }
-            .buttonStyle(PlotSocialSignInButtonStyle())
-            .disabled(isLoading || !connectivity.isOnline || !agreedToTerms)
-            
-            // Apple
-            PlotAppleSignInButton(
-                purpose: .signUp,
-                isDisabled: isLoading || !connectivity.isOnline || !agreedToTerms
-            ) { result in
-                handleAppleSignUp(result)
-            }
-            
-            if !agreedToTerms {
-                Text("SNSで登録するには利用規約への同意が必要です")
-                    .font(.scaledCaption())
-                    .foregroundStyle(secondaryColor)
-                    .frame(maxWidth: .infinity)
-            }
-        }
-    }
+    // [SNS認証停止] Google / Apple の登録ボタン
+    // private var snsSignUpButtons: some View {
+    //     VStack(spacing: Spacing.sm) {
+    //         // Google
+    //         Button {
+    //             signUp(with: .google)
+    //         } label: {
+    //             PlotSocialSignInLabel(title: "Googleで登録", icon: Image(.googleLogo))
+    //         }
+    //         .buttonStyle(PlotSocialSignInButtonStyle())
+    //         .disabled(isLoading || !connectivity.isOnline || !agreedToTerms)
+    //
+    //         // Apple
+    //         PlotAppleSignInButton(
+    //             purpose: .signUp,
+    //             isDisabled: isLoading || !connectivity.isOnline || !agreedToTerms
+    //         ) { result in
+    //             handleAppleSignUp(result)
+    //         }
+    //
+    //         if !agreedToTerms {
+    //             Text("SNSで登録するには利用規約への同意が必要です")
+    //                 .font(.scaledCaption())
+    //                 .foregroundStyle(secondaryColor)
+    //                 .frame(maxWidth: .infinity)
+    //         }
+    //     }
+    // }
     
     private var canSubmit: Bool {
         agreedToTerms &&
@@ -195,65 +198,66 @@ struct SignUpView: View {
         return raw.range(of: pattern, options: .regularExpression) != nil
     }
 
-    private func signUp(with provider: AuthProvider) {
-        guard agreedToTerms else {
-            errorMessage = "利用規約に同意してください。"
-            return
-        }
-
-        errorMessage = nil
-        isLoading = true
-
-        Task {
-            let result = await accountSession.performSignUp(
-                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-                provider: provider,
-                isOnline: connectivity.isOnline
-            )
-            await MainActor.run {
-                isLoading = false
-                switch result {
-                case .success:
-                    dismiss()
-                case .failure(let error):
-                    errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func handleAppleSignUp(_ result: Result<AppleSignInPayload, Error>) {
-        guard agreedToTerms else {
-            errorMessage = "利用規約に同意してください。"
-            return
-        }
-
-        errorMessage = nil
-        isLoading = true
-
-        Task {
-            let authResult: Result<Void, AuthError>
-            switch result {
-            case .success(let payload):
-                authResult = accountSession.completeSupabaseSignIn(
-                    payload.session,
-                    displayNameOverride: payload.suggestedDisplayName,
-                    isSignUp: true
-                )
-            case .failure:
-                authResult = .failure(.providerUnavailable(AuthProvider.apple.title))
-            }
-            await MainActor.run {
-                isLoading = false
-                switch authResult {
-                case .success:
-                    dismiss()
-                case .failure(let error):
-                    errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
+    // [SNS認証停止] Google / Apple の登録処理
+    // private func signUp(with provider: AuthProvider) {
+    //     guard agreedToTerms else {
+    //         errorMessage = "利用規約に同意してください。"
+    //         return
+    //     }
+    //
+    //     errorMessage = nil
+    //     isLoading = true
+    //
+    //     Task {
+    //         let result = await accountSession.performSignUp(
+    //             email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+    //             provider: provider,
+    //             isOnline: connectivity.isOnline
+    //         )
+    //         await MainActor.run {
+    //             isLoading = false
+    //             switch result {
+    //             case .success:
+    //                 dismiss()
+    //             case .failure(let error):
+    //                 errorMessage = error.localizedDescription
+    //             }
+    //         }
+    //     }
+    // }
+    //
+    // private func handleAppleSignUp(_ result: Result<AppleSignInPayload, Error>) {
+    //     guard agreedToTerms else {
+    //         errorMessage = "利用規約に同意してください。"
+    //         return
+    //     }
+    //
+    //     errorMessage = nil
+    //     isLoading = true
+    //
+    //     Task {
+    //         let authResult: Result<Void, AuthError>
+    //         switch result {
+    //         case .success(let payload):
+    //             authResult = accountSession.completeSupabaseSignIn(
+    //                 payload.session,
+    //                 displayNameOverride: payload.suggestedDisplayName,
+    //                 isSignUp: true
+    //             )
+    //         case .failure:
+    //             authResult = .failure(.providerUnavailable(AuthProvider.apple.title))
+    //         }
+    //         await MainActor.run {
+    //             isLoading = false
+    //             switch authResult {
+    //             case .success:
+    //                 dismiss()
+    //             case .failure(let error):
+    //                 errorMessage = error.localizedDescription
+    //             }
+    //         }
+    //     }
+    // }
     
     // MARK: - Colors
     
