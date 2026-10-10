@@ -67,10 +67,6 @@ struct LoginView: View {
                     PlotAuthHeader(subtitle: "チャットから予定・タスク・メモを整理")
                         .padding(.top, Spacing.xxl)
 
-                    if !connectivity.isOnline {
-                        PlotOfflineBanner()
-                    }
-
                     // [SNS認証停止]
                     // if let recommendedProvider {
                     //     PlotLastLoginRecommendationBanner(provider: recommendedProvider)
@@ -79,10 +75,6 @@ struct LoginView: View {
                     // if showRelayGuidance || recommendedProvider == .apple {
                     //     relayHelpCard
                     // }
-
-                    if let errorMessage {
-                        PlotErrorBanner(message: errorMessage, onRetry: nil)
-                    }
 
                     emailLoginForm
 
@@ -131,6 +123,7 @@ struct LoginView: View {
                 PlotLoadingOverlay(message: "ログインしています…")
             }
         }
+        .plotAuthErrorAlert("ログインできませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.login)
     }
 

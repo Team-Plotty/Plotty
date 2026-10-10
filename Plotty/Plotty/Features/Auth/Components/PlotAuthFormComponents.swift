@@ -57,6 +57,27 @@ extension View {
     }
 }
 
+// MARK: - エラー表示
+extension View {
+    /// 認証画面のエラー（オフラインを含む）はアラートで出す。
+    /// フォームの上にバナーを差し込むと入力欄の位置がずれ、入力中の操作を邪魔するため。
+    func plotAuthErrorAlert(_ title: String, message: Binding<String?>) -> some View {
+        alert(
+            title,
+            isPresented: Binding(
+                get: { message.wrappedValue != nil },
+                set: { isPresented in
+                    if !isPresented { message.wrappedValue = nil }
+                }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(message.wrappedValue ?? "")
+        }
+    }
+}
+
 // MARK: - 入力欄の見本文字
 enum PlotAuthPlaceholder {
     /// 文字列リテラルのままだとメールアドレスが自動でリンク扱いになり青く表示されるため、verbatim で作る。

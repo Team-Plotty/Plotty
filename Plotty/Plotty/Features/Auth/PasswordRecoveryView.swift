@@ -29,14 +29,6 @@ struct PasswordRecoveryView: View {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
                     header
 
-                    if !connectivity.isOnline {
-                        PlotOfflineBanner()
-                    }
-
-                    if let errorMessage {
-                        PlotErrorBanner(message: errorMessage, onRetry: nil)
-                    }
-
                     emailForm
                 }
                 .padding(.horizontal, Spacing.screenEdge)
@@ -57,6 +49,7 @@ struct PasswordRecoveryView: View {
                 PlotLoadingOverlay(message: "送信しています…")
             }
         }
+        .plotAuthErrorAlert("送信できませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.passwordRecovery)
     }
 

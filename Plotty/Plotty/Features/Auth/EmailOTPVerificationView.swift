@@ -29,16 +29,8 @@ struct EmailOTPVerificationView: View {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
                     header
 
-                    if !connectivity.isOnline {
-                        PlotOfflineBanner()
-                    }
-
                     if let infoMessage {
                         PlotInfoBanner(message: infoMessage)
-                    }
-
-                    if let errorMessage {
-                        PlotErrorBanner(message: errorMessage, onRetry: nil)
                     }
 
                     otpField
@@ -73,6 +65,7 @@ struct EmailOTPVerificationView: View {
                 resendCooldown -= 1
             }
         }
+        .plotAuthErrorAlert("ログインできませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.emailOTP)
     }
 

@@ -33,14 +33,6 @@ struct SignUpView: View {
                     PlotAuthHeader(subtitle: "アカウントを作成してはじめましょう")
                         .padding(.top, Spacing.xxl)
                     
-                    if !connectivity.isOnline {
-                        PlotOfflineBanner()
-                    }
-                    
-                    if let errorMessage {
-                        PlotErrorBanner(message: errorMessage, onRetry: nil)
-                    }
-                    
                     emailSignUpForm
                     
                     // [SNS認証停止]
@@ -79,6 +71,7 @@ struct SignUpView: View {
                 PlotLoadingOverlay(message: "登録しています…")
             }
         }
+        .plotAuthErrorAlert("登録できませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.signUp)
     }
     
