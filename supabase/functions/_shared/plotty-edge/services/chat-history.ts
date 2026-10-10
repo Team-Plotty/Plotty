@@ -49,6 +49,7 @@ export const buildCreatedEntitiesFromRefs = async (
           {
             id: dto.id,
             dueDate: dto.due_date,
+            dueHasTime: dto.due_has_time,
             priority: dto.priority as 1 | 2 | 3,
             isCompleted: dto.is_completed
           },

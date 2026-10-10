@@ -53,6 +53,8 @@ export interface ScheduleWriteInput extends BaseEntityWriteInput {
 
 export interface TaskWriteInput extends BaseEntityWriteInput {
   dueDate: string;
+  /** false は日付のみの締切（dueDate の時刻は当日末の埋め値） */
+  dueHasTime: boolean;
   priority: 1 | 2 | 3;
   isCompleted: boolean;
 }
@@ -80,6 +82,7 @@ export interface EntityReadModel {
   isAllDay?: boolean;
   location?: string | null;
   dueDate?: string;
+  dueHasTime?: boolean;
   isCompleted?: boolean;
   priority?: 1 | 2 | 3;
   contentEncrypted?: string;
@@ -103,6 +106,7 @@ export interface EntityUpdateInput {
   isAllDay?: boolean;
   location?: string | null;
   dueDate?: string;
+  dueHasTime?: boolean;
   isCompleted?: boolean;
   priority?: 1 | 2 | 3;
   contentEncrypted?: string;
@@ -153,6 +157,8 @@ export interface BuildPersistenceInput {
   userId: string;
   clientMessageId: string;
   userPlainText: string;
+  /** 締切を省略したタスクの「当日末」を決めるユーザーのタイムゾーン */
+  timezone: string;
   extraction: LlmExtractionResult;
   analysisResultsEncrypted: EncryptedPayload;
   textEncryption: EncryptedPayload;

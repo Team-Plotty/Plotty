@@ -333,6 +333,89 @@ test("chat messages idempotency returns same response", async () => {
   assert.equal(groqCalls, 1);
 });
 
+test("chat stores schedule end time and task due time flags", async () => {
+  const db = createInMemoryDatabase();
+  const persistenceRepository = createInMemoryPersistenceRepository(db);
+  const cryptoService = createSimpleCryptoService();
+  const timedGroqClient: GroqClient = {
+    async extract() {
+      return {
+        extraction: {
+          entities: [
+            {
+              type: "schedule",
+              data: {
+                title: "会議",
+                start_at: "2026-10-11T10:00:00+09:00",
+                end_at: "2026-10-11T12:00:00+09:00",
+                is_all_day: false
+              }
+            },
+            {
+              type: "task",
+              data: {
+                title: "資料提出",
+                due_date: "2026-10-16T18:00:00+09:00",
+                due_has_time: true
+              }
+            },
+            {
+              type: "task",
+              data: { title: "掃除" }
+            }
+          ],
+          reply_message: "登録したよ！"
+        },
+        tokensUsed: 100
+      };
+    }
+  };
+
+  const chatHandler = createChatMessagesHandler({
+    authVerifier,
+    userSettingsRepository,
+    groqClient: timedGroqClient,
+    groqUsageRepository: createInMemoryGroqUsageRepository(),
+    groqDailyTokenLimit: 50000,
+    cryptoService,
+    persistenceRepository
+  });
+
+  const result = await chatHandler({
+    authorizationHeader: "Bearer test-token",
+    body: {
+      text: "明日10時から12時まで会議、金曜18時までに資料提出、掃除",
+      forced_category: null,
+      client_message_id: "client-timed-1"
+    }
+  });
+  assert.equal(result.status, 200);
+  const body = result.body as {
+    created_entities: Array<Record<string, unknown>>;
+  };
+  const [schedule, timedTask, untimedTask] = body.created_entities;
+  assert.equal(schedule?.end_at, "2026-10-11T03:00:00.000Z");
+  assert.equal(schedule?.is_all_day, false);
+  assert.equal(timedTask?.due_date, "2026-10-16T09:00:00.000Z");
+  assert.equal(timedTask?.due_has_time, true);
+  assert.equal(untimedTask?.due_has_time, false);
+
+  const patchHandler = createPatchEntityHandler({
+    authVerifier,
+    cryptoService,
+    persistenceRepository
+  });
+  const patchResult = await patchHandler({
+    authorizationHeader: "Bearer test-token",
+    type: "task",
+    id: String(untimedTask?.id),
+    body: { due_date: "2026-10-12T09:30:00+09:00", due_has_time: true }
+  });
+  assert.equal(patchResult.status, 200);
+  const patched = patchResult.body as { entity: { due_has_time: boolean } };
+  assert.equal(patched.entity.due_has_time, true);
+});
+
 test("chat messages returns 401 without bearer token", async () => {
   const db = createInMemoryDatabase();
   const persistenceRepository = createInMemoryPersistenceRepository(db);

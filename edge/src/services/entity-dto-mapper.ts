@@ -55,6 +55,7 @@ export const entityReadModelToDto = async (
       title,
       is_completed: readModel.isCompleted ?? false,
       due_date: normalizeApiDateTime(readModel.dueDate ?? new Date().toISOString()),
+      due_has_time: readModel.dueHasTime ?? false,
       priority: readModel.priority ?? 2,
       created_at: normalizeApiDateTime(readModel.createdAt ?? new Date().toISOString()),
       updated_at: normalizeApiDateTime(readModel.updatedAt ?? new Date().toISOString())
@@ -99,7 +100,13 @@ export const scheduleWriteToCreatedEntity = (
 });
 
 export const taskWriteToCreatedEntity = (
-  task: { id: string; dueDate: string; priority: 1 | 2 | 3; isCompleted: boolean },
+  task: {
+    id: string;
+    dueDate: string;
+    dueHasTime: boolean;
+    priority: 1 | 2 | 3;
+    isCompleted: boolean;
+  },
   title: string
 ): CreatedEntityDto => ({
   type: "task",
@@ -107,6 +114,7 @@ export const taskWriteToCreatedEntity = (
   title,
   is_completed: task.isCompleted,
   due_date: normalizeApiDateTime(task.dueDate),
+  due_has_time: task.dueHasTime,
   priority: task.priority
 });
 

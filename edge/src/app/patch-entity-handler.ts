@@ -152,6 +152,9 @@ export const createPatchEntityHandler = (deps: PatchEntityHandlerDeps) => {
       );
     }
     if (parsedBody.data.due_date !== undefined) updatePayload.dueDate = parsedBody.data.due_date;
+    if (parsedBody.data.due_has_time !== undefined) {
+      updatePayload.dueHasTime = parsedBody.data.due_has_time;
+    }
     if (parsedBody.data.is_completed !== undefined) {
       updatePayload.isCompleted = parsedBody.data.is_completed;
     }

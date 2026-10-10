@@ -55,13 +55,14 @@
 | `title` | ✓ | ✓ | string 1–100 | |
 | `is_completed` | ✓ | ✓ | boolean | 一覧の完了切替 |
 | `due_date` | ✓ | ✓ | ISO8601 | |
+| `due_has_time` | ✓ | ✓ | boolean | 締切の時刻まで指定したか。false は日付のみ表示 |
 | `priority` | ✓ | ✓ | integer 1–3 | 1=低, 2=中, 3=高（DB と一致） |
 | `created_at` | ✓ | — | ISO8601 | ソート用 |
 | `updated_at` | ✓ | — | ISO8601 | |
 
 iOS の `Priority` raw 0–2 は mapper で 1–3 に変換する（詳細: `implementation-notes.md` §2.1）。
 
-**task `due_date`:** DB は NOT NULL。UI で期限なしの場合、Edge は `public.users.timezone` 基準 **当日 23:59:59** を設定（`12` §2.2）。
+**task `due_date`:** DB は NOT NULL。UI で期限なしの場合、Edge は `public.users.timezone` 基準 **当日 23:59:59** を設定（`12` §2.2）。日付のみの締切も同じく当日 23:59:59 を入れ、`due_has_time = false` とする。
 
 ### 2.3 `memo`
 
