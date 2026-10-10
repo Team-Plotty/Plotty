@@ -18,8 +18,6 @@ private struct PendingChatRetry: Equatable {
 
 /// チャット入力ドック（`ChatTabView` でスクロール上に重ねる。背景は付けない）
 struct ChatComposerDock: View {
-    @Environment(\.connectivity) private var connectivity
-    
     @Binding var draftMessage: String
     @Binding var selectedCategory: PlotChatCategory?
     @FocusState.Binding var isComposerFocused: Bool
@@ -29,11 +27,6 @@ struct ChatComposerDock: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if !connectivity.isOnline {
-                PlotOfflineBanner()
-                    .padding(.bottom, Spacing.xs)
-            }
-            
             ChatComposerBar(
                 text: $draftMessage,
                 selectedCategory: $selectedCategory,
@@ -99,6 +92,18 @@ struct ChatTabView: View {
         .onDisappear {
             aiTask?.cancel()
         }
+        .plotErrorAlert("エラーが発生しました", message: $lastError, onRetry: retryAction)
+    }
+
+    /// 再送できる送信か、読み込みに失敗した履歴があるときだけ「再試行」を出す。
+    private var retryAction: (() -> Void)? {
+        if let pendingRetry {
+            return { retryPendingSend(pendingRetry) }
+        }
+        if case .error = historyPhase {
+            return { loadChatHistory() }
+        }
+        return nil
     }
     
     private var messageList: some View {
@@ -109,18 +114,6 @@ struct ChatTabView: View {
                         ChatEmptyGuideCard()
                     }
                     
-                    if let errorMessage = lastError {
-                        PlotErrorBanner(message: errorMessage) {
-                            if let pendingRetry {
-                                retryPendingSend(pendingRetry)
-                            } else if case .error = historyPhase {
-                                loadChatHistory()
-                            } else {
-                                lastError = nil
-                            }
-                        }
-                    }
-
                     if historyPhase == .loading, messages.isEmpty {
                         PlotLoadingOverlay(message: "履歴を読み込んでいます…")
                             .frame(maxWidth: .infinity)

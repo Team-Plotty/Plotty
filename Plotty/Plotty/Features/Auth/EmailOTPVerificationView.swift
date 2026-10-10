@@ -65,7 +65,7 @@ struct EmailOTPVerificationView: View {
                 resendCooldown -= 1
             }
         }
-        .plotAuthErrorAlert("ログインできませんでした", message: $errorMessage)
+        .plotErrorAlert("ログインできませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.emailOTP)
     }
 

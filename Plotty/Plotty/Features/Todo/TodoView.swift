@@ -22,12 +22,6 @@ struct TodoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                PlotScreenStatusSection(
-                    isOffline: !connectivity.isOnline,
-                    errorMessage: dataStore.errorMessage(for: .todos),
-                    onRetry: { Task { await reloadTodos() } }
-                )
-                
                 TodoFilterSortBar(
                     priorityFilter: $priorityFilter,
                     sortOrder: $sortOrder
@@ -106,7 +100,14 @@ struct TodoView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
+            .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .todos))
         }
+        // 編集シートを開いている間はシート側で出す（シートの裏からはアラートを出せないため）
+        .plotErrorAlert(
+            "同期できませんでした",
+            message: editingTodo == nil ? dataStore.errorMessageBinding(for: .todos) : .constant(nil),
+            onRetry: { Task { await reloadTodos() } }
+        )
     }
     
     private func addTodoFromSheet() {

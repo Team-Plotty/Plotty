@@ -71,7 +71,7 @@ struct SignUpView: View {
                 PlotLoadingOverlay(message: "登録しています…")
             }
         }
-        .plotAuthErrorAlert("登録できませんでした", message: $errorMessage)
+        .plotErrorAlert("登録できませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.signUp)
     }
     

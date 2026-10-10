@@ -126,14 +126,6 @@ struct SettingsView: View {
                         }
                     }
                 }
-
-                if let authActionError {
-                    PlotErrorBanner(message: authActionError, onRetry: nil)
-                }
-
-                if let profileSyncError = userSettingsSync.lastError {
-                    PlotErrorBanner(message: profileSyncError, onRetry: nil)
-                }
             }
             .padding(.horizontal, Spacing.screenEdge)
             .padding(.top, Spacing.lg)
@@ -234,10 +226,22 @@ struct SettingsView: View {
                 PlotLoadingOverlay(message: "処理中…")
             }
         }
+        .plotErrorAlert("処理できませんでした", message: $authActionError)
+        .plotErrorAlert("設定を同期できませんでした", message: profileSyncError)
         .onAppear { consumePendingRoute() }
         .onChange(of: pendingRoute) { _, _ in consumePendingRoute() }
     }
     
+    /// クラウド設定の取得・保存エラー（`UserSettingsSync` が保持）。閉じたら同期側のエラーも消す。
+    private var profileSyncError: Binding<String?> {
+        Binding(
+            get: { userSettingsSync.lastError },
+            set: { newValue in
+                if newValue == nil { userSettingsSync.clearLastError() }
+            }
+        )
+    }
+
     private func consumePendingRoute() {
         guard pendingRoute == .account else { return }
         accountSheetPresented = true

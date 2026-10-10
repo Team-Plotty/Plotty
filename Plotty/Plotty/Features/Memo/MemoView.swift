@@ -21,12 +21,6 @@ struct MemoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                PlotScreenStatusSection(
-                    isOffline: !connectivity.isOnline,
-                    errorMessage: dataStore.errorMessage(for: .memos),
-                    onRetry: { Task { await reloadMemos() } }
-                )
-                
                 MemoAccentFilterToolbar(selectedAccents: $selectedAccentFilters)
                 
                 if dataStore.memos.isEmpty {
@@ -85,7 +79,14 @@ struct MemoView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
+            .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .memos))
         }
+        // 編集シートを開いている間はシート側で出す（シートの裏からはアラートを出せないため）
+        .plotErrorAlert(
+            "同期できませんでした",
+            message: editingMemo == nil ? dataStore.errorMessageBinding(for: .memos) : .constant(nil),
+            onRetry: { Task { await reloadMemos() } }
+        )
     }
     
     private func saveMemo() {

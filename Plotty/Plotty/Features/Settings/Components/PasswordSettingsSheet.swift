@@ -25,10 +25,6 @@ struct PasswordSettingsSheet: View {
                             .onSubmit(save)
                     }
 
-                    if let saveError {
-                        PlotErrorBanner(message: saveError, onRetry: nil)
-                    }
-
                     Text("\(PlotInputLimits.passwordMinimum)文字以上で入力してください。次回からメールアドレスとこのパスワードでログインできます。")
                         .font(.scaledCaption())
                         .foregroundStyle(.secondary)
@@ -53,6 +49,7 @@ struct PasswordSettingsSheet: View {
                     PlotLoadingOverlay(message: "保存しています…")
                 }
             }
+            .plotErrorAlert("保存できませんでした", message: $saveError)
         }
         .plotAnalyticsScreen(.passwordSettings)
         .frame(maxWidth: .infinity)

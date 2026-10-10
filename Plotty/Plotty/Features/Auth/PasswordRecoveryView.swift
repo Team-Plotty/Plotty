@@ -49,7 +49,7 @@ struct PasswordRecoveryView: View {
                 PlotLoadingOverlay(message: "送信しています…")
             }
         }
-        .plotAuthErrorAlert("送信できませんでした", message: $errorMessage)
+        .plotErrorAlert("送信できませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.passwordRecovery)
     }
 

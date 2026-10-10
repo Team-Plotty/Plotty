@@ -186,6 +186,16 @@ final class PlotDataStore {
             syncPhase[resource] = .idle
         }
     }
+
+    /// エラー表示（アラート）用。表示を閉じたら同期エラーも消す。
+    func errorMessageBinding(for resource: PlotDataResource) -> Binding<String?> {
+        Binding(
+            get: { self.errorMessage(for: resource) },
+            set: { newValue in
+                if newValue == nil { self.clearSyncError(for: resource) }
+            }
+        )
+    }
     
     func addMemo(_ memo: MemoItem) {
         memos.insert(memo, at: 0)

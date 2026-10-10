@@ -12,6 +12,20 @@ extension EnvironmentValues {
     }
 }
 
+// MARK: - 前面に表示中のタブか（Environment）
+/// ページャーは全タブを常に生かしているため、裏のタブが出すアラートを抑えるのに使う。
+/// ページャーの外（認証画面など）では常に前面扱い。
+private struct PlotTabIsActiveKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    var plotTabIsActive: Bool {
+        get { self[PlotTabIsActiveKey.self] }
+        set { self[PlotTabIsActiveKey.self] = newValue }
+    }
+}
+
 // MARK: - チャット入力ドックの表示（横スワイプ中はチャットページが画面外なら非表示）
 struct PlotChatComposerVisiblePreferenceKey: PreferenceKey {
     static var defaultValue: Bool = true
@@ -67,6 +81,7 @@ struct PlotTabPager<Content: View>: View {
                         .opacity(isHiddenByDissolve ? 0 : 1)
                         .allowsHitTesting(!isHiddenByDissolve)
                         .accessibilityHidden(isHiddenByDissolve)
+                        .environment(\.plotTabIsActive, tab == displayedTab)
                 }
             }
             .frame(width: pageWidth, height: geometry.size.height, alignment: .topLeading)

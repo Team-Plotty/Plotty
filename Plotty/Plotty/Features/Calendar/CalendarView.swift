@@ -26,12 +26,6 @@ struct CalendarTabView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                PlotScreenStatusSection(
-                    isOffline: !connectivity.isOnline,
-                    errorMessage: dataStore.errorMessage(for: .events),
-                    onRetry: { Task { await reloadEvents() } }
-                )
-                
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     CalendarMonthNavigation(
                         monthAnchor: monthAnchor,
@@ -116,7 +110,14 @@ struct CalendarTabView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
+            .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .events))
         }
+        // 編集シートを開いている間はシート側で出す（シートの裏からはアラートを出せないため）
+        .plotErrorAlert(
+            "同期できませんでした",
+            message: editingEvent == nil ? dataStore.errorMessageBinding(for: .events) : .constant(nil),
+            onRetry: { Task { await reloadEvents() } }
+        )
     }
     
     private func saveEvent() {

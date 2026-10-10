@@ -123,7 +123,7 @@ struct LoginView: View {
                 PlotLoadingOverlay(message: "ログインしています…")
             }
         }
-        .plotAuthErrorAlert("ログインできませんでした", message: $errorMessage)
+        .plotErrorAlert("ログインできませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.login)
     }
 
