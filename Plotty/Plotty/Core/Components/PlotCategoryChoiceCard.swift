@@ -13,12 +13,12 @@ struct PlotCategoryChoiceCard: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: Spacing.sm) {
+            VStack(spacing: Spacing.xxs) {
                 Image(systemName: category.icon)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(iconColor)
-                    .frame(height: 26)
+                    .frame(height: 22)
                 
                 Text(category.label)
                     .font(.scaledCaption())
@@ -26,25 +26,15 @@ struct PlotCategoryChoiceCard: View {
                     .foregroundStyle(labelColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
-                
-                if isSelected {
-                    Label("選択中", systemImage: "checkmark.circle.fill")
-                        .font(.scaledCaption().weight(.bold))
-                        .foregroundStyle(accentColor)
-                        .labelStyle(.iconOnly)
-                        .accessibilityHidden(true)
-                } else {
-                    Color.clear
-                        .frame(height: 14)
-                        .accessibilityHidden(true)
-                }
             }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.md)
+            .padding(.horizontal, Spacing.xs)
+            .padding(.vertical, Spacing.xs)
             .frame(maxWidth: .infinity)
-            .frame(minHeight: Spacing.minTouchTarget + 20)
+            .frame(minHeight: Spacing.minTouchTarget)
             .background { cardFace }
             .overlay { selectionOverlay }
+            // 専用の行を取ると選択の有無でカード全体が縦に伸びるため、角に重ねて高さを使わない
+            .overlay(alignment: .topTrailing) { selectedBadge }
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
         .buttonStyle(PlotChipPressButtonStyle())
@@ -70,6 +60,17 @@ struct PlotCategoryChoiceCard: View {
         } else {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .strokeBorder(PlotColors.selectedBorder(plotColorScheme).opacity(0.35), lineWidth: 1)
+        }
+    }
+    
+    @ViewBuilder
+    private var selectedBadge: some View {
+        if isSelected {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(accentColor)
+                .padding(Spacing.xxs + 2)
+                .accessibilityHidden(true)
         }
     }
     
