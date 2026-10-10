@@ -33,7 +33,7 @@ struct ChatCategoryInferenceSuggestion: View {
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .plotListCardGlass(cornerRadius: Radius.md)
+            .plotChatComposerSurface(cornerRadius: Radius.md)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(suggestion.hint)。タップで登録先を適用")

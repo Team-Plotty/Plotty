@@ -109,7 +109,7 @@ struct ChatComposerBar: View {
         // チップの出し入れで高さをアニメーションさせない。ガラス背景と外側のレイアウトは即座に変わるため、
         // 中身だけ動かすと入力行が遅れて追従し、「メッセージ」がチップに重なったり枠の外へはみ出したりする
         .frame(maxWidth: .infinity, minHeight: composerMinHeight, alignment: .leading)
-        .plotChatComposerGlass()
+        .plotChatComposerSurface()
     }
     
     private var sendButton: some View {

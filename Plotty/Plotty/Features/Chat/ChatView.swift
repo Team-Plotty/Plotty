@@ -217,8 +217,7 @@ struct ChatTabView: View {
             height += PlotChatComposerMetrics.minHeightWithChip - PlotChatComposerMetrics.minHeightCompact
         }
         if isComposerFocused {
-            let rowCount = CGFloat(PlotChatCategory.quickActionOrder.count)
-            height += rowCount * Spacing.minTouchTarget + Spacing.xxs * 2 + Spacing.xs
+            height += Spacing.minTouchTarget + Spacing.xs
             if categoryInference.suggestion != nil, selectedCategory == nil {
                 height += Spacing.minTouchTarget + Spacing.xs
             }

@@ -11,7 +11,7 @@ enum PlotChatCategory: String, CaseIterable, Identifiable {
     /// 登録確認カードのカテゴリ変更ボタン（左からメモ → ToDo → カレンダー）
     static let reclassifyButtonOrder: [PlotChatCategory] = [.memo, .task, .schedule]
     
-    /// キーボードのクイックアクション（上からカレンダー → ToDo → メモ）
+    /// キーボードのクイックアクション（左からカレンダー → ToDo → メモ）
     static let quickActionOrder: [PlotChatCategory] = [.schedule, .task, .memo]
     
     var label: String {
