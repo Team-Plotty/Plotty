@@ -62,6 +62,8 @@ struct ChatTabView: View {
     @State private var lastError: String?
     @State private var pendingRetry: PendingChatRetry?
     @State private var reclassifyingMessageID: UUID?
+    /// 表示演出中の AI 応答。演出が終わったら外し、スクロールで再生成されても繰り返さない
+    @State private var appearingMessageIDs: Set<UUID> = []
     @State private var aiTask: Task<Void, Never>?
     @State private var categoryInference = ChatCategoryInferenceModel()
     
@@ -133,7 +135,9 @@ struct ChatTabView: View {
                                     : nil,
                                 reclassifyDisabledReason: message.registrationSummary != nil && !canReclassify
                                     ? PlotChatRetention.reclassifyDisabledMessage(language: appSettings.language)
-                                    : nil
+                                    : nil,
+                                animatesAppearance: appearingMessageIDs.contains(message.id),
+                                onAppearanceFinished: { appearingMessageIDs.remove(message.id) }
                             )
                             .id(message.id)
                         }
@@ -371,6 +375,7 @@ struct ChatTabView: View {
                     if messages.indices.contains(userMessageIndex) {
                         messages[userMessageIndex].id = result.userMessageId
                     }
+                    appearingMessageIDs.insert(result.assistantMessage.id)
                     if let existingIndex = messages.firstIndex(where: { $0.id == result.assistantMessage.id }) {
                         messages[existingIndex] = result.assistantMessage
                     } else {
