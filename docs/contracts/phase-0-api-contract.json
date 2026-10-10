@@ -92,6 +92,7 @@
               "CONFLICT",
               "GROQ_TIMEOUT",
               "GROQ_UNAVAILABLE",
+              "GROQ_CONFIG_ERROR",
               "RATE_LIMITED",
               "INTERNAL_ERROR"
             ]

@@ -8,6 +8,7 @@ export const errorCodeSchema = z.enum([
   "CONFLICT",
   "GROQ_TIMEOUT",
   "GROQ_UNAVAILABLE",
+  "GROQ_CONFIG_ERROR",
   "RATE_LIMITED",
   "INTERNAL_ERROR"
 ]);
@@ -32,6 +33,7 @@ export const errorMessageByCode: Record<ErrorCode, string> = {
   CONFLICT: "同時更新が発生しました。再取得してお試しください",
   GROQ_TIMEOUT: "通信状況を確認して再度お試しください",
   GROQ_UNAVAILABLE: "AIサービスが混み合っています。少し待って再試行してください",
+  GROQ_CONFIG_ERROR: "AIサービスを利用できない状態です。時間をおいても直らない場合はお問い合わせください",
   RATE_LIMITED: "リクエストが多すぎます。時間をおいて再試行してください",
   INTERNAL_ERROR: "予期しないエラーが発生しました。時間をおいて再試行してください",
 };
