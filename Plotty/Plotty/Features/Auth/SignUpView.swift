@@ -87,7 +87,7 @@ struct SignUpView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             fieldLabel("メールアドレス")
             
-            TextField("example@email.com", text: $email)
+            TextField("メールアドレス", text: $email, prompt: PlotAuthPlaceholder.email)
                 .font(.scaledBodyLarge())
                 .foregroundStyle(primaryColor)
                 .textInputAutocapitalization(.never)

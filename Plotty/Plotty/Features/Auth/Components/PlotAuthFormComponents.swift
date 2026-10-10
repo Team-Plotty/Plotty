@@ -57,6 +57,12 @@ extension View {
     }
 }
 
+// MARK: - 入力欄の見本文字
+enum PlotAuthPlaceholder {
+    /// 文字列リテラルのままだとメールアドレスが自動でリンク扱いになり青く表示されるため、verbatim で作る。
+    static var email: Text { Text(verbatim: "example@email.com") }
+}
+
 // MARK: - パスワード入力欄
 /// 目のアイコンで表示 / 非表示を切り替えられるパスワード欄。
 /// 確認用の再入力欄は置かず、表示して見直せることで入力ミスを防ぐ。
@@ -245,7 +251,7 @@ enum PlotAuthPalette {
 
     VStack(spacing: Spacing.md) {
         PlotAuthHeader(subtitle: "アカウントを作成してはじめましょう")
-        TextField("example@email.com", text: .constant(""))
+        TextField("メールアドレス", text: .constant(""), prompt: PlotAuthPlaceholder.email)
             .plotAuthInputField()
         PlotAuthPasswordField(text: .constant("password"), isNewPassword: true)
         PlotTermsConsentRow(isAgreed: $isAgreed, onShowTerms: {}, onShowPrivacy: {})

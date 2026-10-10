@@ -78,7 +78,7 @@ struct PasswordRecoveryView: View {
                 .font(.scaledCaption())
                 .foregroundStyle(PlotAuthPalette.secondary(colorScheme))
 
-            TextField("example@email.com", text: $email)
+            TextField("メールアドレス", text: $email, prompt: PlotAuthPlaceholder.email)
                 .font(.scaledBodyLarge())
                 .textInputAutocapitalization(.never)
                 .keyboardType(.emailAddress)
