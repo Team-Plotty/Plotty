@@ -61,7 +61,6 @@ struct ContentView: View {
         }
         .onAppear {
             PlotAnalytics.trackScreen(selectedTab.analyticsScreen)
-            focusChatComposerIfNeeded()
         }
         .onChange(of: selectedTab) { _, newTab in
             PlotAnalytics.trackScreen(newTab.analyticsScreen)
@@ -70,9 +69,8 @@ struct ContentView: View {
                 closeSearch()
             }
             
-            if newTab == .chat {
-                focusChatComposerIfNeeded()
-            } else {
+            // チャットを開いただけではキーボードを出さない（履歴を読みたいだけのときに画面が半分隠れるため）
+            if newTab != .chat {
                 dismissChatComposerImmediately()
                 isChatAIProcessing = false
             }
@@ -106,12 +104,6 @@ struct ContentView: View {
                         isChatComposerFocused = false
                         selectedTab = .settings
                         pendingSettingsRoute = .account
-                    }
-                )
-                .contentShape(Rectangle())
-                .simultaneousGesture(
-                    TapGesture().onEnded {
-                        dismissTextInputForCurrentTab()
                     }
                 )
                 
@@ -214,14 +206,6 @@ struct ContentView: View {
         case .todo: return "新しいタスク"
         case .calendar: return "予定を追加"
         default: return "新規作成"
-        }
-    }
-    
-    /// チャットタブ表示時に入力欄へフォーカス（起動直後はレイアウト確定を待つ）
-    private func focusChatComposerIfNeeded() {
-        guard selectedTab == .chat else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            isChatComposerFocused = true
         }
     }
     
