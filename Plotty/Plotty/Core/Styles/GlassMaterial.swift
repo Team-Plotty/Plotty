@@ -265,7 +265,7 @@ private struct PlotChatComposerSurfaceFace: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         shape
-            .fill(plotColorScheme == .dark ? Color.darkSurface : Color.lightSurface)
+            .fill(plotColorScheme == .dark ? Color.darkComposerSurface : Color.lightSurface)
             .overlay(
                 shape.strokeBorder(
                     plotColorScheme == .dark ? Color.darkBorderDefault : Color.lightBorderDefault,
