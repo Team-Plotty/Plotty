@@ -38,10 +38,7 @@ struct PasswordRecoveryView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            isEmailFocused = false
-        }
+        .plotDismissTextInputOnNotification(isFocused: $isEmailFocused)
         .navigationTitle("パスワードをお忘れの方")
         .navigationBarTitleDisplayMode(.inline)
         .overlay {

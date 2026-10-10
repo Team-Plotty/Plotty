@@ -34,6 +34,7 @@ struct RootView: View {
             #endif
         }
         .animation(.crossDissolve, value: accountSession.isAuthenticated)
+        .plotDismissTextInputOnTapOutside()
         // アプリ全体でスクロールバーを出さない。環境値として配下の ScrollView / List / Form やシートにも引き継がれる
         .scrollIndicators(.hidden)
         // DatePicker などシステム部品の日付表記を端末の言語ではなくアプリの言語設定にそろえる

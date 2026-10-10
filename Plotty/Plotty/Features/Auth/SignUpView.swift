@@ -49,10 +49,7 @@ struct SignUpView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            focusedField = nil
-        }
+        .plotDismissTextInputOnNotification(focusedField: $focusedField)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showTerms) {
             NavigationStack { LegalDocumentView(kind: .termsOfService) }

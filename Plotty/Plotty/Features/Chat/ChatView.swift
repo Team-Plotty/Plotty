@@ -154,7 +154,6 @@ struct ChatTabView: View {
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
             .scrollDisabled(plotTabHorizontalPaging)
-            .plotDismissTextInputWhenTappingOutside(isFocused: $isComposerFocused)
             .plotDismissTextInputOnNotification(isFocused: $isComposerFocused)
             .onAppear {
                 loadChatHistoryIfNeeded()

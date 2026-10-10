@@ -69,6 +69,8 @@ struct ChatComposerBar: View {
             // 閉じるボタンは置かない。キーボードは入力欄の外（一覧・ヘッダー・タブ）をタップして下げる
             composerField
         }
+        // カテゴリ選択・推論ヒント・送信ボタンも入力の一部なので、押してもキーボードを閉じない
+        .plotTextInputArea()
         .animation(isFocused ? composerExpansionAnimation : nil, value: isFocused)
         .animation(composerExpansionAnimation, value: inferenceModel?.suggestion)
     }

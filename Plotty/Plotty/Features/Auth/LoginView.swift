@@ -89,10 +89,7 @@ struct LoginView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            focusedField = nil
-        }
+        .plotDismissTextInputOnNotification(focusedField: $focusedField)
         .sheet(isPresented: $showTerms) {
             NavigationStack {
                 LegalDocumentView(kind: .termsOfService)

@@ -47,6 +47,8 @@ private struct PlotAuthInputFieldModifier: ViewModifier {
                     shape.strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1)
                 }
             }
+            // 欄内のボタン（パスワード表示切替など）を押してもキーボードを閉じない
+            .plotTextInputArea()
     }
 }
 

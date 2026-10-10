@@ -45,6 +45,8 @@ struct EmailOTPVerificationView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        // 数字キーボードには閉じるキーが無いため、欄外タップで閉じられるようにする
+        .plotDismissTextInputOnNotification(isFocused: $isOTPFocused)
         .navigationTitle("認証コードでログイン")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -109,6 +111,7 @@ struct EmailOTPVerificationView: View {
                         .fill(Color.clear)
                         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
                 }
+                .plotTextInputArea()
         }
     }
 
