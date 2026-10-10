@@ -5,7 +5,7 @@ struct MemoAccentFilterToolbar: View {
     @Binding var selectedAccents: Set<AccentSwatch>
     
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             HStack(spacing: Spacing.sm) {
                 PlotHIGBorderedButton("すべて", isSelected: selectedAccents.isEmpty) {
                     withAnimation(.quick) {

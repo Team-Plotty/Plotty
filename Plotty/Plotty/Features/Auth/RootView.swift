@@ -34,6 +34,8 @@ struct RootView: View {
             #endif
         }
         .animation(.crossDissolve, value: accountSession.isAuthenticated)
+        // アプリ全体でスクロールバーを出さない。環境値として配下の ScrollView / List / Form やシートにも引き継がれる
+        .scrollIndicators(.hidden)
         .preferredColorScheme(appSettings.theme.colorScheme)
         .environment(\.plotColorScheme, plotColorScheme)
     }
