@@ -20,11 +20,8 @@ struct EventEditSheet: View {
                     TextField("場所", text: $draft.location)
                     Toggle("終日", isOn: $draft.isAllDay)
                 }
-                if !draft.isAllDay {
-                    Section("日時") {
-                        DatePicker("開始", selection: $draft.startTime)
-                        DatePicker("終了", selection: $draft.endTime)
-                    }
+                Section("日時") {
+                    EventTimeFields(start: $draft.startTime, end: $draft.endTime, isAllDay: draft.isAllDay)
                 }
                 Section("メモ") {
                     TextField("メモ", text: $draft.notes, axis: .vertical)
@@ -38,11 +35,19 @@ struct EventEditSheet: View {
                     Button("キャンセル", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { onSave(draft) }
+                    Button("保存") { onSave(normalizedDraft) }
                         .disabled(draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
         .frame(maxWidth: .infinity)
+    }
+    
+    private var normalizedDraft: CalendarEvent {
+        var saved = draft
+        if saved.isAllDay {
+            (saved.startTime, saved.endTime) = CalendarEvent.allDayRange(on: saved.startTime)
+        }
+        return saved
     }
 }

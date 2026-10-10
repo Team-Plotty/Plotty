@@ -112,10 +112,10 @@ struct CalendarTabView: View {
             .presentationSizing(.page)
             .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .events))
         }
-        // 編集シートを開いている間はシート側で出す（シートの裏からはアラートを出せないため）
+        // 詳細・編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
         .plotErrorAlert(
             "同期できませんでした",
-            message: editingEvent == nil ? dataStore.errorMessageBinding(for: .events) : .constant(nil),
+            message: editingEvent == nil && selectedEvent == nil ? dataStore.errorMessageBinding(for: .events) : .constant(nil),
             onRetry: { Task { await reloadEvents() } }
         )
     }
@@ -126,8 +126,7 @@ struct CalendarTabView: View {
         var start = draftStart
         var end = draftEnd
         if draftIsAllDay {
-            start = calendar.startOfDay(for: draftStart)
-            end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? draftEnd
+            (start, end) = CalendarEvent.allDayRange(on: draftStart, calendar: calendar)
         }
         let ev = CalendarEvent(
             title: title,

@@ -32,6 +32,13 @@ struct CalendarEvent: Identifiable {
     }
 
     var color: Color { swatch.color }
+    
+    /// 終日の予定は開始日の 0:00〜23:59:59 にそろえる（時刻ピッカーに残った値を持ち越さない）
+    static func allDayRange(on date: Date, calendar: Calendar = .current) -> (start: Date, end: Date) {
+        let start = calendar.startOfDay(for: date)
+        let end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? start
+        return (start, end)
+    }
 }
 
 // MARK: - 本実装時削除（開発用サンプルデータ）

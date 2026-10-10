@@ -6,6 +6,8 @@ struct TodoItem: Identifiable {
     var title: String
     var isCompleted: Bool
     var dueDate: Date?
+    /// 締切に時刻まで指定したか。false のときは日付だけを扱い、`dueDate` の時刻は表示しない
+    var hasDueTime: Bool
     var priority: Priority
     var createdAt: Date
 
@@ -14,6 +16,7 @@ struct TodoItem: Identifiable {
         title: String,
         isCompleted: Bool,
         dueDate: Date?,
+        hasDueTime: Bool = false,
         priority: Priority,
         createdAt: Date = Date()
     ) {
@@ -21,6 +24,7 @@ struct TodoItem: Identifiable {
         self.title = title
         self.isCompleted = isCompleted
         self.dueDate = dueDate
+        self.hasDueTime = hasDueTime
         self.priority = priority
         self.createdAt = createdAt
     }
@@ -45,6 +49,15 @@ struct TodoItem: Identifiable {
             case .high: return Color(hex: "#C98F8F")
             }
         }
+    }
+}
+
+extension TodoItem {
+    /// 日付のみの締切はその日の 23:59:59 にそろえる。
+    /// 期限順の並びで同じ日の時刻付きタスクより後ろに来るようにし、サーバーの補完値（当日末）とも一致させる
+    static func normalizedDueDate(_ date: Date, hasTime: Bool, calendar: Calendar = .current) -> Date {
+        guard !hasTime else { return date }
+        return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) ?? date
     }
 }
 

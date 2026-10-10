@@ -193,28 +193,51 @@ enum PlotChatMapper {
     }
 
     private static func detail(for entity: PlotCreatedEntityDTO, language: AppLanguage) -> String {
-        switch entity.type {
-        case .schedule:
-            let start = entity.startAt ?? Date()
-            return PlotDateFormatter.dateTime(start, language: language)
-        case .task:
-            if let dueDate = entity.dueDate {
-                return PlotDateFormatter.dateTime(dueDate, language: language)
-            }
-            return language == .japanese ? "ToDo に登録" : "Added to ToDo"
-        case .memo:
-            return language == .japanese ? "メモに保存" : "Saved to memo"
-        }
+        detail(
+            type: entity.type,
+            startAt: entity.startAt,
+            endAt: entity.endAt,
+            isAllDay: entity.isAllDay,
+            dueDate: entity.dueDate,
+            dueHasTime: entity.dueHasTime,
+            language: language
+        )
     }
 
     private static func detail(for entity: PlotEntityListItemDTO, language: AppLanguage) -> String {
-        switch entity.type {
+        detail(
+            type: entity.type,
+            startAt: entity.startAt,
+            endAt: entity.endAt,
+            isAllDay: entity.isAllDay,
+            dueDate: entity.dueDate,
+            dueHasTime: entity.dueHasTime,
+            language: language
+        )
+    }
+
+    /// 登録カードの補足。予定は「いつからいつまで」、タスクは「いつまでに」が一目で分かるようにする
+    private static func detail(
+        type: PlotEntityType,
+        startAt: Date?,
+        endAt: Date?,
+        isAllDay: Bool?,
+        dueDate: Date?,
+        dueHasTime: Bool?,
+        language: AppLanguage
+    ) -> String {
+        switch type {
         case .schedule:
-            let start = entity.startAt ?? Date()
-            return PlotDateFormatter.dateTime(start, language: language)
+            return PlotDateFormatter.eventPeriod(
+                start: startAt ?? Date(),
+                end: endAt,
+                isAllDay: isAllDay ?? false,
+                language: language
+            )
         case .task:
-            if let dueDate = entity.dueDate {
-                return PlotDateFormatter.dateTime(dueDate, language: language)
+            if let dueDate {
+                let deadline = PlotDateFormatter.deadline(dueDate, hasTime: dueHasTime ?? false, language: language)
+                return language == .japanese ? "期限 \(deadline)" : "Due \(deadline)"
             }
             return language == .japanese ? "ToDo に登録" : "Added to ToDo"
         case .memo:

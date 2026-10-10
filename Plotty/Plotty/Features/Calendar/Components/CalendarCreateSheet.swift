@@ -40,12 +40,7 @@ struct CalendarCreateSheet: View {
                     }
                     
                     PlotFormCard(title: "日時") {
-                        if draftIsAllDay {
-                            DatePicker("日付", selection: $draftStart, displayedComponents: [.date])
-                        } else {
-                            DatePicker("開始", selection: $draftStart, displayedComponents: [.date, .hourAndMinute])
-                            DatePicker("終了", selection: $draftEnd, displayedComponents: [.date, .hourAndMinute])
-                        }
+                        EventTimeFields(start: $draftStart, end: $draftEnd, isAllDay: draftIsAllDay)
                     }
                     
                     PlotFormCard(title: "メモ") {

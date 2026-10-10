@@ -48,6 +48,7 @@ enum PlotEntityMapper {
             title: dto.title,
             isCompleted: dto.isCompleted ?? false,
             dueDate: dto.dueDate,
+            hasDueTime: dto.dueHasTime ?? false,
             priority: TodoItem.Priority(apiPriority: dto.priority ?? 2),
             createdAt: dto.createdAt ?? dto.updatedAt ?? Date()
         )
@@ -60,6 +61,7 @@ enum PlotEntityMapper {
             title: dto.title,
             isCompleted: dto.isCompleted ?? false,
             dueDate: dto.dueDate,
+            hasDueTime: dto.dueHasTime ?? false,
             priority: TodoItem.Priority(apiPriority: dto.priority ?? 2),
             createdAt: Date()
         )
@@ -120,6 +122,7 @@ enum PlotEntityMapper {
         PlotPatchEntityRequestDTO(
             title: todo.title,
             dueDate: todo.dueDate,
+            dueHasTime: todo.dueDate == nil ? nil : todo.hasDueTime,
             isCompleted: todo.isCompleted,
             priority: todo.priority.apiPriority
         )
@@ -151,6 +154,7 @@ enum PlotEntityMapper {
         var merged = todo
         merged.title = dto.title
         if let dueDate = dto.dueDate { merged.dueDate = dueDate }
+        if let dueHasTime = dto.dueHasTime { merged.hasDueTime = dueHasTime }
         if let isCompleted = dto.isCompleted { merged.isCompleted = isCompleted }
         if let priority = dto.priority { merged.priority = TodoItem.Priority(apiPriority: priority) }
         return merged

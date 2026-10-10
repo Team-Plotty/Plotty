@@ -61,6 +61,7 @@ struct PlotEntityListItemDTO: Codable, Sendable {
     let startAt: Date?
     let endAt: Date?
     let dueDate: Date?
+    let dueHasTime: Bool?
     let isAllDay: Bool?
     let location: String?
     let notes: String?
@@ -79,6 +80,7 @@ struct PlotPatchEntityRequestDTO: Encodable, Sendable {
     var startAt: Date?
     var endAt: Date?
     var dueDate: Date?
+    var dueHasTime: Bool?
     var isAllDay: Bool?
     var location: String?
     var notes: String?
@@ -139,6 +141,7 @@ struct PlotCreatedEntityDTO: Decodable, Sendable {
     let startAt: Date?
     let endAt: Date?
     let dueDate: Date?
+    let dueHasTime: Bool?
     let isAllDay: Bool?
     let location: String?
     let notes: String?

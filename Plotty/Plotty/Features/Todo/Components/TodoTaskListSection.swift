@@ -5,6 +5,7 @@ struct TodoTaskListSection: View {
     let title: String
     let todos: [TodoItem]
     let onToggle: (UUID) -> Void
+    let onSelect: (TodoItem) -> Void
     let onEdit: (TodoItem) -> Void
     let onDelete: (UUID) -> Void
     
@@ -27,9 +28,14 @@ struct TodoTaskListSection: View {
                         onEdit: { onEdit(todo) },
                         onDelete: { onDelete(todo.id) }
                     ) {
+                        // カード内に完了チェックのボタンがあるため Button で包まずタップ判定を付ける
+                        // （子のボタンが優先されるので、チェック部分のタップは完了切り替えのまま）
                         TodoCard(todo: todo) {
                             onToggle(todo.id)
                         }
+                        .contentShape(Rectangle())
+                        .onTapGesture { onSelect(todo) }
+                        .accessibilityAction(named: "詳細を表示") { onSelect(todo) }
                     }
                 }
             }

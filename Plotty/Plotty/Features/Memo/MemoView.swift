@@ -11,6 +11,7 @@ struct MemoView: View {
     @Binding var showCreateSheet: Bool
     @Binding var searchText: String
     
+    @State private var selectedMemo: MemoItem?
     @State private var editingMemo: MemoItem?
     @State private var selectedAccentFilters: Set<AccentSwatch> = []
     
@@ -34,6 +35,7 @@ struct MemoView: View {
                 } else {
                     MemoListSection(
                         filteredMemoIDs: filteredMemos.map(\.id),
+                        onSelect: { selectedMemo = $0 },
                         onEdit: { editingMemo = $0 },
                         onDelete: removeMemo
                     )
@@ -63,6 +65,19 @@ struct MemoView: View {
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
         }
+        .sheet(item: $selectedMemo) { memo in
+            MemoDetailSheet(
+                memo: memo,
+                onClose: { selectedMemo = nil },
+                onEdit: {
+                    editingMemo = memo
+                    selectedMemo = nil
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
+        }
         .sheet(item: $editingMemo) { memo in
             MemoEditSheet(memo: memo) { updated in
                 Task {
@@ -81,10 +96,10 @@ struct MemoView: View {
             .presentationSizing(.page)
             .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .memos))
         }
-        // 編集シートを開いている間はシート側で出す（シートの裏からはアラートを出せないため）
+        // 詳細・編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
         .plotErrorAlert(
             "同期できませんでした",
-            message: editingMemo == nil ? dataStore.errorMessageBinding(for: .memos) : .constant(nil),
+            message: editingMemo == nil && selectedMemo == nil ? dataStore.errorMessageBinding(for: .memos) : .constant(nil),
             onRetry: { Task { await reloadMemos() } }
         )
     }

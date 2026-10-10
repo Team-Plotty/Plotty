@@ -36,6 +36,8 @@ struct RootView: View {
         .animation(.crossDissolve, value: accountSession.isAuthenticated)
         // アプリ全体でスクロールバーを出さない。環境値として配下の ScrollView / List / Form やシートにも引き継がれる
         .scrollIndicators(.hidden)
+        // DatePicker などシステム部品の日付表記を端末の言語ではなくアプリの言語設定にそろえる
+        .environment(\.locale, appSettings.language.locale)
         .preferredColorScheme(appSettings.theme.colorScheme)
         .environment(\.plotColorScheme, plotColorScheme)
     }
