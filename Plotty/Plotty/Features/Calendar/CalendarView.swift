@@ -7,6 +7,7 @@ struct CalendarTabView: View {
     @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     @Binding var showCreateSheet: Bool
+    @Binding var pendingEntityRoute: PlotEntityRoute?
     
     @State private var monthAnchor = Date()
     @State private var selectedDate = Date()
@@ -26,12 +27,6 @@ struct CalendarTabView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                PlotScreenStatusSection(
-                    isOffline: !connectivity.isOnline,
-                    errorMessage: dataStore.errorMessage(for: .events),
-                    onRetry: { Task { await reloadEvents() } }
-                )
-                
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     CalendarMonthNavigation(
                         monthAnchor: monthAnchor,
@@ -116,7 +111,28 @@ struct CalendarTabView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
+            .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .events))
         }
+        // 詳細・編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
+        .plotErrorAlert(
+            "同期できませんでした",
+            message: editingEvent == nil && selectedEvent == nil ? dataStore.errorMessageBinding(for: .events) : .constant(nil),
+            onRetry: { Task { await reloadEvents() } }
+        )
+        .plotOpensEntityRoute(
+            $pendingEntityRoute,
+            category: .schedule,
+            find: { id in dataStore.events.first { $0.id == id } },
+            reload: reloadEvents,
+            open: openEvent
+        )
+    }
+    
+    /// 詳細を閉じたあとも、その予定の日がカレンダーで選ばれた状態にしておく
+    private func openEvent(_ event: CalendarEvent) {
+        selectedDate = event.startTime
+        monthAnchor = event.startTime
+        selectedEvent = event
     }
     
     private func saveEvent() {
@@ -125,8 +141,7 @@ struct CalendarTabView: View {
         var start = draftStart
         var end = draftEnd
         if draftIsAllDay {
-            start = calendar.startOfDay(for: draftStart)
-            end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? draftEnd
+            (start, end) = CalendarEvent.allDayRange(on: draftStart, calendar: calendar)
         }
         let ev = CalendarEvent(
             title: title,
@@ -206,7 +221,7 @@ struct CalendarTabView: View {
 }
 
 #Preview {
-    CalendarTabView(showCreateSheet: .constant(false))
+    CalendarTabView(showCreateSheet: .constant(false), pendingEntityRoute: .constant(nil))
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)

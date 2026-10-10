@@ -25,7 +25,7 @@ struct EventDetailSheet: View {
                         .font(.scaledBodyMedium())
                         .foregroundStyle(secondaryTextColor)
                 } else {
-                    Text(PlotDateFormatter.dateTimeRange(from: event.startTime, to: event.endTime, language: appSettings.language))
+                    Text(PlotDateFormatter.eventPeriod(start: event.startTime, end: event.endTime, isAllDay: false, language: appSettings.language))
                         .font(.scaledBodyMedium())
                         .foregroundStyle(secondaryTextColor)
                 }

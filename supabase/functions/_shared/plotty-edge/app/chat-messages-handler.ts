@@ -65,6 +65,7 @@ const toErrorResponse = (
     CONFLICT: 409,
     GROQ_TIMEOUT: 504,
     GROQ_UNAVAILABLE: 503,
+    GROQ_CONFIG_ERROR: 502,
     RATE_LIMITED: 429,
     INTERNAL_ERROR: 500
   };
@@ -177,6 +178,7 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
           userId,
           clientMessageId: parsedBody.data.client_message_id,
           userPlainText: parsedBody.data.text,
+          timezone: userSettings.timezone,
           extraction,
           analysisResultsEncrypted: analysisResultsEncryption,
           textEncryption: userMessageEncryption,

@@ -16,7 +16,7 @@ import type {
 const SCHEDULE_SELECT =
   "id,user_id,title_encrypted,iv,origin_text_encrypted,start_at,end_at,is_all_day,location,created_at,source_message_id,updated_at";
 const TASK_SELECT =
-  "id,user_id,title_encrypted,iv,due_date,is_completed,priority,created_at,source_message_id,updated_at";
+  "id,user_id,title_encrypted,iv,due_date,due_has_time,is_completed,priority,created_at,source_message_id,updated_at";
 const MEMO_SELECT =
   "id,user_id,title_encrypted,iv,content_encrypted,is_pinned,created_at,source_message_id,updated_at";
 
@@ -43,6 +43,7 @@ const rowToTaskReadModel = (row: Record<string, unknown>): EntityReadModel => ({
   titleEncrypted: String(row.title_encrypted),
   iv: String(row.iv),
   dueDate: row.due_date ? String(row.due_date) : undefined,
+  dueHasTime: Boolean(row.due_has_time),
   isCompleted: Boolean(row.is_completed),
   priority: row.priority ? (Number(row.priority) as 1 | 2 | 3) : 2,
   createdAt: row.created_at ? String(row.created_at) : undefined,
@@ -127,6 +128,7 @@ export const createSupabasePersistenceRepository = (
       title_hash: input.titleHash,
       iv: input.iv,
       due_date: input.dueDate,
+      due_has_time: input.dueHasTime,
       priority: input.priority,
       is_completed: input.isCompleted
     });
@@ -273,6 +275,7 @@ export const createSupabasePersistenceRepository = (
     if (input.isAllDay !== undefined) updatePayload.is_all_day = input.isAllDay;
     if (input.location !== undefined) updatePayload.location = input.location;
     if (input.dueDate !== undefined) updatePayload.due_date = input.dueDate;
+    if (input.dueHasTime !== undefined) updatePayload.due_has_time = input.dueHasTime;
     if (input.isCompleted !== undefined) updatePayload.is_completed = input.isCompleted;
     if (input.priority !== undefined) updatePayload.priority = input.priority;
     if (input.contentEncrypted !== undefined) updatePayload.content_encrypted = input.contentEncrypted;

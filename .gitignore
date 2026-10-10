@@ -18,6 +18,10 @@
 # 誤作成された未使用プロジェクト（本番は Plotty/Plotty.xcodeproj）
 Plottyy/
 
+## ビルド成果物（xcodebuild -derivedDataPath build/DerivedData の出力先。毎回再生成できる）
+build/
+DerivedData/
+
 ## ユーザー設定
 xcuserdata/
 

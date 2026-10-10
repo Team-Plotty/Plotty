@@ -33,24 +33,6 @@ enum ChatMockResponder {
         )
     }
     
-    static func reclassify(
-        summary: ChatRegistrationSummary,
-        to newCategory: PlotChatCategory,
-        dataStore: PlotDataStore,
-        language: AppLanguage
-    ) -> ChatRegistrationSummary {
-        if let entityID = summary.linkedEntityID {
-            removeEntity(id: entityID, category: summary.category, dataStore: dataStore)
-        }
-        return register(
-            body: summary.sourceBody,
-            title: summary.title,
-            category: newCategory,
-            dataStore: dataStore,
-            language: language
-        )
-    }
-    
     private static func register(
         body: String,
         title: String,
@@ -76,8 +58,7 @@ enum ChatMockResponder {
                 category: .schedule,
                 title: title,
                 detail: PlotDateFormatter.dateTime(start, language: language),
-                linkedEntityID: event.id,
-                sourceBody: body
+                linkedEntityID: event.id
             )
             
         case .task:
@@ -88,8 +69,7 @@ enum ChatMockResponder {
                 category: .task,
                 title: title,
                 detail: detail,
-                linkedEntityID: todo.id,
-                sourceBody: body
+                linkedEntityID: todo.id
             )
             
         case .memo:
@@ -100,17 +80,8 @@ enum ChatMockResponder {
                 category: .memo,
                 title: title,
                 detail: detail,
-                linkedEntityID: memo.id,
-                sourceBody: body
+                linkedEntityID: memo.id
             )
-        }
-    }
-    
-    private static func removeEntity(id: UUID, category: PlotChatCategory, dataStore: PlotDataStore) {
-        switch category {
-        case .schedule: dataStore.deleteEventLocally(id: id)
-        case .task: dataStore.deleteTodoLocally(id: id)
-        case .memo: dataStore.deleteMemoLocally(id: id)
         }
     }
     

@@ -10,7 +10,9 @@ struct MemoView: View {
     var selectedTab: TabItem = .memo
     @Binding var showCreateSheet: Bool
     @Binding var searchText: String
+    @Binding var pendingEntityRoute: PlotEntityRoute?
     
+    @State private var selectedMemo: MemoItem?
     @State private var editingMemo: MemoItem?
     @State private var selectedAccentFilters: Set<AccentSwatch> = []
     
@@ -21,12 +23,6 @@ struct MemoView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                PlotScreenStatusSection(
-                    isOffline: !connectivity.isOnline,
-                    errorMessage: dataStore.errorMessage(for: .memos),
-                    onRetry: { Task { await reloadMemos() } }
-                )
-                
                 MemoAccentFilterToolbar(selectedAccents: $selectedAccentFilters)
                 
                 if dataStore.memos.isEmpty {
@@ -40,6 +36,7 @@ struct MemoView: View {
                 } else {
                     MemoListSection(
                         filteredMemoIDs: filteredMemos.map(\.id),
+                        onSelect: { selectedMemo = $0 },
                         onEdit: { editingMemo = $0 },
                         onDelete: removeMemo
                     )
@@ -69,6 +66,19 @@ struct MemoView: View {
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
         }
+        .sheet(item: $selectedMemo) { memo in
+            MemoDetailSheet(
+                memo: memo,
+                onClose: { selectedMemo = nil },
+                onEdit: {
+                    editingMemo = memo
+                    selectedMemo = nil
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
+        }
         .sheet(item: $editingMemo) { memo in
             MemoEditSheet(memo: memo) { updated in
                 Task {
@@ -85,7 +95,21 @@ struct MemoView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
+            .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .memos))
         }
+        // 詳細・編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
+        .plotErrorAlert(
+            "同期できませんでした",
+            message: editingMemo == nil && selectedMemo == nil ? dataStore.errorMessageBinding(for: .memos) : .constant(nil),
+            onRetry: { Task { await reloadMemos() } }
+        )
+        .plotOpensEntityRoute(
+            $pendingEntityRoute,
+            category: .memo,
+            find: { id in dataStore.memos.first { $0.id == id } },
+            reload: reloadMemos,
+            open: { selectedMemo = $0 }
+        )
     }
     
     private func saveMemo() {
@@ -137,7 +161,12 @@ struct MemoView: View {
 }
 
 #Preview {
-    MemoView(selectedTab: .memo, showCreateSheet: .constant(false), searchText: .constant(""))
+    MemoView(
+        selectedTab: .memo,
+        showCreateSheet: .constant(false),
+        searchText: .constant(""),
+        pendingEntityRoute: .constant(nil)
+    )
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)

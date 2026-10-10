@@ -42,6 +42,7 @@ test("GET /entities returns merged types sorted by updated_at when type omitted"
     titleHash: "hash",
     iv: titleEnc.iv,
     dueDate: new Date().toISOString(),
+    dueHasTime: false,
     priority: 2,
     isCompleted: false
   });

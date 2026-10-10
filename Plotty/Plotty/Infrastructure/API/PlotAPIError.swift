@@ -10,6 +10,7 @@ enum PlotAPIErrorCode: String, Decodable, Sendable, CaseIterable {
     case conflict = "CONFLICT"
     case groqTimeout = "GROQ_TIMEOUT"
     case groqUnavailable = "GROQ_UNAVAILABLE"
+    case groqConfigError = "GROQ_CONFIG_ERROR"
     case rateLimited = "RATE_LIMITED"
     case internalError = "INTERNAL_ERROR"
 
@@ -30,6 +31,8 @@ enum PlotAPIErrorCode: String, Decodable, Sendable, CaseIterable {
             return "通信状況を確認して再度お試しください"
         case .groqUnavailable:
             return "AIサービスが混み合っています。少し待って再試行してください"
+        case .groqConfigError:
+            return "AIサービスを利用できない状態です。時間をおいても直らない場合はお問い合わせください"
         case .rateLimited:
             return "リクエストが多すぎます。時間をおいて再試行してください"
         case .internalError:

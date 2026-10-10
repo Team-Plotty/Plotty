@@ -5,23 +5,15 @@ import Foundation
 enum PlotChatMapper {
     static func assistantMessage(
         from response: PlotPostChatMessagesResponseDTO,
-        sourceBody: String,
-        sourceMessageCreatedAt: Date,
         language: AppLanguage
     ) -> ChatMessage {
-        let summary = registrationSummary(
-            from: response.createdEntities.first,
-            sourceBody: sourceBody,
-            sourceMessageCreatedAt: sourceMessageCreatedAt,
-            language: language
-        )
-        return ChatMessage(
+        ChatMessage(
             id: response.assistantMessageId,
             role: .ai,
             text: response.confirmationText,
             chips: [],
             timestamp: Date(),
-            registrationSummary: summary
+            registrationSummary: registrationSummary(from: response.createdEntities.first, language: language)
         )
     }
 
@@ -29,96 +21,39 @@ enum PlotChatMapper {
         from items: [PlotChatHistoryMessageDTO],
         language: AppLanguage
     ) -> [ChatMessage] {
-        var result: [ChatMessage] = []
-        var lastUserText = ""
-        var lastUserCreatedAt: Date?
-
-        for item in items {
+        items.map { item in
             switch item.role {
             case .user:
-                lastUserText = item.text
-                lastUserCreatedAt = item.createdAt
-                result.append(
-                    ChatMessage(
-                        id: item.id,
-                        role: .user,
-                        text: item.text,
-                        chips: [],
-                        timestamp: item.createdAt
-                    )
+                return ChatMessage(
+                    id: item.id,
+                    role: .user,
+                    text: item.text,
+                    chips: [],
+                    timestamp: item.createdAt
                 )
             case .assistant:
-                let summary = registrationSummary(
-                    from: item.createdEntities?.first,
-                    sourceBody: lastUserText,
-                    sourceMessageCreatedAt: lastUserCreatedAt,
-                    language: language
-                )
-                result.append(
-                    ChatMessage(
-                        id: item.id,
-                        role: .ai,
-                        text: item.text,
-                        chips: [],
-                        timestamp: item.createdAt,
-                        registrationSummary: summary
-                    )
+                return ChatMessage(
+                    id: item.id,
+                    role: .ai,
+                    text: item.text,
+                    chips: [],
+                    timestamp: item.createdAt,
+                    registrationSummary: registrationSummary(from: item.createdEntities?.first, language: language)
                 )
             }
         }
-
-        return result
-    }
-
-    static func assistantMessage(
-        from response: PlotPostReclassifyResponseDTO,
-        sourceBody: String,
-        language: AppLanguage
-    ) -> ChatMessage {
-        let summary = registrationSummary(
-            from: response.migratedEntity,
-            sourceBody: sourceBody,
-            language: language
-        )
-        return ChatMessage(
-            role: .ai,
-            text: response.confirmationText,
-            chips: [],
-            timestamp: Date(),
-            registrationSummary: summary
-        )
     }
 
     static func registrationSummary(
         from entity: PlotCreatedEntityDTO?,
-        sourceBody: String,
-        sourceMessageCreatedAt: Date? = nil,
         language: AppLanguage
     ) -> ChatRegistrationSummary? {
         guard let entity else { return nil }
-        return registrationSummary(
+        return ChatRegistrationSummary(
             category: entity.type.chatCategory,
-            entityID: entity.id,
             title: entity.title,
             detail: detail(for: entity, language: language),
-            sourceBody: sourceBody,
-            sourceMessageCreatedAt: sourceMessageCreatedAt
-        )
-    }
-
-    static func registrationSummary(
-        from entity: PlotEntityListItemDTO,
-        sourceBody: String,
-        sourceMessageCreatedAt: Date? = nil,
-        language: AppLanguage
-    ) -> ChatRegistrationSummary {
-        registrationSummary(
-            category: entity.type.chatCategory,
-            entityID: entity.id,
-            title: entity.title,
-            detail: detail(for: entity, language: language),
-            sourceBody: sourceBody,
-            sourceMessageCreatedAt: sourceMessageCreatedAt
+            linkedEntityID: entity.id
         )
     }
 
@@ -142,79 +77,20 @@ enum PlotChatMapper {
         }
     }
 
-    /// 再分類: 元実体を Store から除去し、移行先を追加（C6）
-    static func applyReclassification(
-        sourceType: PlotEntityType,
-        sourceID: UUID,
-        migratedEntity: PlotEntityListItemDTO,
-        to store: PlotDataStore
-    ) {
-        switch sourceType {
-        case .schedule:
-            store.events.removeAll { $0.id == sourceID }
-        case .task:
-            store.todos.removeAll { $0.id == sourceID }
-        case .memo:
-            store.memos.removeAll { $0.id == sourceID }
-        }
-
-        switch migratedEntity.type {
-        case .schedule:
-            if let event = PlotEntityMapper.calendarEvent(from: migratedEntity) {
-                store.events.append(event)
-            }
-        case .task:
-            if let todo = PlotEntityMapper.todoItem(from: migratedEntity) {
-                store.todos.insert(todo, at: 0)
-            }
-        case .memo:
-            if let memo = PlotEntityMapper.memoItem(from: migratedEntity) {
-                store.memos.insert(memo, at: 0)
-            }
-        }
-    }
-
-    private static func registrationSummary(
-        category: PlotChatCategory,
-        entityID: UUID,
-        title: String,
-        detail: String,
-        sourceBody: String,
-        sourceMessageCreatedAt: Date? = nil
-    ) -> ChatRegistrationSummary {
-        ChatRegistrationSummary(
-            category: category,
-            title: title,
-            detail: detail,
-            linkedEntityID: entityID,
-            sourceBody: sourceBody,
-            sourceMessageCreatedAt: sourceMessageCreatedAt
-        )
-    }
-
+    /// 登録カードの補足。予定は「いつからいつまで」、タスクは「いつまでに」が一目で分かるようにする
     private static func detail(for entity: PlotCreatedEntityDTO, language: AppLanguage) -> String {
         switch entity.type {
         case .schedule:
-            let start = entity.startAt ?? Date()
-            return PlotDateFormatter.dateTime(start, language: language)
+            return PlotDateFormatter.eventPeriod(
+                start: entity.startAt ?? Date(),
+                end: entity.endAt,
+                isAllDay: entity.isAllDay ?? false,
+                language: language
+            )
         case .task:
             if let dueDate = entity.dueDate {
-                return PlotDateFormatter.dateTime(dueDate, language: language)
-            }
-            return language == .japanese ? "ToDo に登録" : "Added to ToDo"
-        case .memo:
-            return language == .japanese ? "メモに保存" : "Saved to memo"
-        }
-    }
-
-    private static func detail(for entity: PlotEntityListItemDTO, language: AppLanguage) -> String {
-        switch entity.type {
-        case .schedule:
-            let start = entity.startAt ?? Date()
-            return PlotDateFormatter.dateTime(start, language: language)
-        case .task:
-            if let dueDate = entity.dueDate {
-                return PlotDateFormatter.dateTime(dueDate, language: language)
+                let deadline = PlotDateFormatter.deadline(dueDate, hasTime: entity.dueHasTime ?? false, language: language)
+                return language == .japanese ? "期限 \(deadline)" : "Due \(deadline)"
             }
             return language == .japanese ? "ToDo に登録" : "Added to ToDo"
         case .memo:

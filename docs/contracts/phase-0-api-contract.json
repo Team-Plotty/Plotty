@@ -63,9 +63,20 @@
               "type": "string",
               "format": "date-time"
             },
+            "end_at": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "is_all_day": {
+              "type": "boolean"
+            },
             "due_date": {
               "type": "string",
               "format": "date-time"
+            },
+            "due_has_time": {
+              "type": "boolean",
+              "description": "task のみ。false は日付のみの締切（due_date の時刻は当日末の埋め値）"
             }
           },
           "additionalProperties": false
@@ -92,6 +103,7 @@
               "CONFLICT",
               "GROQ_TIMEOUT",
               "GROQ_UNAVAILABLE",
+              "GROQ_CONFIG_ERROR",
               "RATE_LIMITED",
               "INTERNAL_ERROR"
             ]

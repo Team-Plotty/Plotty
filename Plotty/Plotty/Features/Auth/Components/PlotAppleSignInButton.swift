@@ -1,3 +1,5 @@
+// [SNS認証停止] 認証はメールのみで運用するため Sign in with Apple は無効化中（ファイル全体をコメントアウト）
+/*
 import AuthenticationServices
 import Supabase
 import SwiftUI
@@ -10,70 +12,70 @@ struct AppleSignInPayload: Sendable {
 }
 
 /// Sign in with Apple（Supabase `signInWithIdToken` へ接続）。
+/// システム標準の `SignInWithAppleButton` はフォントや余白を変えられず Google ボタンと揃わないため、
+/// 共通スタイルの自前ボタンから `authorizationController` で認証を起動する。
 struct PlotAppleSignInButton: View {
-    @Environment(\.colorScheme) private var colorScheme
+    enum Purpose {
+        case signIn
+        case signUp
 
-    let label: SignInWithAppleButton.Label
+        var title: String {
+            switch self {
+            case .signIn: return "Appleでログイン"
+            case .signUp: return "Appleで登録"
+            }
+        }
+    }
+
+    @Environment(\.authorizationController) private var authorizationController
+
+    let purpose: Purpose
     let isDisabled: Bool
     var isRecommended: Bool = false
     let onComplete: (Result<AppleSignInPayload, Error>) -> Void
 
-    @State private var rawNonce = ""
-
     var body: some View {
-        SignInWithAppleButton(label) { request in
-            let nonce = PlotAppleSignInNonce.random()
-            rawNonce = nonce
-            request.requestedScopes = [.fullName, .email]
-            request.nonce = PlotAppleSignInNonce.sha256(nonce)
-        } onCompletion: { result in
-            Task { @MainActor in
-                await handleCompletion(result)
-            }
+        Button {
+            Task { await signIn() }
+        } label: {
+            PlotSocialSignInLabel(title: purpose.title, icon: Image(systemName: "apple.logo"))
         }
-        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-        .frame(maxWidth: .infinity)
-        .frame(height: 50)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
-        .overlay {
-            if isRecommended, !isDisabled {
-                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1)
-            }
-        }
+        .buttonStyle(PlotSocialSignInButtonStyle(isRecommended: isRecommended))
         .disabled(isDisabled)
-        .opacity(isDisabled ? 0.5 : 1)
     }
 
     @MainActor
-    private func handleCompletion(_ result: Result<ASAuthorization, Error>) async {
-        switch result {
-        case .failure(let error):
-            if let authError = error as? ASAuthorizationError, authError.code == .canceled {
-                return
-            }
+    private func signIn() async {
+        let rawNonce = PlotAppleSignInNonce.random()
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = PlotAppleSignInNonce.sha256(rawNonce)
+
+        let result: ASAuthorizationResult
+        do {
+            result = try await authorizationController.performRequest(request)
+        } catch let error as ASAuthorizationError where error.code == .canceled {
+            return
+        } catch {
             onComplete(.failure(error))
-        case .success(let authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-                onComplete(.failure(AppleSignInError.unexpectedCredential))
-                return
-            }
-            guard let tokenData = credential.identityToken,
-                  let idToken = String(data: tokenData, encoding: .utf8) else {
-                onComplete(.failure(AppleSignInError.missingIdentityToken))
-                return
-            }
-            guard !rawNonce.isEmpty else {
-                onComplete(.failure(AppleSignInError.missingNonce))
-                return
-            }
-            do {
-                let session = try await AuthService.signInWithApple(idToken: idToken, nonce: rawNonce)
-                let suggestedName = suggestedDisplayName(from: credential)
-                onComplete(.success(AppleSignInPayload(session: session, suggestedDisplayName: suggestedName)))
-            } catch {
-                onComplete(.failure(error))
-            }
+            return
+        }
+
+        guard case .appleID(let credential) = result else {
+            onComplete(.failure(AppleSignInError.unexpectedCredential))
+            return
+        }
+        guard let tokenData = credential.identityToken,
+              let idToken = String(data: tokenData, encoding: .utf8) else {
+            onComplete(.failure(AppleSignInError.missingIdentityToken))
+            return
+        }
+        do {
+            let session = try await AuthService.signInWithApple(idToken: idToken, nonce: rawNonce)
+            let suggestedName = suggestedDisplayName(from: credential)
+            onComplete(.success(AppleSignInPayload(session: session, suggestedDisplayName: suggestedName)))
+        } catch {
+            onComplete(.failure(error))
         }
     }
 
@@ -88,13 +90,13 @@ struct PlotAppleSignInButton: View {
 
 enum AppleSignInError: LocalizedError {
     case missingIdentityToken
-    case missingNonce
     case unexpectedCredential
 
     var errorDescription: String? {
         switch self {
-        case .missingIdentityToken, .missingNonce, .unexpectedCredential:
+        case .missingIdentityToken, .unexpectedCredential:
             return "Appleでのログインに失敗しました。しばらくしてから再試行してください。"
         }
     }
 }
+*/

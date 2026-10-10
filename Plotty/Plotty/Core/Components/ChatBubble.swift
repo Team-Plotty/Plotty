@@ -13,6 +13,9 @@ struct ChatBubble: View {
     var role: MessageRole
     var text: String
     var chips: [String] = []
+    /// AI 応答を 1 文字ずつ表示するか（届いたばかりの応答のみ。履歴は即表示）
+    var animatesTyping: Bool = false
+    var onTypingFinished: () -> Void = {}
     
     var body: some View {
         if role == .user {
@@ -51,7 +54,7 @@ struct ChatBubble: View {
     private var aiPlainMessage: some View {
         HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(text)
+                ChatTypewriterText(text: text, animates: animatesTyping, onFinished: onTypingFinished)
                     .font(.scaledBodyLarge())
                     .foregroundColor(aiTextColor)
                     .bodyLineSpacing()

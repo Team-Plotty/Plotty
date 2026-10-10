@@ -186,6 +186,16 @@ final class PlotDataStore {
             syncPhase[resource] = .idle
         }
     }
+
+    /// エラー表示（アラート）用。表示を閉じたら同期エラーも消す。
+    func errorMessageBinding(for resource: PlotDataResource) -> Binding<String?> {
+        Binding(
+            get: { self.errorMessage(for: resource) },
+            set: { newValue in
+                if newValue == nil { self.clearSyncError(for: resource) }
+            }
+        )
+    }
     
     func addMemo(_ memo: MemoItem) {
         memos.insert(memo, at: 0)
@@ -382,7 +392,6 @@ final class PlotDataStore {
         text: String,
         forcedCategory: PlotChatCategory?,
         clientMessageId: UUID,
-        sourceMessageCreatedAt: Date = Date(),
         language: AppLanguage
     ) async throws -> ChatSendResult {
         let request = PlotPostChatMessagesRequestDTO(
@@ -399,12 +408,7 @@ final class PlotDataStore {
         for entity in response.createdEntities {
             PlotAnalytics.trackCreate(entityType: entity.type, source: "chat_send", screen: .chat)
         }
-        let assistantMessage = PlotChatMapper.assistantMessage(
-            from: response,
-            sourceBody: text,
-            sourceMessageCreatedAt: sourceMessageCreatedAt,
-            language: language
-        )
+        let assistantMessage = PlotChatMapper.assistantMessage(from: response, language: language)
         return ChatSendResult(userMessageId: response.messageId, assistantMessage: assistantMessage)
     }
 
@@ -419,59 +423,6 @@ final class PlotDataStore {
             ]
         )
         return PlotChatMapper.chatMessages(from: response.items, language: language)
-    }
-
-    /// `POST /api/v1/chat/reclassify`。成功時は Store の実体を差し替える。
-    @MainActor
-    func reclassifyEntity(
-        summary: ChatRegistrationSummary,
-        to targetCategory: PlotChatCategory,
-        language: AppLanguage,
-        reasonText: String? = nil
-    ) async throws -> (confirmationText: String, summary: ChatRegistrationSummary) {
-        guard let sourceID = summary.linkedEntityID else {
-            throw PlotAPIError.unexpectedResponse(httpStatus: 0, bodyPreview: "linkedEntityID が未設定です")
-        }
-        guard summary.category != targetCategory else {
-            throw PlotAPIError.unexpectedResponse(httpStatus: 0, bodyPreview: "同一カテゴリへの再分類です")
-        }
-
-        let request = PlotPostReclassifyRequestDTO(
-            source: PlotReclassifySourceDTO(
-                type: summary.category.entityType,
-                id: sourceID
-            ),
-            targetType: targetCategory.entityType,
-            reasonText: reasonText
-        )
-        let response: PlotPostReclassifyResponseDTO = try await apiClient.request(
-            method: .post,
-            path: PlotChatAPI.reclassifyPath,
-            body: request
-        )
-        PlotChatMapper.applyReclassification(
-            sourceType: summary.category.entityType,
-            sourceID: sourceID,
-            migratedEntity: response.migratedEntity,
-            to: self
-        )
-        let newSummary = PlotChatMapper.registrationSummary(
-            from: response.migratedEntity,
-            sourceBody: summary.sourceBody,
-            sourceMessageCreatedAt: summary.sourceMessageCreatedAt,
-            language: language
-        )
-        PlotAnalytics.trackCreate(
-            entityType: response.migratedEntity.type,
-            source: "chat_reclassify",
-            screen: .chat
-        )
-        PlotAnalytics.trackDelete(
-            entityType: summary.category.entityType,
-            source: "chat_reclassify",
-            screen: .chat
-        )
-        return (response.confirmationText, newSummary)
     }
 }
 

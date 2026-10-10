@@ -72,6 +72,7 @@ struct PlotFloatingSearchField: View {
                 .transition(.scale.combined(with: .opacity))
             }
         }
+        .plotTextInputArea()
         .animation(.snappy(duration: 0.25), value: onCancel != nil)
     }
 }

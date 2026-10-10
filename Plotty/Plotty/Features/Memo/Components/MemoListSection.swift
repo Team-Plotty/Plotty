@@ -7,6 +7,7 @@ struct MemoListSection: View {
     
     /// 検索・色フィルタ済みの表示順 ID（カード表示はストアから最新を参照）
     let filteredMemoIDs: [UUID]
+    let onSelect: (MemoItem) -> Void
     let onEdit: (MemoItem) -> Void
     let onDelete: (UUID) -> Void
     
@@ -62,7 +63,14 @@ struct MemoListSection: View {
                     }
                 )
             ) {
-                MemoCard(memo: memo)
+                Button {
+                    onSelect(memo)
+                } label: {
+                    MemoCard(memo: memo)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
     }

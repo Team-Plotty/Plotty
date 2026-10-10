@@ -14,10 +14,17 @@ export const postChatMessagesRequestSchema = z.object({
 
 export type PostChatMessagesRequest = z.infer<typeof postChatMessagesRequestSchema>;
 
+/** LLM は省略の代わりに null を返すことがあるため、null も「指定なし」として受ける */
+const llmOptional = <T extends z.ZodTypeAny>(schema: T) =>
+  schema.nullish().transform((value) => value ?? undefined);
+
 export const llmEntityDataSchema = z.object({
   title: z.string().min(1).max(20),
   start_at: z.string().datetime({ offset: true }).optional(),
+  end_at: llmOptional(z.string().datetime({ offset: true })),
+  is_all_day: llmOptional(z.boolean()),
   due_date: z.string().datetime({ offset: true }).optional(),
+  due_has_time: llmOptional(z.boolean()),
   content: z
     .union([z.string().min(1).max(4000), z.literal("")])
     .optional()
@@ -54,6 +61,7 @@ export const taskEntityDtoSchema = z.object({
   title: z.string().min(1).max(100),
   is_completed: z.boolean(),
   due_date: isoDateTimeSchema,
+  due_has_time: z.boolean(),
   priority: z.number().int().min(1).max(3),
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema
@@ -148,6 +156,7 @@ export const patchEntityRequestSchema = z.object({
   notes: z.string().optional(),
   is_completed: z.boolean().optional(),
   due_date: isoDateTimeSchema.optional(),
+  due_has_time: z.boolean().optional(),
   priority: z.number().int().min(1).max(3).optional(),
   content: z.string().min(1).max(4000).optional(),
   is_pinned: z.boolean().optional()
