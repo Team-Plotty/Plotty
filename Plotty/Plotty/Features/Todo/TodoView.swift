@@ -5,6 +5,7 @@ struct TodoView: View {
     var selectedTab: TabItem = .todo
     @Binding var showCreateSheet: Bool
     @Binding var searchText: String
+    @Binding var pendingEntityRoute: PlotEntityRoute?
     
     @Environment(\.plotDataStore) private var dataStore
     @Environment(\.connectivity) private var connectivity
@@ -126,6 +127,13 @@ struct TodoView: View {
             message: editingTodo == nil && selectedTodo == nil ? dataStore.errorMessageBinding(for: .todos) : .constant(nil),
             onRetry: { Task { await reloadTodos() } }
         )
+        .plotOpensEntityRoute(
+            $pendingEntityRoute,
+            category: .task,
+            find: { id in dataStore.todos.first { $0.id == id } },
+            reload: reloadTodos,
+            open: { selectedTodo = $0 }
+        )
     }
     
     private func addTodoFromSheet() {
@@ -207,7 +215,11 @@ struct TodoView: View {
 }
 
 #Preview {
-    TodoView(showCreateSheet: .constant(false), searchText: .constant(""))
+    TodoView(
+        showCreateSheet: .constant(false),
+        searchText: .constant(""),
+        pendingEntityRoute: .constant(nil)
+    )
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)

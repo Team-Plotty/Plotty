@@ -55,13 +55,14 @@ struct ChatTabView: View {
     @FocusState.Binding var isComposerFocused: Bool
     @Binding var isAIProcessing: Bool
     @Binding var sendRequested: Bool
+    /// 登録カードのタップ。該当タブへの切替と詳細表示は `ContentView` が担う
+    var onOpenEntity: (PlotEntityRoute) -> Void = { _ in }
     
     @State private var messages: [ChatMessage] = []
     @State private var asyncPhase: PlotAsyncPhase = .idle
     @State private var historyPhase: PlotAsyncPhase = .idle
     @State private var lastError: String?
     @State private var pendingRetry: PendingChatRetry?
-    @State private var reclassifyingMessageID: UUID?
     /// 表示演出中の AI 応答。演出が終わったら外し、スクロールで再生成されても繰り返さない
     @State private var appearingMessageIDs: Set<UUID> = []
     @State private var aiTask: Task<Void, Never>?
@@ -126,16 +127,9 @@ struct ChatTabView: View {
                         ChatDayHeader(day: section.day)
                         
                         ForEach(section.messages) { message in
-                            let canReclassify = PlotChatReclassifyPolicy.isAllowed(for: message)
                             ChatMessageBlock(
                                 message: message,
-                                isReclassifying: reclassifyingMessageID == message.id,
-                                onReclassify: message.registrationSummary != nil && canReclassify
-                                    ? { category in reclassify(messageID: message.id, to: category) }
-                                    : nil,
-                                reclassifyDisabledReason: message.registrationSummary != nil && !canReclassify
-                                    ? PlotChatRetention.reclassifyDisabledMessage(language: appSettings.language)
-                                    : nil,
+                                onOpenEntity: onOpenEntity,
                                 animatesAppearance: appearingMessageIDs.contains(message.id),
                                 onAppearanceFinished: { appearingMessageIDs.remove(message.id) }
                             )
@@ -365,8 +359,7 @@ struct ChatTabView: View {
                 let result = try await fetchAIResponse(
                     body: body,
                     forcedCategory: forcedCategory,
-                    clientMessageId: clientMessageId,
-                    sourceMessageCreatedAt: messages[userMessageIndex].timestamp
+                    clientMessageId: clientMessageId
                 )
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
@@ -424,8 +417,7 @@ struct ChatTabView: View {
     private func fetchAIResponse(
         body: String,
         forcedCategory: PlotChatCategory?,
-        clientMessageId: UUID,
-        sourceMessageCreatedAt: Date
+        clientMessageId: UUID
     ) async throws -> ChatSendResult {
         #if DEBUG
         if PlotDebug.forceChatTimeout {
@@ -441,7 +433,6 @@ struct ChatTabView: View {
                         text: body,
                         forcedCategory: forcedCategory,
                         clientMessageId: clientMessageId,
-                        sourceMessageCreatedAt: sourceMessageCreatedAt,
                         language: appSettings.language
                     )
                 } catch let error as PlotAPIError {
@@ -489,46 +480,6 @@ struct ChatTabView: View {
             clientMessageId: pending.clientMessageId,
             userMessageIndex: max(userMessageIndex, 0)
         )
-    }
-    
-    private func reclassify(messageID: UUID, to category: PlotChatCategory) {
-        guard connectivity.isOnline else {
-            lastError = "オフラインのため再分類できません。"
-            return
-        }
-        guard let index = messages.firstIndex(where: { $0.id == messageID }),
-              let summary = messages[index].registrationSummary,
-              summary.category != category else { return }
-        guard PlotChatReclassifyPolicy.isAllowed(for: messages[index]) else {
-            lastError = PlotChatRetention.reclassifyDisabledMessage(language: appSettings.language)
-            return
-        }
-
-        reclassifyingMessageID = messageID
-        lastError = nil
-
-        Task { @MainActor in
-            do {
-                let result = try await dataStore.reclassifyEntity(
-                    summary: summary,
-                    to: category,
-                    language: appSettings.language
-                )
-                var updated = messages[index]
-                updated.registrationSummary = result.summary
-                updated.text = result.confirmationText
-                messages[index] = updated
-                reclassifyingMessageID = nil
-            } catch let error as PlotAPIError {
-                PlotAnalytics.trackFailure(action: "chat_reclassify", error: error, screen: .chat)
-                lastError = error.localizedDescription ?? "再分類に失敗しました。"
-                reclassifyingMessageID = nil
-            } catch {
-                PlotAnalytics.trackFailure(action: "chat_reclassify", code: "unknown", screen: .chat)
-                lastError = "再分類に失敗しました。"
-                reclassifyingMessageID = nil
-            }
-        }
     }
 }
 

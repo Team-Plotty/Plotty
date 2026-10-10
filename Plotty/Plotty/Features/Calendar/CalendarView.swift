@@ -7,6 +7,7 @@ struct CalendarTabView: View {
     @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     @Binding var showCreateSheet: Bool
+    @Binding var pendingEntityRoute: PlotEntityRoute?
     
     @State private var monthAnchor = Date()
     @State private var selectedDate = Date()
@@ -118,6 +119,20 @@ struct CalendarTabView: View {
             message: editingEvent == nil && selectedEvent == nil ? dataStore.errorMessageBinding(for: .events) : .constant(nil),
             onRetry: { Task { await reloadEvents() } }
         )
+        .plotOpensEntityRoute(
+            $pendingEntityRoute,
+            category: .schedule,
+            find: { id in dataStore.events.first { $0.id == id } },
+            reload: reloadEvents,
+            open: openEvent
+        )
+    }
+    
+    /// 詳細を閉じたあとも、その予定の日がカレンダーで選ばれた状態にしておく
+    private func openEvent(_ event: CalendarEvent) {
+        selectedDate = event.startTime
+        monthAnchor = event.startTime
+        selectedEvent = event
     }
     
     private func saveEvent() {
@@ -206,7 +221,7 @@ struct CalendarTabView: View {
 }
 
 #Preview {
-    CalendarTabView(showCreateSheet: .constant(false))
+    CalendarTabView(showCreateSheet: .constant(false), pendingEntityRoute: .constant(nil))
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)

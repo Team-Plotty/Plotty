@@ -10,6 +10,7 @@ struct MemoView: View {
     var selectedTab: TabItem = .memo
     @Binding var showCreateSheet: Bool
     @Binding var searchText: String
+    @Binding var pendingEntityRoute: PlotEntityRoute?
     
     @State private var selectedMemo: MemoItem?
     @State private var editingMemo: MemoItem?
@@ -102,6 +103,13 @@ struct MemoView: View {
             message: editingMemo == nil && selectedMemo == nil ? dataStore.errorMessageBinding(for: .memos) : .constant(nil),
             onRetry: { Task { await reloadMemos() } }
         )
+        .plotOpensEntityRoute(
+            $pendingEntityRoute,
+            category: .memo,
+            find: { id in dataStore.memos.first { $0.id == id } },
+            reload: reloadMemos,
+            open: { selectedMemo = $0 }
+        )
     }
     
     private func saveMemo() {
@@ -153,7 +161,12 @@ struct MemoView: View {
 }
 
 #Preview {
-    MemoView(selectedTab: .memo, showCreateSheet: .constant(false), searchText: .constant(""))
+    MemoView(
+        selectedTab: .memo,
+        showCreateSheet: .constant(false),
+        searchText: .constant(""),
+        pendingEntityRoute: .constant(nil)
+    )
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)

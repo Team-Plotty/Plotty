@@ -3,9 +3,7 @@ import SwiftUI
 // MARK: - 吹き出し＋確認カードのまとまり
 struct ChatMessageBlock: View {
     let message: ChatMessage
-    let isReclassifying: Bool
-    let onReclassify: ((PlotChatCategory) -> Void)?
-    let reclassifyDisabledReason: String?
+    let onOpenEntity: ((PlotEntityRoute) -> Void)?
     /// 届いたばかりの AI 応答なら、本文をタイプライター表示してから確認カードをフェードで出す
     let animatesAppearance: Bool
     let onAppearanceFinished: () -> Void
@@ -15,16 +13,12 @@ struct ChatMessageBlock: View {
 
     init(
         message: ChatMessage,
-        isReclassifying: Bool = false,
-        onReclassify: ((PlotChatCategory) -> Void)? = nil,
-        reclassifyDisabledReason: String? = nil,
+        onOpenEntity: ((PlotEntityRoute) -> Void)? = nil,
         animatesAppearance: Bool = false,
         onAppearanceFinished: @escaping () -> Void = {}
     ) {
         self.message = message
-        self.isReclassifying = isReclassifying
-        self.onReclassify = onReclassify
-        self.reclassifyDisabledReason = reclassifyDisabledReason
+        self.onOpenEntity = onOpenEntity
         self.animatesAppearance = animatesAppearance
         self.onAppearanceFinished = onAppearanceFinished
         _showsCard = State(initialValue: !animatesAppearance)
@@ -42,14 +36,17 @@ struct ChatMessageBlock: View {
         if let summary = message.registrationSummary {
             ChatConfirmationCard(
                 summary: summary,
-                isReclassifying: isReclassifying,
-                onReclassify: onReclassify,
-                reclassifyDisabledReason: reclassifyDisabledReason
+                onOpen: openAction(for: summary)
             )
             .padding(.leading, Spacing.md)
             .opacity(showsCard ? 1 : 0)
             .allowsHitTesting(showsCard)
         }
+    }
+
+    private func openAction(for summary: ChatRegistrationSummary) -> (() -> Void)? {
+        guard let route = summary.route, let onOpenEntity else { return nil }
+        return { onOpenEntity(route) }
     }
 
     private func revealCard() {
