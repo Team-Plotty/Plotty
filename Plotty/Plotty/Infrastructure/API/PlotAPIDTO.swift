@@ -52,7 +52,7 @@ struct PlotGetEntitiesResponseDTO: Decodable, Sendable {
     let nextCursor: String?
 }
 
-/// GET / PATCH / reclassify で共通の discriminated union 風 DTO。
+/// GET / PATCH で共通の discriminated union 風 DTO。
 /// Edge が狭い subset のみ返す場合も optional で吸収する。
 struct PlotEntityListItemDTO: Codable, Sendable {
     let type: PlotEntityType
@@ -149,24 +149,6 @@ struct PlotCreatedEntityDTO: Decodable, Sendable {
     let isCompleted: Bool?
     let isPinned: Bool?
     let priority: Int?
-}
-
-// MARK: - POST /chat/reclassify
-
-struct PlotReclassifySourceDTO: Encodable, Sendable {
-    let type: PlotEntityType
-    let id: UUID
-}
-
-struct PlotPostReclassifyRequestDTO: Encodable, Sendable {
-    let source: PlotReclassifySourceDTO
-    let targetType: PlotEntityType
-    let reasonText: String?
-}
-
-struct PlotPostReclassifyResponseDTO: Decodable, Sendable {
-    let confirmationText: String
-    let migratedEntity: PlotEntityListItemDTO
 }
 
 // MARK: - GET /chat/messages

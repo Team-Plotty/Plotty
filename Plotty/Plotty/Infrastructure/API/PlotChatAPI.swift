@@ -5,5 +5,4 @@ import Foundation
 enum PlotChatAPI {
     static let responseTimeout: Duration = .seconds(10)
     static let messagesPath = "api/v1/chat/messages"
-    static let reclassifyPath = "api/v1/chat/reclassify"
 }

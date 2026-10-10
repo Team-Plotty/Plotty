@@ -8,9 +8,6 @@ enum PlotChatCategory: String, CaseIterable, Identifiable {
     
     var id: String { rawValue }
     
-    /// 登録確認カードのカテゴリ変更ボタン（左からメモ → ToDo → カレンダー）
-    static let reclassifyButtonOrder: [PlotChatCategory] = [.memo, .task, .schedule]
-    
     /// キーボードのクイックアクション（左からカレンダー → ToDo → メモ）
     static let quickActionOrder: [PlotChatCategory] = [.schedule, .task, .memo]
     
