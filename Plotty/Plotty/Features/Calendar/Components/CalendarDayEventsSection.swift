@@ -8,7 +8,7 @@ struct CalendarDayEventsSection: View {
     let selectedDate: Date
     let events: [CalendarEvent]
     let onGoToToday: () -> Void
-    let onSelectEvent: (CalendarEvent) -> Void
+    /// カードのタップとメニューの「編集」で共通（閲覧専用の詳細は挟まず、そのまま編集を開く）
     let onEditEvent: (CalendarEvent) -> Void
     let onDeleteEvent: (UUID) -> Void
     
@@ -41,7 +41,7 @@ struct CalendarDayEventsSection: View {
                             onDelete: { onDeleteEvent(event.id) }
                         ) {
                             Button {
-                                onSelectEvent(event)
+                                onEditEvent(event)
                             } label: {
                                 EventRow(event: event)
                             }

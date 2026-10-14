@@ -17,7 +17,7 @@ struct ContentView: View {
     @State private var selectedTab: TabItem = .chat
     @State private var chatCategory: PlotChatCategory?
     @State private var pendingSettingsRoute: SettingsRoute?
-    /// チャットの登録カードから開きたいデータ。対象タブが詳細を開いたら `nil` に戻す
+    /// チャットの登録カードから開きたいデータ。対象タブが編集シートを開いたら `nil` に戻す
     @State private var pendingEntityRoute: PlotEntityRoute?
     
     // 各タブの新規作成シート表示状態

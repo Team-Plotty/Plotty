@@ -11,7 +11,6 @@ struct CalendarTabView: View {
     
     @State private var monthAnchor = Date()
     @State private var selectedDate = Date()
-    @State private var selectedEvent: CalendarEvent?
     @State private var editingEvent: CalendarEvent?
     
     @State private var draftTitle = ""
@@ -47,7 +46,6 @@ struct CalendarTabView: View {
                     selectedDate: selectedDate,
                     events: eventsForSelectedDate,
                     onGoToToday: goToToday,
-                    onSelectEvent: { selectedEvent = $0 },
                     onEditEvent: { editingEvent = $0 },
                     onDeleteEvent: removeEvent
                 )
@@ -86,19 +84,6 @@ struct CalendarTabView: View {
                 prepareCreateDraft()
             }
         }
-        .sheet(item: $selectedEvent) { event in
-            EventDetailSheet(
-                event: event,
-                onClose: { selectedEvent = nil },
-                onEdit: {
-                    editingEvent = event
-                    selectedEvent = nil
-                }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationSizing(.page)
-        }
         .sheet(item: $editingEvent) { event in
             EventEditSheet(event: event) { updated in
                 Task {
@@ -113,10 +98,10 @@ struct CalendarTabView: View {
             .presentationSizing(.page)
             .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .events))
         }
-        // 詳細・編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
+        // 編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
         .plotErrorAlert(
             "同期できませんでした",
-            message: editingEvent == nil && selectedEvent == nil ? dataStore.errorMessageBinding(for: .events) : .constant(nil),
+            message: editingEvent == nil ? dataStore.errorMessageBinding(for: .events) : .constant(nil),
             onRetry: { Task { await reloadEvents() } }
         )
         .plotOpensEntityRoute(
@@ -128,11 +113,11 @@ struct CalendarTabView: View {
         )
     }
     
-    /// 詳細を閉じたあとも、その予定の日がカレンダーで選ばれた状態にしておく
+    /// 編集を閉じたあとも、その予定の日がカレンダーで選ばれた状態にしておく
     private func openEvent(_ event: CalendarEvent) {
         selectedDate = event.startTime
         monthAnchor = event.startTime
-        selectedEvent = event
+        editingEvent = event
     }
     
     private func saveEvent() {

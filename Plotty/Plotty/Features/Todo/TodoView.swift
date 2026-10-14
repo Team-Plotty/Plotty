@@ -13,7 +13,6 @@ struct TodoView: View {
     
     @State private var priorityFilter: TodoItem.Priority?
     @State private var sortOrder: TodoSortOrder = .dueDate
-    @State private var selectedTodo: TodoItem?
     @State private var editingTodo: TodoItem?
     
     @State private var draftTitle = ""
@@ -50,7 +49,6 @@ struct TodoView: View {
                             title: "未完了",
                             todos: incompleteFiltered,
                             onToggle: toggleCompletion,
-                            onSelect: { selectedTodo = $0 },
                             onEdit: { editingTodo = $0 },
                             onDelete: removeTodo
                         )
@@ -61,7 +59,6 @@ struct TodoView: View {
                             title: "完了",
                             todos: completeFiltered,
                             onToggle: toggleCompletion,
-                            onSelect: { selectedTodo = $0 },
                             onEdit: { editingTodo = $0 },
                             onDelete: removeTodo
                         )
@@ -94,19 +91,6 @@ struct TodoView: View {
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
         }
-        .sheet(item: $selectedTodo) { todo in
-            TodoDetailSheet(
-                todo: todo,
-                onClose: { selectedTodo = nil },
-                onEdit: {
-                    editingTodo = todo
-                    selectedTodo = nil
-                }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationSizing(.page)
-        }
         .sheet(item: $editingTodo) { todo in
             TodoEditSheet(todo: todo) { updated in
                 Task {
@@ -121,10 +105,10 @@ struct TodoView: View {
             .presentationSizing(.page)
             .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .todos))
         }
-        // 詳細・編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
+        // 編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
         .plotErrorAlert(
             "同期できませんでした",
-            message: editingTodo == nil && selectedTodo == nil ? dataStore.errorMessageBinding(for: .todos) : .constant(nil),
+            message: editingTodo == nil ? dataStore.errorMessageBinding(for: .todos) : .constant(nil),
             onRetry: { Task { await reloadTodos() } }
         )
         .plotOpensEntityRoute(
@@ -132,7 +116,7 @@ struct TodoView: View {
             category: .task,
             find: { id in dataStore.todos.first { $0.id == id } },
             reload: reloadTodos,
-            open: { selectedTodo = $0 }
+            open: { editingTodo = $0 }
         )
     }
     

@@ -1,8 +1,8 @@
 import SwiftUI
 
 // MARK: - 一覧タブの特定データを開く指示
-/// チャットの登録カードから、該当タブへ切り替えて詳細シートを開くために使う。
-/// `ContentView` が保持し、対象タブが受け取って詳細を開いたら `nil` に戻す。
+/// チャットの登録カードから、該当タブへ切り替えて編集シートを開くために使う。
+/// `ContentView` が保持し、対象タブが受け取って編集シートを開いたら `nil` に戻す。
 struct PlotEntityRoute: Equatable {
     let category: PlotChatCategory
     let id: UUID

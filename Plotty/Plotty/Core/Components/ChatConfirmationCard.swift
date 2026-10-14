@@ -30,7 +30,7 @@ struct ChatConfirmationCard: View {
         .disabled(onOpen == nil)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(summary.category.label)を登録、\(summary.title)")
-        .accessibilityHint(onOpen == nil ? "" : "タップして詳細を開く")
+        .accessibilityHint(onOpen == nil ? "" : "タップして編集を開く")
     }
     
     private var content: some View {

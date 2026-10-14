@@ -5,7 +5,7 @@ struct TodoTaskListSection: View {
     let title: String
     let todos: [TodoItem]
     let onToggle: (UUID) -> Void
-    let onSelect: (TodoItem) -> Void
+    /// カードのタップとメニューの「編集」で共通（閲覧専用の詳細は挟まず、そのまま編集を開く）
     let onEdit: (TodoItem) -> Void
     let onDelete: (UUID) -> Void
     
@@ -34,8 +34,8 @@ struct TodoTaskListSection: View {
                             onToggle(todo.id)
                         }
                         .contentShape(Rectangle())
-                        .onTapGesture { onSelect(todo) }
-                        .accessibilityAction(named: "詳細を表示") { onSelect(todo) }
+                        .onTapGesture { onEdit(todo) }
+                        .accessibilityAction(named: "編集") { onEdit(todo) }
                     }
                 }
             }

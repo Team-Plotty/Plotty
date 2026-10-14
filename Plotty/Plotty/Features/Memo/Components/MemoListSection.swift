@@ -7,7 +7,7 @@ struct MemoListSection: View {
     
     /// 検索・色フィルタ済みの表示順 ID（カード表示はストアから最新を参照）
     let filteredMemoIDs: [UUID]
-    let onSelect: (MemoItem) -> Void
+    /// カードのタップとメニューの「編集」で共通（閲覧専用の詳細は挟まず、そのまま編集を開く）
     let onEdit: (MemoItem) -> Void
     let onDelete: (UUID) -> Void
     
@@ -64,7 +64,7 @@ struct MemoListSection: View {
                 )
             ) {
                 Button {
-                    onSelect(memo)
+                    onEdit(memo)
                 } label: {
                     MemoCard(memo: memo)
                         .frame(maxWidth: .infinity, alignment: .leading)

@@ -55,7 +55,7 @@ struct ChatTabView: View {
     @FocusState.Binding var isComposerFocused: Bool
     @Binding var isAIProcessing: Bool
     @Binding var sendRequested: Bool
-    /// 登録カードのタップ。該当タブへの切替と詳細表示は `ContentView` が担う
+    /// 登録カードのタップ。該当タブへの切替と編集シートの表示は `ContentView` が担う
     var onOpenEntity: (PlotEntityRoute) -> Void = { _ in }
     
     @State private var messages: [ChatMessage] = []
