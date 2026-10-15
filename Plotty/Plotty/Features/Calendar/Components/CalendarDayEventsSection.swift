@@ -43,7 +43,10 @@ struct CalendarDayEventsSection: View {
                             Button {
                                 onEditEvent(event)
                             } label: {
+                                // plain スタイルでは文字以外の余白がタップに反応しないため、カード全体を当たり判定にする
                                 EventRow(event: event)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
