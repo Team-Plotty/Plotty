@@ -1,11 +1,12 @@
 import SwiftUI
 
 // MARK: - 下部タブの識別子
+/// rawValue がそのままフッターの並び順と、横スワイプで移動するページの順番になる
 enum TabItem: Int, CaseIterable, Hashable {
-    case memo = 0
-    case todo = 1
+    case todo = 0
+    case calendar = 1
     case chat = 2
-    case calendar = 3
+    case memo = 3
     case settings = 4
     
     var icon: (inactive: String, active: String) {
