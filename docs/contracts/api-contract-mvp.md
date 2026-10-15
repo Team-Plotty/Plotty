@@ -118,6 +118,10 @@ iOS の `Priority` raw 0–2 は mapper で 1–3 に変換する（詳細: `imp
 
 `created_entities[]` は §2 の GET フィールドの **作成直後に必要な subset** を含む。
 
+- `created_entities` は **空配列になりうる**。日付・内容・午前/午後が判断できないとき、AI は登録せず `confirmation_text` で 1 つだけ質問を返す（例:「いつの予定ですか？」）。クライアントは通常の assistant 発言として表示する。
+- 予定の終わりが発言に無い場合 `end_at` は `null`。クライアントは終了時刻を補わない。
+- サーバーは直近 30 分以内・最大 6 件の会話を文脈として AI に渡す。質問への答え（「15時から」など）は元の発言と合わせて登録される。
+
 ---
 
 ## 4. `POST /api/v1/chat/reclassify`
