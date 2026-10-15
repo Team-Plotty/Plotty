@@ -50,10 +50,11 @@ enum AppLanguage: String, CaseIterable {
         }
     }
     
+    /// `@hours=h23` で DatePicker などシステム部品の時刻も 24 時間表記にする（端末の 12/24 時間設定に左右されない）
     var locale: Locale {
         switch self {
-        case .japanese: return Locale(identifier: "ja_JP")
-        case .english: return Locale(identifier: "en_US")
+        case .japanese: return Locale(identifier: "ja_JP@hours=h23")
+        case .english: return Locale(identifier: "en_US@hours=h23")
         }
     }
 }
