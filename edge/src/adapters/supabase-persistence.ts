@@ -8,10 +8,23 @@ import type {
   MessageReadModel,
   MessageWriteInput,
   PersistenceRepository,
+  RecentMessageFilter,
   RelatedEntityRef,
   ScheduleWriteInput,
   TaskWriteInput
 } from "../services/persistence.js";
+
+const MESSAGE_SELECT = "id,user_id,role,content_encrypted,iv,related_entities,created_at";
+
+const rowToMessageReadModel = (row: Record<string, unknown>): MessageReadModel => ({
+  id: String(row.id),
+  userId: String(row.user_id),
+  role: row.role as "user" | "assistant",
+  contentEncrypted: String(row.content_encrypted),
+  iv: String(row.iv),
+  relatedEntities: (row.related_entities ?? []) as RelatedEntityRef[],
+  createdAt: String(row.created_at)
+});
 
 const SCHEDULE_SELECT =
   "id,user_id,title_encrypted,iv,origin_text_encrypted,start_at,end_at,is_all_day,location,created_at,source_message_id,updated_at";
@@ -348,21 +361,27 @@ export const createSupabasePersistenceRepository = (
   async listMessages(filter: MessageListFilter): Promise<MessageReadModel[]> {
     const { data, error } = await supabase
       .from("messages")
-      .select("id,user_id,role,content_encrypted,iv,related_entities,created_at")
+      .select(MESSAGE_SELECT)
       .eq("user_id", filter.userId)
       .order("created_at", { ascending: true })
       .limit(filter.limit);
     if (error) throw error;
 
-    return (data ?? []).map((row) => ({
-      id: String(row.id),
-      userId: String(row.user_id),
-      role: row.role as "user" | "assistant",
-      contentEncrypted: String(row.content_encrypted),
-      iv: String(row.iv),
-      relatedEntities: (row.related_entities ?? []) as RelatedEntityRef[],
-      createdAt: String(row.created_at)
-    }));
+    return (data ?? []).map((row) => rowToMessageReadModel(row as Record<string, unknown>));
+  },
+  async listRecentMessages(filter: RecentMessageFilter): Promise<MessageReadModel[]> {
+    const { data, error } = await supabase
+      .from("messages")
+      .select(MESSAGE_SELECT)
+      .eq("user_id", filter.userId)
+      .gte("created_at", filter.since)
+      .order("created_at", { ascending: false })
+      .limit(filter.limit);
+    if (error) throw error;
+
+    return (data ?? [])
+      .map((row) => rowToMessageReadModel(row as Record<string, unknown>))
+      .reverse();
   },
   async findMessageById(userId: string, messageId: string) {
     const { data, error } = await supabase

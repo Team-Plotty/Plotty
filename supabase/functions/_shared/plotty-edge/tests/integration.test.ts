@@ -416,6 +416,83 @@ test("chat stores schedule end time and task due time flags", async () => {
   assert.equal(patched.entity.due_has_time, true);
 });
 
+test("chat returns a question with no entities when the request is ambiguous", async () => {
+  const db = createInMemoryDatabase();
+  const persistenceRepository = createInMemoryPersistenceRepository(db);
+  const cryptoService = createSimpleCryptoService();
+  const askingGroqClient: GroqClient = {
+    async extract() {
+      return {
+        extraction: { entities: [], reply_message: "いつの予定ですか？" },
+        tokensUsed: 50
+      };
+    }
+  };
+
+  const chatHandler = createChatMessagesHandler({
+    authVerifier,
+    userSettingsRepository,
+    groqClient: askingGroqClient,
+    groqUsageRepository: createInMemoryGroqUsageRepository(),
+    groqDailyTokenLimit: 50000,
+    cryptoService,
+    persistenceRepository
+  });
+
+  const result = await chatHandler({
+    authorizationHeader: "Bearer test-token",
+    body: { text: "バイトがある", forced_category: null, client_message_id: "client-ask-1" }
+  });
+
+  assert.equal(result.status, 200);
+  const body = result.body as { confirmation_text: string; created_entities: unknown[] };
+  assert.equal(body.confirmation_text, "いつの予定ですか？");
+  assert.equal(body.created_entities.length, 0);
+  assert.equal(db.schedules.length + db.tasks.length + db.memos.length, 0);
+  assert.equal(db.messages.length, 2);
+});
+
+test("chat passes recent conversation to the extractor as history", async () => {
+  const db = createInMemoryDatabase();
+  const persistenceRepository = createInMemoryPersistenceRepository(db);
+  const cryptoService = createSimpleCryptoService();
+  const receivedHistories: Array<Array<{ role: string; content: string }>> = [];
+  const recordingGroqClient: GroqClient = {
+    async extract(input) {
+      receivedHistories.push(input.history ?? []);
+      return {
+        extraction: { entities: [], reply_message: "何時からですか？" },
+        tokensUsed: 50
+      };
+    }
+  };
+
+  const chatHandler = createChatMessagesHandler({
+    authVerifier,
+    userSettingsRepository,
+    groqClient: recordingGroqClient,
+    groqUsageRepository: createInMemoryGroqUsageRepository(),
+    groqDailyTokenLimit: 50000,
+    cryptoService,
+    persistenceRepository
+  });
+
+  await chatHandler({
+    authorizationHeader: "Bearer test-token",
+    body: { text: "明日バイト", forced_category: null, client_message_id: "client-history-1" }
+  });
+  await chatHandler({
+    authorizationHeader: "Bearer test-token",
+    body: { text: "15時から", forced_category: null, client_message_id: "client-history-2" }
+  });
+
+  assert.deepEqual(receivedHistories[0], []);
+  assert.deepEqual(receivedHistories[1], [
+    { role: "user", content: "明日バイト" },
+    { role: "assistant", content: "何時からですか？" }
+  ]);
+});
+
 test("chat messages returns 401 without bearer token", async () => {
   const db = createInMemoryDatabase();
   const persistenceRepository = createInMemoryPersistenceRepository(db);

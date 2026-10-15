@@ -7,6 +7,7 @@ import type {
   MessageReadModel,
   MessageWriteInput,
   PersistenceRepository,
+  RecentMessageFilter,
   RelatedEntityRef,
   ScheduleWriteInput,
   TaskWriteInput
@@ -296,6 +297,28 @@ export const createInMemoryPersistenceRepository = (
           Date.parse(left.createdAt ?? "") - Date.parse(right.createdAt ?? "")
       )
       .slice(0, filter.limit)
+      .map((message) => ({
+        id: message.id,
+        userId: message.userId,
+        role: message.role,
+        contentEncrypted: message.contentEncrypted,
+        iv: message.iv,
+        relatedEntities: message.relatedEntities,
+        createdAt: message.createdAt ?? nowIso()
+      }));
+  },
+  async listRecentMessages(filter: RecentMessageFilter): Promise<MessageReadModel[]> {
+    const since = Date.parse(filter.since);
+    return db.messages
+      .filter(
+        (message) =>
+          message.userId === filter.userId && Date.parse(message.createdAt ?? "") >= since
+      )
+      .sort(
+        (left, right) =>
+          Date.parse(left.createdAt ?? "") - Date.parse(right.createdAt ?? "")
+      )
+      .slice(-filter.limit)
       .map((message) => ({
         id: message.id,
         userId: message.userId,

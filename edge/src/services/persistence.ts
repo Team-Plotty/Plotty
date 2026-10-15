@@ -34,6 +34,13 @@ export interface MessageListFilter {
   limit: number;
 }
 
+export interface RecentMessageFilter {
+  userId: string;
+  limit: number;
+  /** この時刻（ISO8601）以降に作られたメッセージだけを対象にする */
+  since: string;
+}
+
 export interface BaseEntityWriteInput {
   id: string;
   userId: string;
@@ -146,6 +153,8 @@ export interface PersistenceRepository {
     newType: EntityType;
   }): Promise<void>;
   listMessages(filter: MessageListFilter): Promise<MessageReadModel[]>;
+  /** 新しい方から `limit` 件を取り、古い順に並べて返す */
+  listRecentMessages(filter: RecentMessageFilter): Promise<MessageReadModel[]>;
   findMessageById(
     userId: string,
     messageId: string
