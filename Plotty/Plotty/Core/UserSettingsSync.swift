@@ -51,15 +51,13 @@ final class UserSettingsSync {
         do {
             let profile = try await UserProfileService.fetchCurrentUserProfile()
             isApplyingRemote = true
-            appSettings.applyRemoteProfile(
-                timezoneIdentifier: profile.timezoneIdentifier,
-                aiPersona: profile.aiPersona
-            )
+            appSettings.applyRemoteProfile(aiPersona: profile.aiPersona)
             if let displayName = profile.displayName {
                 accountSession?.applyRemoteDisplayName(displayName)
             }
             isApplyingRemote = false
             lastError = nil
+            await syncDeviceTimezone(remoteIdentifier: profile.timezoneIdentifier)
         } catch {
             isApplyingRemote = false
             lastError = UserProfileSyncError.pullFailed.localizedDescription
@@ -85,21 +83,16 @@ final class UserSettingsSync {
         }
     }
 
-    func pushTimezone(_ identifier: String, isOnline: Bool) async -> Result<Void, UserProfileSyncError> {
-        guard isOnline else { return .failure(.offline) }
-        guard accountSession?.isAuthenticated == true else { return .success(()) }
-
-        isSyncing = true
-        defer { isSyncing = false }
-
+    /// AI はサーバー側の `users.timezone` で「明日3時」などを解釈するため、端末のタイムゾーンと食い違っていたら合わせる。
+    /// 以前は設定画面で選べたので、端末と違う値（UTC など）が残っている場合がある
+    private func syncDeviceTimezone(remoteIdentifier: String) async {
+        let deviceIdentifier = TimeZone.current.identifier
+        guard remoteIdentifier != deviceIdentifier else { return }
         do {
-            try await UserProfileService.updateProfile(timezoneIdentifier: identifier)
-            lastError = nil
-            return .success(())
+            try await UserProfileService.updateProfile(timezoneIdentifier: deviceIdentifier)
         } catch {
-            lastError = UserProfileSyncError.pushFailed.localizedDescription
+            // 次回のプロフィール取得時にも再試行されるので、ここでは利用者にエラーを出さない
             PlotAnalytics.trackFailure(action: "profile_push_timezone", error: UserProfileSyncError.pushFailed, screen: .settings)
-            return .failure(.pushFailed)
         }
     }
 

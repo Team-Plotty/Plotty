@@ -76,21 +76,10 @@ struct SettingsView: View {
                     }
                 }
                 
-                SettingsGlassSection(title: "言語") {
-                    ForEach(Array(AppLanguage.allCases.enumerated()), id: \.offset) { index, language in
-                        SettingsLanguageRow(language: language)
-                        if index < AppLanguage.allCases.count - 1 {
-                            SettingsInsetDivider()
-                        }
-                    }
-                }
-                
-                SettingsGlassSection(title: "AI・地域") {
+                SettingsGlassSection(title: "AI") {
                     SettingsRowChevron(icon: "sparkles", label: "AI の口調") {
                         aiPersonaSheetPresented = true
                     }
-                    SettingsInsetDivider()
-                    SettingsTimezoneRow()
                 }
                 
                 SettingsGlassSection(title: "サポート") {
