@@ -75,10 +75,19 @@ struct PlotEntityListItemDTO: Codable, Sendable {
 
 // MARK: - PATCH /entities/{type}/{id}
 
+/// PATCH の項目を「送らない」「null を送って消す」「値を送る」で区別する。
+/// Optional だけでは「送らない」と「消す」を表し分けられないため用意している
+enum PlotPatchValue<Value: Encodable & Sendable>: Sendable {
+    case unchanged
+    case clear
+    case set(Value)
+}
+
 struct PlotPatchEntityRequestDTO: Encodable, Sendable {
     var title: String?
     var startAt: Date?
-    var endAt: Date?
+    /// 終了時刻は「指定なし」に戻せるよう、null を明示的に送れる
+    var endAt: PlotPatchValue<Date> = .unchanged
     var dueDate: Date?
     var dueHasTime: Bool?
     var isAllDay: Bool?
@@ -88,6 +97,33 @@ struct PlotPatchEntityRequestDTO: Encodable, Sendable {
     var isCompleted: Bool?
     var isPinned: Bool?
     var priority: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case title, startAt, endAt, dueDate, dueHasTime, isAllDay, location, notes, content, isCompleted, isPinned, priority
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(title, forKey: .title)
+        try container.encodeIfPresent(startAt, forKey: .startAt)
+        switch endAt {
+        case .unchanged:
+            break
+        case .clear:
+            try container.encodeNil(forKey: .endAt)
+        case .set(let value):
+            try container.encode(value, forKey: .endAt)
+        }
+        try container.encodeIfPresent(dueDate, forKey: .dueDate)
+        try container.encodeIfPresent(dueHasTime, forKey: .dueHasTime)
+        try container.encodeIfPresent(isAllDay, forKey: .isAllDay)
+        try container.encodeIfPresent(location, forKey: .location)
+        try container.encodeIfPresent(notes, forKey: .notes)
+        try container.encodeIfPresent(content, forKey: .content)
+        try container.encodeIfPresent(isCompleted, forKey: .isCompleted)
+        try container.encodeIfPresent(isPinned, forKey: .isPinned)
+        try container.encodeIfPresent(priority, forKey: .priority)
+    }
 }
 
 struct PlotPatchEntityResponseDTO: Decodable, Sendable {

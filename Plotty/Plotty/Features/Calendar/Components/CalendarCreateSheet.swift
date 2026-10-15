@@ -6,7 +6,7 @@ struct CalendarCreateSheet: View {
     @Binding var isPresented: Bool
     @Binding var draftTitle: String
     @Binding var draftStart: Date
-    @Binding var draftEnd: Date
+    @Binding var draftEnd: Date?
     @Binding var draftSwatch: AccentSwatch
     @Binding var draftLocation: String
     @Binding var draftNotes: String

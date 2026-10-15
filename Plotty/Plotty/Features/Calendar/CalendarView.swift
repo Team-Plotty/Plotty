@@ -15,7 +15,7 @@ struct CalendarTabView: View {
     
     @State private var draftTitle = ""
     @State private var draftStart = Date()
-    @State private var draftEnd = Date().addingTimeInterval(3600)
+    @State private var draftEnd: Date? = Date().addingTimeInterval(3600)
     @State private var draftSwatch: AccentSwatch = .sky
     @State private var draftLocation = ""
     @State private var draftNotes = ""
@@ -126,7 +126,9 @@ struct CalendarTabView: View {
         var start = draftStart
         var end = draftEnd
         if draftIsAllDay {
-            (start, end) = CalendarEvent.allDayRange(on: draftStart, calendar: calendar)
+            let range = CalendarEvent.allDayRange(on: draftStart, calendar: calendar)
+            start = range.start
+            end = range.end
         }
         let ev = CalendarEvent(
             title: title,

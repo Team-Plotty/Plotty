@@ -35,6 +35,9 @@ struct EventRow: View {
         if event.isAllDay {
             return appSettings.language == .japanese ? "終日" : "All day"
         }
-        return PlotDateFormatter.timeRange(from: event.startTime, to: event.endTime, language: appSettings.language)
+        guard let end = event.endTime, end > event.startTime else {
+            return "\(PlotDateFormatter.time(event.startTime, language: appSettings.language)) 〜"
+        }
+        return PlotDateFormatter.timeRange(from: event.startTime, to: end, language: appSettings.language)
     }
 }

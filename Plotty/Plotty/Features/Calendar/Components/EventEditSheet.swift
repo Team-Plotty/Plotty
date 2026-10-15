@@ -46,7 +46,9 @@ struct EventEditSheet: View {
     private var normalizedDraft: CalendarEvent {
         var saved = draft
         if saved.isAllDay {
-            (saved.startTime, saved.endTime) = CalendarEvent.allDayRange(on: saved.startTime)
+            let range = CalendarEvent.allDayRange(on: saved.startTime)
+            saved.startTime = range.start
+            saved.endTime = range.end
         }
         return saved
     }

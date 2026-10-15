@@ -5,19 +5,17 @@ import Foundation
 enum PlotEntityMapper {
     private static let defaultScheduleSwatch: AccentSwatch = .sky
     private static let defaultMemoAccent: AccentSwatch = .graphite
-    private static let defaultEventDuration: TimeInterval = 3600
 
     // MARK: DTO → Item
+    // 終了時刻が無い予定に仮の終了を足すと、編集保存でその値がサーバーへ書き戻されてしまうため補わない
 
     static func calendarEvent(from dto: PlotEntityListItemDTO) -> CalendarEvent? {
         guard dto.type == .schedule else { return nil }
-        let start = dto.startAt ?? Date()
-        let end = dto.endAt ?? start.addingTimeInterval(defaultEventDuration)
         return CalendarEvent(
             id: dto.id,
             title: dto.title,
-            startTime: start,
-            endTime: end,
+            startTime: dto.startAt ?? Date(),
+            endTime: dto.endAt,
             swatch: defaultScheduleSwatch,
             location: dto.location ?? "",
             notes: dto.notes ?? "",
@@ -27,13 +25,11 @@ enum PlotEntityMapper {
 
     static func calendarEvent(from dto: PlotCreatedEntityDTO) -> CalendarEvent? {
         guard dto.type == .schedule else { return nil }
-        let start = dto.startAt ?? Date()
-        let end = dto.endAt ?? start.addingTimeInterval(defaultEventDuration)
         return CalendarEvent(
             id: dto.id,
             title: dto.title,
-            startTime: start,
-            endTime: end,
+            startTime: dto.startAt ?? Date(),
+            endTime: dto.endAt,
             swatch: defaultScheduleSwatch,
             location: dto.location ?? "",
             notes: dto.notes ?? "",
@@ -111,7 +107,7 @@ enum PlotEntityMapper {
         PlotPatchEntityRequestDTO(
             title: event.title,
             startAt: event.startTime,
-            endAt: event.endTime,
+            endAt: event.endTime.map { .set($0) } ?? .clear,
             isAllDay: event.isAllDay,
             location: event.location,
             notes: event.notes
@@ -142,7 +138,7 @@ enum PlotEntityMapper {
         var merged = event
         merged.title = dto.title
         if let startAt = dto.startAt { merged.startTime = startAt }
-        if let endAt = dto.endAt { merged.endTime = endAt }
+        merged.endTime = dto.endAt
         if let isAllDay = dto.isAllDay { merged.isAllDay = isAllDay }
         if let location = dto.location { merged.location = location }
         if let notes = dto.notes { merged.notes = notes }

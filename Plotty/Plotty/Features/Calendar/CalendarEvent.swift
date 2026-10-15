@@ -5,7 +5,8 @@ struct CalendarEvent: Identifiable {
     let id: UUID
     var title: String
     var startTime: Date
-    var endTime: Date
+    /// 終わりを決めていない予定（「15時からバイト」など）は nil
+    var endTime: Date?
     var swatch: AccentSwatch
     var location: String
     var notes: String
@@ -15,7 +16,7 @@ struct CalendarEvent: Identifiable {
         id: UUID = UUID(),
         title: String,
         startTime: Date,
-        endTime: Date,
+        endTime: Date? = nil,
         swatch: AccentSwatch,
         location: String = "",
         notes: String = "",
@@ -66,6 +67,11 @@ extension CalendarEvent {
                 startTime: cal.date(bySettingHour: 18, minute: 0, second: 0, of: y)!,
                 endTime: cal.date(bySettingHour: 18, minute: 45, second: 0, of: y)!,
                 swatch: .coral
+            ),
+            CalendarEvent(
+                title: "アルバイト",
+                startTime: cal.date(bySettingHour: 15, minute: 0, second: 0, of: today)!,
+                swatch: .sage
             ),
         ]
     }
