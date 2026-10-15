@@ -79,8 +79,6 @@ struct ContentView: View {
         }
     }
     
-    @Environment(\.plotDataStore) private var dataStore
-    
     private var mainContent: some View {
         ZStack {
             AmbientBackground()
@@ -108,17 +106,6 @@ struct ContentView: View {
                         pendingSettingsRoute = .account
                     }
                 )
-                
-                // TODOタブの時だけ進捗バーを表示
-                if selectedTab == .todo {
-                    TodoHeaderProgress(
-                        completedCount: dataStore.todos.filter(\.isCompleted).count,
-                        totalCount: dataStore.todos.count
-                    )
-                    .padding(.horizontal, Spacing.screenEdge)
-                    .padding(.top, Spacing.xs)
-                    .padding(.bottom, Spacing.xs)
-                }
             }
             .padding(.bottom, Spacing.xs)
             .frame(maxWidth: .infinity)
