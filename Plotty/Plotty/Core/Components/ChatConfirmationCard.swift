@@ -21,18 +21,14 @@ struct ChatConfirmationCard: View {
     var onOpen: (() -> Void)?
     
     var body: some View {
-        Button {
-            onOpen?()
-        } label: {
-            content
-        }
-        .buttonStyle(PlotChipPressButtonStyle())
-        .disabled(onOpen == nil)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(summary.category.label)を登録、\(summary.title)")
-        .accessibilityHint(onOpen == nil ? "" : "タップして編集を開く")
+        content
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(summary.category.label)を登録、\(summary.title)")
+            .accessibilityHint(onOpen == nil ? "" : "ダブルタップして編集を開く")
+            .accessibilityAction { onOpen?() }
     }
     
+    /// チャットをスクロールしようと触れただけで遷移しないよう、反応するのは右端の矢印まわりだけにしている
     private var content: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: summary.category.icon)
@@ -68,16 +64,22 @@ struct ChatConfirmationCard: View {
             
             Spacer(minLength: 0)
             
-            if onOpen != nil {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(maxHeight: .infinity)
+            if let onOpen {
+                Button(action: onOpen) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: Spacing.minTouchTarget)
+                        .frame(minHeight: Spacing.minTouchTarget, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PlotChipPressButtonStyle())
             }
         }
-        .padding(Spacing.md)
+        .padding([.leading, .vertical], Spacing.md)
+        // 矢印ボタンは自身の幅で右端の余白を兼ねる
+        .padding(.trailing, onOpen == nil ? Spacing.md : Spacing.xxs)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
     }
     
     private var primaryColor: Color {
