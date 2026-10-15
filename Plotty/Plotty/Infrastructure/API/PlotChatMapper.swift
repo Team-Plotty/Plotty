@@ -92,7 +92,7 @@ enum PlotChatMapper {
                 let deadline = PlotDateFormatter.deadline(dueDate, hasTime: entity.dueHasTime ?? false, language: language)
                 return language == .japanese ? "期限 \(deadline)" : "Due \(deadline)"
             }
-            return language == .japanese ? "ToDo に登録" : "Added to ToDo"
+            return language == .japanese ? "タスクに登録" : "Added to tasks"
         case .memo:
             return language == .japanese ? "メモに保存" : "Saved to memo"
         }

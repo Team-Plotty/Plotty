@@ -89,8 +89,8 @@ enum ChatMockResponder {
         switch (category, language) {
         case (.schedule, .japanese): return "カレンダーに登録したよ！"
         case (.schedule, .english): return "Added to calendar!"
-        case (.task, .japanese): return "ToDoに追加したよ！"
-        case (.task, .english): return "Added to ToDo!"
+        case (.task, .japanese): return "タスクに追加したよ！"
+        case (.task, .english): return "Added to tasks!"
         case (.memo, .japanese): return "メモに残しておいたよ！"
         case (.memo, .english): return "Saved to memo!"
         }

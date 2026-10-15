@@ -22,18 +22,18 @@ enum TabItem: Int, CaseIterable, Hashable {
     var label: String {
         switch self {
         case .memo: return "メモ"
-        case .todo: return "TODO"
+        case .todo: return "タスク"
         case .chat: return "チャット"
         case .calendar: return "カレンダー"
         case .settings: return "設定"
         }
     }
-    
+
     /// 画面上部の「Plotty / …」表示用。タブのラベル文字列と違う場合がある。
     var rootBreadcrumbTitle: String {
         switch self {
         case .memo: return "メモ"
-        case .todo: return "TODO"
+        case .todo: return "タスク"
         case .chat: return "チャット"
         case .calendar: return "スケジュール"
         case .settings: return "設定"
