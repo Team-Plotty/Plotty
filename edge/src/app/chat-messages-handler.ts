@@ -10,6 +10,7 @@ import { consoleLogger, type Logger } from "../core/logger.js";
 import { parseBearerToken, type AuthVerifier } from "../services/auth.js";
 import type { CryptoService } from "../services/crypto.js";
 import { findIdempotentChatResponse } from "../services/chat-idempotency-lookup.js";
+import { loadExtractionHistory } from "../services/chat-extraction-history.js";
 import { persistExtractionResults } from "../services/entity-builder.js";
 import type { GroqClient } from "../services/groq-client.js";
 import { mapRequestErrorToCode } from "../services/groq-errors.js";
@@ -65,6 +66,7 @@ const toErrorResponse = (
     CONFLICT: 409,
     GROQ_TIMEOUT: 504,
     GROQ_UNAVAILABLE: 503,
+    GROQ_CONFIG_ERROR: 502,
     RATE_LIMITED: 429,
     INTERNAL_ERROR: 500
   };
@@ -150,15 +152,22 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
         return toErrorResponse(context.requestId, "RATE_LIMITED", logger, context.startedAt, userId);
       }
 
-      const currentTime = new Date().toISOString();
+      const now = new Date();
+      const history = await loadExtractionHistory(
+        deps.persistenceRepository,
+        deps.cryptoService,
+        userId,
+        now
+      );
       const groqResult = await deps.groqClient.extract({
         systemPrompt: CHAT_EXTRACTION_SYSTEM_PROMPT,
         developerPrompt: buildChatExtractionDeveloperPrompt({
-          currentTimeIso: currentTime,
+          currentTimeIso: now.toISOString(),
           timezone: userSettings.timezone,
           userId,
           forcedCategory: parsedBody.data.forced_category
         }),
+        history,
         userPrompt: parsedBody.data.text
       });
       const extraction = groqResult.extraction;
@@ -177,6 +186,7 @@ export const createChatMessagesHandler = (deps: ChatMessagesHandlerDeps) => {
           userId,
           clientMessageId: parsedBody.data.client_message_id,
           userPlainText: parsedBody.data.text,
+          timezone: userSettings.timezone,
           extraction,
           analysisResultsEncrypted: analysisResultsEncryption,
           textEncryption: userMessageEncryption,

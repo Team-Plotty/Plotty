@@ -7,6 +7,7 @@ import type {
   MessageReadModel,
   MessageWriteInput,
   PersistenceRepository,
+  RecentMessageFilter,
   RelatedEntityRef,
   ScheduleWriteInput,
   TaskWriteInput
@@ -98,6 +99,7 @@ export const createInMemoryPersistenceRepository = (
       titleEncrypted: item.titleEncrypted,
       iv: item.iv,
       dueDate: item.dueDate,
+      dueHasTime: item.dueHasTime,
       isCompleted: item.isCompleted,
       priority: item.priority,
       createdAt: item.createdAt,
@@ -163,6 +165,7 @@ export const createInMemoryPersistenceRepository = (
         titleEncrypted: found.titleEncrypted,
         iv: found.iv,
         dueDate: found.dueDate,
+        dueHasTime: found.dueHasTime,
         isCompleted: found.isCompleted,
         priority: found.priority,
         createdAt: found.createdAt,
@@ -219,6 +222,7 @@ export const createInMemoryPersistenceRepository = (
       if (input.titleHash) found.titleHash = input.titleHash;
       if (input.iv) found.iv = input.iv;
       if (input.dueDate) found.dueDate = input.dueDate;
+      if (input.dueHasTime !== undefined) found.dueHasTime = input.dueHasTime;
       if (input.isCompleted !== undefined) found.isCompleted = input.isCompleted;
       if (input.priority !== undefined) found.priority = input.priority;
       return {
@@ -228,6 +232,7 @@ export const createInMemoryPersistenceRepository = (
         titleEncrypted: found.titleEncrypted,
         iv: found.iv,
         dueDate: found.dueDate,
+        dueHasTime: found.dueHasTime,
         isCompleted: found.isCompleted,
         priority: found.priority,
         createdAt: nowIso(),
@@ -292,6 +297,28 @@ export const createInMemoryPersistenceRepository = (
           Date.parse(left.createdAt ?? "") - Date.parse(right.createdAt ?? "")
       )
       .slice(0, filter.limit)
+      .map((message) => ({
+        id: message.id,
+        userId: message.userId,
+        role: message.role,
+        contentEncrypted: message.contentEncrypted,
+        iv: message.iv,
+        relatedEntities: message.relatedEntities,
+        createdAt: message.createdAt ?? nowIso()
+      }));
+  },
+  async listRecentMessages(filter: RecentMessageFilter): Promise<MessageReadModel[]> {
+    const since = Date.parse(filter.since);
+    return db.messages
+      .filter(
+        (message) =>
+          message.userId === filter.userId && Date.parse(message.createdAt ?? "") >= since
+      )
+      .sort(
+        (left, right) =>
+          Date.parse(left.createdAt ?? "") - Date.parse(right.createdAt ?? "")
+      )
+      .slice(-filter.limit)
       .map((message) => ({
         id: message.id,
         userId: message.userId,

@@ -5,6 +5,7 @@ struct TodoView: View {
     var selectedTab: TabItem = .todo
     @Binding var showCreateSheet: Bool
     @Binding var searchText: String
+    @Binding var pendingEntityRoute: PlotEntityRoute?
     
     @Environment(\.plotDataStore) private var dataStore
     @Environment(\.connectivity) private var connectivity
@@ -18,16 +19,11 @@ struct TodoView: View {
     @State private var draftPriority: TodoItem.Priority = .medium
     @State private var draftHasDueDate = false
     @State private var draftDueDate = Date()
+    @State private var draftHasDueTime = false
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                PlotScreenStatusSection(
-                    isOffline: !connectivity.isOnline,
-                    errorMessage: dataStore.errorMessage(for: .todos),
-                    onRetry: { Task { await reloadTodos() } }
-                )
-                
                 TodoFilterSortBar(
                     priorityFilter: $priorityFilter,
                     sortOrder: $sortOrder
@@ -88,6 +84,7 @@ struct TodoView: View {
                 draftPriority: $draftPriority,
                 draftHasDueDate: $draftHasDueDate,
                 draftDueDate: $draftDueDate,
+                draftHasDueTime: $draftHasDueTime,
                 onAdd: addTodoFromSheet
             )
             .presentationDetents([.medium, .large])
@@ -106,14 +103,35 @@ struct TodoView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
+            .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .todos))
         }
+        // 編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
+        .plotErrorAlert(
+            "同期できませんでした",
+            message: editingTodo == nil ? dataStore.errorMessageBinding(for: .todos) : .constant(nil),
+            onRetry: { Task { await reloadTodos() } }
+        )
+        .plotOpensEntityRoute(
+            $pendingEntityRoute,
+            category: .task,
+            find: { id in dataStore.todos.first { $0.id == id } },
+            reload: reloadTodos,
+            open: { editingTodo = $0 }
+        )
     }
     
     private func addTodoFromSheet() {
         let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        let due = draftHasDueDate ? draftDueDate : nil
-        let newTodo = TodoItem(title: title, isCompleted: false, dueDate: due, priority: draftPriority)
+        let hasTime = draftHasDueDate && draftHasDueTime
+        let due = draftHasDueDate ? TodoItem.normalizedDueDate(draftDueDate, hasTime: hasTime) : nil
+        let newTodo = TodoItem(
+            title: title,
+            isCompleted: false,
+            dueDate: due,
+            hasDueTime: hasTime,
+            priority: draftPriority
+        )
         withAnimation(.standard) {
             dataStore.addTodo(newTodo)
         }
@@ -181,7 +199,11 @@ struct TodoView: View {
 }
 
 #Preview {
-    TodoView(showCreateSheet: .constant(false), searchText: .constant(""))
+    TodoView(
+        showCreateSheet: .constant(false),
+        searchText: .constant(""),
+        pendingEntityRoute: .constant(nil)
+    )
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)

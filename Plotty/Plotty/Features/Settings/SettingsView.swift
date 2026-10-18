@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var ossSheetPresented = false
     @State private var aiPersonaSheetPresented = false
     @State private var profileEditSheetPresented = false
+    @State private var passwordSheetPresented = false
     @State private var logoutConfirmPresented = false
     @State private var deleteAccountConfirmPresented = false
     @State private var authActionError: String?
@@ -34,6 +35,12 @@ struct SettingsView: View {
                         SettingsInsetDivider()
                         SettingsRowChevron(icon: "pencil", label: "プロフィールを編集") {
                             profileEditSheetPresented = true
+                        }
+                        SettingsInsetDivider()
+                        // ログインはメールのみ。既存の Google / Apple ユーザーも認証コードでログインした後に
+                        // ここでパスワードを登録してメールログインへ移れるよう、アカウント種別に関係なく出す
+                        SettingsRowChevron(icon: "key", label: "パスワードを設定") {
+                            passwordSheetPresented = true
                         }
                         SettingsInsetDivider()
                     } else {
@@ -69,21 +76,10 @@ struct SettingsView: View {
                     }
                 }
                 
-                SettingsGlassSection(title: "言語") {
-                    ForEach(Array(AppLanguage.allCases.enumerated()), id: \.offset) { index, language in
-                        SettingsLanguageRow(language: language)
-                        if index < AppLanguage.allCases.count - 1 {
-                            SettingsInsetDivider()
-                        }
-                    }
-                }
-                
-                SettingsGlassSection(title: "AI・地域") {
+                SettingsGlassSection(title: "AI") {
                     SettingsRowChevron(icon: "sparkles", label: "AI の口調") {
                         aiPersonaSheetPresented = true
                     }
-                    SettingsInsetDivider()
-                    SettingsTimezoneRow()
                 }
                 
                 SettingsGlassSection(title: "サポート") {
@@ -118,14 +114,6 @@ struct SettingsView: View {
                             deleteAccountConfirmPresented = true
                         }
                     }
-                }
-
-                if let authActionError {
-                    PlotErrorBanner(message: authActionError, onRetry: nil)
-                }
-
-                if let profileSyncError = userSettingsSync.lastError {
-                    PlotErrorBanner(message: profileSyncError, onRetry: nil)
                 }
             }
             .padding(.horizontal, Spacing.screenEdge)
@@ -196,6 +184,12 @@ struct SettingsView: View {
                 .presentationDragIndicator(.visible)
                 .presentationSizing(.page)
         }
+        .sheet(isPresented: $passwordSheetPresented) {
+            PasswordSettingsSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationSizing(.page)
+        }
         .alert("ログアウトしますか？", isPresented: $logoutConfirmPresented) {
             Button("キャンセル", role: .cancel) {}
             Button("ログアウト", role: .destructive) {
@@ -221,10 +215,22 @@ struct SettingsView: View {
                 PlotLoadingOverlay(message: "処理中…")
             }
         }
+        .plotErrorAlert("処理できませんでした", message: $authActionError)
+        .plotErrorAlert("設定を同期できませんでした", message: profileSyncError)
         .onAppear { consumePendingRoute() }
         .onChange(of: pendingRoute) { _, _ in consumePendingRoute() }
     }
     
+    /// クラウド設定の取得・保存エラー（`UserSettingsSync` が保持）。閉じたら同期側のエラーも消す。
+    private var profileSyncError: Binding<String?> {
+        Binding(
+            get: { userSettingsSync.lastError },
+            set: { newValue in
+                if newValue == nil { userSettingsSync.clearLastError() }
+            }
+        )
+    }
+
     private func consumePendingRoute() {
         guard pendingRoute == .account else { return }
         accountSheetPresented = true

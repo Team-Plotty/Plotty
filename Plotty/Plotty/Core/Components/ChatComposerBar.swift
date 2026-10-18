@@ -66,27 +66,13 @@ struct ChatComposerBar: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             
-            composerBottomRow
+            // 閉じるボタンは置かない。キーボードは入力欄の外（一覧・ヘッダー・タブ）をタップして下げる
+            composerField
         }
+        // カテゴリ選択・推論ヒント・送信ボタンも入力の一部なので、押してもキーボードを閉じない
+        .plotTextInputArea()
         .animation(isFocused ? composerExpansionAnimation : nil, value: isFocused)
         .animation(composerExpansionAnimation, value: inferenceModel?.suggestion)
-    }
-    
-    /// 入力ボックス＋閉じるボタン（padding と × の opacity を同一アニメで同期）
-    private var composerBottomRow: some View {
-        let trailingInset = isFocused
-            ? PlotChatComposerMetrics.clearButtonHitSize + PlotChatComposerMetrics.trailingControlSpacing
-            : 0
-        
-        return ZStack(alignment: .bottomTrailing) {
-            composerField
-                .padding(.trailing, trailingInset)
-            
-            composerCancelButton
-                .opacity(isFocused ? 1 : 0)
-                .animation(isFocused ? composerExpansionAnimation : nil, value: isFocused)
-                .allowsHitTesting(isFocused)
-        }
     }
     
     /// チップ＋入力行を包むフィールド（角丸固定・縦だけ伸縮）
@@ -122,20 +108,10 @@ struct ChatComposerBar: View {
         }
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
+        // チップの出し入れで高さをアニメーションさせない。ガラス背景と外側のレイアウトは即座に変わるため、
+        // 中身だけ動かすと入力行が遅れて追従し、「メッセージ」がチップに重なったり枠の外へはみ出したりする
         .frame(maxWidth: .infinity, minHeight: composerMinHeight, alignment: .leading)
-        .animation(composerExpansionAnimation, value: composerMinHeight)
-        .plotChatComposerGlass()
-    }
-    
-    /// 入力ボックス外・右端（円形ガラス・44×44。入力行と同一アニメーションで幅を同期）
-    private var composerCancelButton: some View {
-        PlotGlassCardIconButton(
-            systemName: "xmark",
-            accessibilityLabel: "入力を閉じる",
-            action: dismissComposer,
-            shape: .circle,
-            size: PlotChatComposerMetrics.clearButtonHitSize
-        )
+        .plotChatComposerSurface()
     }
     
     private var sendButton: some View {
@@ -180,14 +156,6 @@ struct ChatComposerBar: View {
     private func send() {
         guard canSend, !isAIProcessing else { return }
         onSend()
-    }
-    
-    private func dismissComposer() {
-        selectedCategory = nil
-        inferenceModel?.reset()
-        withAnimation(composerExpansionAnimation) {
-            isFocused = false
-        }
     }
 }
 

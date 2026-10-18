@@ -189,8 +189,8 @@
 
 ## 6. AI/Groq 実行要件
 
-- 本番モデル: `llama-3.3-70b-versatile`
-- 開発モデル: `llama-3.1-8b-instant`
+- 本番モデル: `openai/gpt-oss-120b`
+- 開発モデル: `openai/gpt-oss-20b`
 - タイムアウト: 10秒
 - リトライ: 最大1回
 - APIキーは Edge 側のみ保持

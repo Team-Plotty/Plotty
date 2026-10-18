@@ -28,12 +28,6 @@ struct AIPersonaSettingsView: View {
             } footer: {
                 Text("政治・宗教など、AI が避ける話題を指定します。")
             }
-
-            if let saveError {
-                Section {
-                    PlotErrorBanner(message: saveError, onRetry: nil)
-                }
-            }
         }
         .scrollContentBackground(.hidden)
         .navigationTitle("AI の口調")
@@ -53,6 +47,7 @@ struct AIPersonaSettingsView: View {
                 PlotLoadingOverlay(message: "保存しています…")
             }
         }
+        .plotErrorAlert("保存できませんでした", message: $saveError)
         .onAppear {
             draft = appSettings.aiPersona
             saveError = nil
@@ -84,6 +79,8 @@ struct AIPersonaSettingsView: View {
             case .success:
                 dismiss()
             case .failure(let error):
+                // この画面で表示するので、設定画面側に同じエラーが重ねて出ないよう消しておく
+                userSettingsSync.clearLastError()
                 saveError = error.localizedDescription
             }
         }

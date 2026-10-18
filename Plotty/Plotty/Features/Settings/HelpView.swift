@@ -5,19 +5,21 @@ struct HelpView: View {
     @Environment(\.plotColorScheme) private var plotColorScheme
     @Environment(\.dismiss) private var dismiss
     
-    var highlightRelay: Bool = false
+    // [SNS認証停止] Apple の非公開メール（Hide My Email）の案内を先頭に出すためのフラグ
+    // var highlightRelay: Bool = false
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                if highlightRelay {
-                    relaySection
-                }
+                // [SNS認証停止]
+                // if highlightRelay {
+                //     relaySection
+                // }
                 
                 faqSection(
                     title: "認証",
                     items: [
-                        ("ログインできない", "Google / Apple / メールのいずれかで再試行してください。Apple の非公開メールの場合は、初回と同じ方法でログインしてください。"),
+                        ("ログインできない", "メールアドレスとパスワードを確認してください。パスワードが分からない場合は、ログイン画面の「パスワードをお忘れの方」から認証コードでログインし、設定の「パスワードを設定」で新しいパスワードを登録できます。"),
                         ("アカウントを切り替えたい", "設定 → アカウントを切り替え から選べます。"),
                     ]
                 )
@@ -56,16 +58,17 @@ struct HelpView: View {
         .plotAnalyticsScreen(.help)
     }
     
-    private var relaySection: some View {
-        SettingsGlassSection(title: "Apple の非公開メール（Hide My Email）") {
-            Text("初回登録時と同じ Apple ID・同じメール設定でログインしてください。別のメールに見える場合は、設定のアカウント切り替えか、登録時に使ったメールアドレスをお試しください。")
-                .font(.scaledBodySmall())
-                .foregroundStyle(secondaryColor)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.lg)
-                .padding(.vertical, Spacing.md)
-        }
-    }
+    // [SNS認証停止] Apple の非公開メール（Hide My Email）の案内
+    // private var relaySection: some View {
+    //     SettingsGlassSection(title: "Apple の非公開メール（Hide My Email）") {
+    //         Text("初回登録時と同じ Apple ID・同じメール設定でログインしてください。別のメールに見える場合は、設定のアカウント切り替えか、登録時に使ったメールアドレスをお試しください。")
+    //             .font(.scaledBodySmall())
+    //             .foregroundStyle(secondaryColor)
+    //             .frame(maxWidth: .infinity, alignment: .leading)
+    //             .padding(.horizontal, Spacing.lg)
+    //             .padding(.vertical, Spacing.md)
+    //     }
+    // }
     
     private func faqSection(title: String, items: [(String, String)]) -> some View {
         SettingsGlassSection(title: title) {

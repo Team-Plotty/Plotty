@@ -29,10 +29,6 @@ struct ProfileEditSheet: View {
                         )
                     }
                     
-                    if let saveError {
-                        PlotErrorBanner(message: saveError, onRetry: nil)
-                    }
-                    
                     Text("アイコンの変更は今後のアップデートで対応予定です。")
                         .font(.scaledCaption())
                         .foregroundStyle(.secondary)
@@ -60,6 +56,7 @@ struct ProfileEditSheet: View {
                     PlotLoadingOverlay(message: "保存しています…")
                 }
             }
+            .plotErrorAlert("保存できませんでした", message: $saveError)
             .onAppear {
                 draftName = accountSession.currentAccount?.displayName ?? ""
                 saveError = nil
@@ -84,6 +81,8 @@ struct ProfileEditSheet: View {
             case .success:
                 dismiss()
             case .failure(let error):
+                // このシートで表示するので、設定画面側に同じエラーが重ねて出ないよう消しておく
+                userSettingsSync.clearLastError()
                 saveError = error.localizedDescription
             }
         }

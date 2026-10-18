@@ -7,7 +7,8 @@ const envSchema = z.object({
   SUPABASE_JWT_AUDIENCE: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),
   APP_ENCRYPTION_KEY_BASE64: z.string().min(1),
-  GROQ_MODEL: z.string().min(1).default("llama-3.3-70b-versatile"),
+  // llama-3.3-70b-versatile は 2026/08/16 に Groq 側で提供終了（以降のリクエストはエラー）
+  GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-120b"),
   GROQ_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
   GROQ_RETRY_COUNT: z.coerce.number().int().min(0).default(1),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),

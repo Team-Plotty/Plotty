@@ -19,7 +19,7 @@ struct EventRow: View {
                     .foregroundStyle(colorScheme == .dark ? Color.darkTextPrimary : Color.lightTextPrimary)
                     .lineLimit(1)
                 
-                Text(PlotDateFormatter.timeRange(from: event.startTime, to: event.endTime, language: appSettings.language))
+                Text(timeText)
                     .font(.scaledCaption())
                     .foregroundStyle(colorScheme == .dark ? Color.darkTextSecondary : Color.lightTextSecondary)
             }
@@ -29,5 +29,15 @@ struct EventRow: View {
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.md)
         .padding(.trailing, Spacing.minTouchTarget - Spacing.xs)
+    }
+    
+    private var timeText: String {
+        if event.isAllDay {
+            return appSettings.language == .japanese ? "終日" : "All day"
+        }
+        guard let end = event.endTime, end > event.startTime else {
+            return "\(PlotDateFormatter.time(event.startTime, language: appSettings.language)) 〜"
+        }
+        return PlotDateFormatter.timeRange(from: event.startTime, to: end, language: appSettings.language)
     }
 }

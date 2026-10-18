@@ -7,15 +7,15 @@ struct CalendarTabView: View {
     @Environment(\.plotTabHorizontalPaging) private var plotTabHorizontalPaging
     
     @Binding var showCreateSheet: Bool
+    @Binding var pendingEntityRoute: PlotEntityRoute?
     
     @State private var monthAnchor = Date()
     @State private var selectedDate = Date()
-    @State private var selectedEvent: CalendarEvent?
     @State private var editingEvent: CalendarEvent?
     
     @State private var draftTitle = ""
     @State private var draftStart = Date()
-    @State private var draftEnd = Date().addingTimeInterval(3600)
+    @State private var draftEnd: Date? = Date().addingTimeInterval(3600)
     @State private var draftSwatch: AccentSwatch = .sky
     @State private var draftLocation = ""
     @State private var draftNotes = ""
@@ -26,12 +26,6 @@ struct CalendarTabView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                PlotScreenStatusSection(
-                    isOffline: !connectivity.isOnline,
-                    errorMessage: dataStore.errorMessage(for: .events),
-                    onRetry: { Task { await reloadEvents() } }
-                )
-                
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     CalendarMonthNavigation(
                         monthAnchor: monthAnchor,
@@ -52,7 +46,6 @@ struct CalendarTabView: View {
                     selectedDate: selectedDate,
                     events: eventsForSelectedDate,
                     onGoToToday: goToToday,
-                    onSelectEvent: { selectedEvent = $0 },
                     onEditEvent: { editingEvent = $0 },
                     onDeleteEvent: removeEvent
                 )
@@ -91,19 +84,6 @@ struct CalendarTabView: View {
                 prepareCreateDraft()
             }
         }
-        .sheet(item: $selectedEvent) { event in
-            EventDetailSheet(
-                event: event,
-                onClose: { selectedEvent = nil },
-                onEdit: {
-                    editingEvent = event
-                    selectedEvent = nil
-                }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationSizing(.page)
-        }
         .sheet(item: $editingEvent) { event in
             EventEditSheet(event: event) { updated in
                 Task {
@@ -116,7 +96,28 @@ struct CalendarTabView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
+            .plotErrorAlert("保存できませんでした", message: dataStore.errorMessageBinding(for: .events))
         }
+        // 編集シートを開いている間は出さない（シートの裏からはアラートを出せないため。編集時はシート側で出す）
+        .plotErrorAlert(
+            "同期できませんでした",
+            message: editingEvent == nil ? dataStore.errorMessageBinding(for: .events) : .constant(nil),
+            onRetry: { Task { await reloadEvents() } }
+        )
+        .plotOpensEntityRoute(
+            $pendingEntityRoute,
+            category: .schedule,
+            find: { id in dataStore.events.first { $0.id == id } },
+            reload: reloadEvents,
+            open: openEvent
+        )
+    }
+    
+    /// 編集を閉じたあとも、その予定の日がカレンダーで選ばれた状態にしておく
+    private func openEvent(_ event: CalendarEvent) {
+        selectedDate = event.startTime
+        monthAnchor = event.startTime
+        editingEvent = event
     }
     
     private func saveEvent() {
@@ -125,8 +126,9 @@ struct CalendarTabView: View {
         var start = draftStart
         var end = draftEnd
         if draftIsAllDay {
-            start = calendar.startOfDay(for: draftStart)
-            end = calendar.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? draftEnd
+            let range = CalendarEvent.allDayRange(on: draftStart, calendar: calendar)
+            start = range.start
+            end = range.end
         }
         let ev = CalendarEvent(
             title: title,
@@ -206,7 +208,7 @@ struct CalendarTabView: View {
 }
 
 #Preview {
-    CalendarTabView(showCreateSheet: .constant(false))
+    CalendarTabView(showCreateSheet: .constant(false), pendingEntityRoute: .constant(nil))
         .environment(\.plotDataStore, PlotDataStore.previewSample())
         .ambientBackground()
         .preferredColorScheme(.dark)

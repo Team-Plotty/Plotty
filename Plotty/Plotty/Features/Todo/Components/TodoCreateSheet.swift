@@ -7,6 +7,7 @@ struct TodoCreateSheet: View {
     @Binding var draftPriority: TodoItem.Priority
     @Binding var draftHasDueDate: Bool
     @Binding var draftDueDate: Date
+    @Binding var draftHasDueTime: Bool
     let onAdd: () -> Void
     
     var body: some View {
@@ -37,7 +38,7 @@ struct TodoCreateSheet: View {
                     PlotFormCard(title: "期限") {
                         Toggle("期限を設定", isOn: $draftHasDueDate)
                         if draftHasDueDate {
-                            DatePicker("期限", selection: $draftDueDate, displayedComponents: [.date])
+                            TodoDeadlineFields(dueDate: $draftDueDate, hasDueTime: $draftHasDueTime)
                         }
                     }
                 }

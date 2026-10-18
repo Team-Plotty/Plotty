@@ -1,4 +1,5 @@
 import type { EntityType } from "../contracts/chat-messages.ts";
+import { endOfDayInTimeZoneIso } from "./api-datetime.ts";
 import type { CryptoService } from "./crypto.ts";
 import type {
   EntityReadModel,
@@ -14,6 +15,8 @@ export interface ReclassifyInput {
   sourceType: EntityType;
   sourceId: string;
   targetType: EntityType;
+  /** メモ→タスクなど締切の手がかりが無いときの「当日末」を決めるユーザーのタイムゾーン */
+  timezone: string;
 }
 
 export interface ReclassifyResult {
@@ -32,12 +35,6 @@ const hashTitle = async (title: string): Promise<string> => {
   const digest = await crypto.subtle.digest("SHA-256", payload);
   const bytes = Array.from(new Uint8Array(digest));
   return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("");
-};
-
-const endOfDayIso = (baseDate: Date): string => {
-  const date = new Date(baseDate);
-  date.setUTCHours(23, 59, 59, 0);
-  return date.toISOString();
 };
 
 const decryptTitle = async (cryptoService: CryptoService, entity: EntityReadModel): Promise<string> =>
@@ -109,7 +106,13 @@ export const reclassifyEntity = async (
       iv: titleEncryption.iv,
       startAt,
       endAt: source.type === "schedule" ? (source.endAt ?? null) : null,
-      isAllDay: source.type === "schedule" ? (source.isAllDay ?? false) : false,
+      // 時刻を決めていないタスクは、時刻の無い予定（終日）として移す
+      isAllDay:
+        source.type === "schedule"
+          ? (source.isAllDay ?? false)
+          : source.type === "task"
+            ? !(source.dueHasTime ?? false)
+            : false,
       location: source.type === "schedule" ? (source.location ?? null) : null
     };
     await repository.insertSchedule(schedule);
@@ -127,12 +130,19 @@ export const reclassifyEntity = async (
       updatedAt: new Date().toISOString()
     };
   } else if (input.targetType === "task") {
+    const endOfToday = endOfDayInTimeZoneIso(new Date(), input.timezone);
     const dueDate =
       source.type === "task"
-        ? (source.dueDate ?? endOfDayIso(new Date()))
+        ? (source.dueDate ?? endOfToday)
         : source.type === "schedule"
-          ? (source.startAt ?? endOfDayIso(new Date()))
-          : endOfDayIso(new Date());
+          ? (source.startAt ?? endOfToday)
+          : endOfToday;
+    const dueHasTime =
+      source.type === "task"
+        ? (source.dueHasTime ?? false)
+        : source.type === "schedule"
+          ? source.startAt !== undefined && !(source.isAllDay ?? false)
+          : false;
     const task: TaskWriteInput = {
       id: newId,
       userId: input.userId,
@@ -142,6 +152,7 @@ export const reclassifyEntity = async (
       titleHash,
       iv: titleEncryption.iv,
       dueDate,
+      dueHasTime,
       priority: source.type === "task" ? (source.priority ?? 2) : 2,
       isCompleted: source.type === "task" ? (source.isCompleted ?? false) : false
     };
@@ -153,6 +164,7 @@ export const reclassifyEntity = async (
       titleEncrypted: task.titleEncrypted,
       iv: task.iv,
       dueDate: task.dueDate,
+      dueHasTime: task.dueHasTime,
       isCompleted: task.isCompleted,
       priority: task.priority,
       createdAt: new Date().toISOString(),

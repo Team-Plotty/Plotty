@@ -31,29 +31,17 @@ enum AppTheme: String, CaseIterable {
     }
 }
 
-// MARK: - 言語設定（日本語 / 英語）
+// MARK: - 表示言語（日本語 / 英語）
+/// 設定から言語を選ぶ機能は廃止し、アプリは日本語に固定している。英語の書式分岐は各所に残っている
 enum AppLanguage: String, CaseIterable {
     case japanese = "ja"
     case english = "en"
     
-    var displayName: String {
-        switch self {
-        case .japanese: return "日本語"
-        case .english: return "English"
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .japanese: return "globe.asia.australia"
-        case .english: return "globe.americas"
-        }
-    }
-    
+    /// `@hours=h23` で DatePicker などシステム部品の時刻も 24 時間表記にする（端末の 12/24 時間設定に左右されない）
     var locale: Locale {
         switch self {
-        case .japanese: return Locale(identifier: "ja_JP")
-        case .english: return Locale(identifier: "en_US")
+        case .japanese: return Locale(identifier: "ja_JP@hours=h23")
+        case .english: return Locale(identifier: "en_US@hours=h23")
         }
     }
 }
@@ -73,15 +61,14 @@ struct AIPersonaConfig: Codable, Equatable {
     )
 }
 
-// MARK: - アプリ設定（テーマ・タイムゾーン・言語・AI人格）
+// MARK: - アプリ設定（テーマ・AI人格）
+/// タイムゾーンは設定項目を持たず端末のものを使う（サーバーへの反映は `UserSettingsSync`）
 @Observable
 final class AppSettings {
     private let defaults = UserDefaults.standard
     
     private enum Keys {
         static let theme = "app_theme"
-        static let timezone = "app_timezone"
-        static let language = "app_language"
         static let aiPersona = "app_ai_persona"
     }
     
@@ -89,13 +76,8 @@ final class AppSettings {
         didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
     }
     
-    var timezoneIdentifier: String {
-        didSet { defaults.set(timezoneIdentifier, forKey: Keys.timezone) }
-    }
-    
-    var language: AppLanguage {
-        didSet { defaults.set(language.rawValue, forKey: Keys.language) }
-    }
+    /// 以前に English を選んだ端末でも日本語に戻すため、保存済みの値は読まない
+    let language: AppLanguage = .japanese
     
     var aiPersona: AIPersonaConfig {
         didSet {
@@ -106,26 +88,15 @@ final class AppSettings {
     }
 
     /// クラウドから取得した値を端末へ反映する（`public.users` 同期用）。
-    func applyRemoteProfile(timezoneIdentifier: String?, aiPersona: AIPersonaConfig?) {
-        if let timezoneIdentifier, !timezoneIdentifier.isEmpty {
-            self.timezoneIdentifier = timezoneIdentifier
-        }
+    func applyRemoteProfile(aiPersona: AIPersonaConfig?) {
         if let aiPersona {
             self.aiPersona = aiPersona
         }
     }
     
-    var timezone: TimeZone {
-        TimeZone(identifier: timezoneIdentifier) ?? .current
-    }
-    
     init() {
         let savedTheme = defaults.string(forKey: Keys.theme) ?? AppTheme.dark.rawValue
         self.theme = AppTheme(rawValue: savedTheme) ?? .dark
-        self.timezoneIdentifier = defaults.string(forKey: Keys.timezone)
-            ?? TimeZone.current.identifier
-        let savedLanguage = defaults.string(forKey: Keys.language) ?? AppLanguage.japanese.rawValue
-        self.language = AppLanguage(rawValue: savedLanguage) ?? .japanese
         if let data = defaults.data(forKey: Keys.aiPersona),
            let decoded = try? JSONDecoder().decode(AIPersonaConfig.self, from: data) {
             self.aiPersona = decoded

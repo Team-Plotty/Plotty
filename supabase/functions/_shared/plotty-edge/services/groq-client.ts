@@ -9,9 +9,16 @@ export interface GroqClientConfig {
   retries: number;
 }
 
+export interface GroqHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface GroqPromptInput {
   systemPrompt: string;
   developerPrompt: string;
+  /** 古い順。問い返しへの答えを解釈するための文脈で、抽出対象は userPrompt のみ */
+  history?: GroqHistoryMessage[];
   userPrompt: string;
 }
 
@@ -56,6 +63,7 @@ export const createGroqClient = (config: GroqClientConfig): GroqClient => ({
               messages: [
                 { role: "system", content: input.systemPrompt },
                 { role: "system", content: input.developerPrompt },
+                ...(input.history ?? []),
                 { role: "user", content: input.userPrompt }
               ]
             }),

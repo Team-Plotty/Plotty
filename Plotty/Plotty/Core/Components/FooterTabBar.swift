@@ -1,11 +1,12 @@
 import SwiftUI
 
 // MARK: - 下部タブの識別子
+/// rawValue がそのままフッターの並び順と、横スワイプで移動するページの順番になる
 enum TabItem: Int, CaseIterable, Hashable {
-    case memo = 0
-    case todo = 1
+    case todo = 0
+    case calendar = 1
     case chat = 2
-    case calendar = 3
+    case memo = 3
     case settings = 4
     
     var icon: (inactive: String, active: String) {
@@ -21,18 +22,18 @@ enum TabItem: Int, CaseIterable, Hashable {
     var label: String {
         switch self {
         case .memo: return "メモ"
-        case .todo: return "TODO"
+        case .todo: return "タスク"
         case .chat: return "チャット"
         case .calendar: return "カレンダー"
         case .settings: return "設定"
         }
     }
-    
+
     /// 画面上部の「Plotty / …」表示用。タブのラベル文字列と違う場合がある。
     var rootBreadcrumbTitle: String {
         switch self {
         case .memo: return "メモ"
-        case .todo: return "TODO"
+        case .todo: return "タスク"
         case .chat: return "チャット"
         case .calendar: return "スケジュール"
         case .settings: return "設定"

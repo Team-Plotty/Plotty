@@ -28,21 +28,25 @@ export const isGroqError = (error: unknown): boolean =>
   error instanceof GroqSchemaError ||
   (error instanceof Error && error.name === "AbortError");
 
-export const mapGroqErrorToCode = (
-  error: unknown
-): "GROQ_TIMEOUT" | "GROQ_UNAVAILABLE" | "INTERNAL_ERROR" => {
+type GroqFailureCode = "GROQ_TIMEOUT" | "GROQ_UNAVAILABLE" | "GROQ_CONFIG_ERROR" | "INTERNAL_ERROR";
+
+/** 待てば回復する失敗（429・5xx）と、設定を直すまで失敗し続けるもの（キー不正・モデル提供終了などの 4xx）を分ける */
+const isRetryableGroqStatus = (status: number): boolean => status === 429 || status >= 500;
+
+export const mapGroqErrorToCode = (error: unknown): GroqFailureCode => {
   if (error instanceof Error && error.name === "AbortError") {
     return "GROQ_TIMEOUT";
   }
   if (error instanceof GroqSchemaError) {
     return "INTERNAL_ERROR";
   }
+  if (error instanceof GroqHttpError && !isRetryableGroqStatus(error.status)) {
+    return "GROQ_CONFIG_ERROR";
+  }
   return "GROQ_UNAVAILABLE";
 };
 
-export const mapRequestErrorToCode = (
-  error: unknown
-): "GROQ_TIMEOUT" | "GROQ_UNAVAILABLE" | "INTERNAL_ERROR" => {
+export const mapRequestErrorToCode = (error: unknown): GroqFailureCode => {
   if (!isGroqError(error)) {
     return "INTERNAL_ERROR";
   }

@@ -1,5 +1,6 @@
 import type { PostChatMessagesResponse } from "../contracts/chat-messages.ts";
 import type { LlmExtractionResult } from "../contracts/chat-messages.ts";
+import { endOfDayInTimeZoneIso } from "./api-datetime.ts";
 import type { CryptoService, EncryptedPayload } from "./crypto.ts";
 import {
   memoWriteToCreatedEntity,
@@ -21,12 +22,6 @@ const addDays = (date: Date, days: number): Date => {
   return next;
 };
 
-const endOfDayIso = (baseDate: Date): string => {
-  const date = new Date(baseDate);
-  date.setUTCHours(23, 59, 59, 0);
-  return date.toISOString();
-};
-
 const hashTitle = async (title: string): Promise<string> => {
   const payload = new TextEncoder().encode(title);
   const digest = await crypto.subtle.digest("SHA-256", payload);
@@ -42,6 +37,11 @@ const buildScheduleWriteInput = async (
   entity: LlmExtractionResult["entities"][number]
 ): Promise<ScheduleWriteInput> => {
   const startAt = entity.data.start_at ?? new Date().toISOString();
+  const isAllDay = entity.data.is_all_day ?? entity.data.start_at === undefined;
+  const endAt = entity.data.end_at;
+  // 終日なら終了は不要。開始以前の終了は抽出ミスとして捨て、クライアントの既定（開始＋1時間）に任せる
+  const validEndAt =
+    !isAllDay && endAt !== undefined && Date.parse(endAt) > Date.parse(startAt) ? endAt : null;
 
   return {
     id: crypto.randomUUID(),
@@ -52,8 +52,8 @@ const buildScheduleWriteInput = async (
     titleHash: await hashTitle(entity.data.title),
     iv: titleEncryption.iv,
     startAt,
-    endAt: null,
-    isAllDay: entity.data.start_at === undefined,
+    endAt: validEndAt,
+    isAllDay,
     location: null
   };
 };
@@ -63,8 +63,10 @@ const buildTaskWriteInput = async (
   sourceMessageId: string,
   originTextEncrypted: string,
   titleEncryption: EncryptedPayload,
-  entity: LlmExtractionResult["entities"][number]
+  entity: LlmExtractionResult["entities"][number],
+  timezone: string
 ): Promise<TaskWriteInput> => {
+  const dueDate = entity.data.due_date;
   return {
     id: crypto.randomUUID(),
     userId,
@@ -73,7 +75,8 @@ const buildTaskWriteInput = async (
     titleEncrypted: titleEncryption.data,
     titleHash: await hashTitle(entity.data.title),
     iv: titleEncryption.iv,
-    dueDate: entity.data.due_date ?? endOfDayIso(new Date()),
+    dueDate: dueDate ?? endOfDayInTimeZoneIso(new Date(), timezone),
+    dueHasTime: dueDate !== undefined && (entity.data.due_has_time ?? false),
     priority: 2,
     isCompleted: false
   };
@@ -153,7 +156,8 @@ export const persistExtractionResults = async (
         input.messageId,
         originTextEncrypted,
         titleEncryption,
-        entity
+        entity,
+        input.timezone
       );
       await repository.insertTask(task);
       relatedEntities.push({ type: entity.type, id: task.id });

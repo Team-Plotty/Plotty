@@ -6,6 +6,8 @@ extension Animation {
     static let quick = Animation.spring(response: 0.25, dampingFraction: 0.8)
     static let smooth = Animation.interactiveSpring(response: 0.35, dampingFraction: 0.7)
     static let page = Animation.easeInOut(duration: 0.3)
+    /// 画面遷移の共通アニメーション（前後の画面が重なりながら透過が入れ替わる）。
+    static let crossDissolve = Animation.easeInOut(duration: 0.3)
 }
 
 // MARK: - アニメーションの長さ（秒）

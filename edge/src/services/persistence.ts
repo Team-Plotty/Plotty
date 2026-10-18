@@ -34,6 +34,13 @@ export interface MessageListFilter {
   limit: number;
 }
 
+export interface RecentMessageFilter {
+  userId: string;
+  limit: number;
+  /** この時刻（ISO8601）以降に作られたメッセージだけを対象にする */
+  since: string;
+}
+
 export interface BaseEntityWriteInput {
   id: string;
   userId: string;
@@ -53,6 +60,8 @@ export interface ScheduleWriteInput extends BaseEntityWriteInput {
 
 export interface TaskWriteInput extends BaseEntityWriteInput {
   dueDate: string;
+  /** false は日付のみの締切（dueDate の時刻は当日末の埋め値） */
+  dueHasTime: boolean;
   priority: 1 | 2 | 3;
   isCompleted: boolean;
 }
@@ -80,6 +89,7 @@ export interface EntityReadModel {
   isAllDay?: boolean;
   location?: string | null;
   dueDate?: string;
+  dueHasTime?: boolean;
   isCompleted?: boolean;
   priority?: 1 | 2 | 3;
   contentEncrypted?: string;
@@ -103,6 +113,7 @@ export interface EntityUpdateInput {
   isAllDay?: boolean;
   location?: string | null;
   dueDate?: string;
+  dueHasTime?: boolean;
   isCompleted?: boolean;
   priority?: 1 | 2 | 3;
   contentEncrypted?: string;
@@ -142,6 +153,8 @@ export interface PersistenceRepository {
     newType: EntityType;
   }): Promise<void>;
   listMessages(filter: MessageListFilter): Promise<MessageReadModel[]>;
+  /** 新しい方から `limit` 件を取り、古い順に並べて返す */
+  listRecentMessages(filter: RecentMessageFilter): Promise<MessageReadModel[]>;
   findMessageById(
     userId: string,
     messageId: string
@@ -153,6 +166,8 @@ export interface BuildPersistenceInput {
   userId: string;
   clientMessageId: string;
   userPlainText: string;
+  /** 締切を省略したタスクの「当日末」を決めるユーザーのタイムゾーン */
+  timezone: string;
   extraction: LlmExtractionResult;
   analysisResultsEncrypted: EncryptedPayload;
   textEncryption: EncryptedPayload;

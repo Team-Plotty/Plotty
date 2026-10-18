@@ -5,19 +5,17 @@ import Foundation
 enum PlotEntityMapper {
     private static let defaultScheduleSwatch: AccentSwatch = .sky
     private static let defaultMemoAccent: AccentSwatch = .graphite
-    private static let defaultEventDuration: TimeInterval = 3600
 
     // MARK: DTO → Item
+    // 終了時刻が無い予定に仮の終了を足すと、編集保存でその値がサーバーへ書き戻されてしまうため補わない
 
     static func calendarEvent(from dto: PlotEntityListItemDTO) -> CalendarEvent? {
         guard dto.type == .schedule else { return nil }
-        let start = dto.startAt ?? Date()
-        let end = dto.endAt ?? start.addingTimeInterval(defaultEventDuration)
         return CalendarEvent(
             id: dto.id,
             title: dto.title,
-            startTime: start,
-            endTime: end,
+            startTime: dto.startAt ?? Date(),
+            endTime: dto.endAt,
             swatch: defaultScheduleSwatch,
             location: dto.location ?? "",
             notes: dto.notes ?? "",
@@ -27,13 +25,11 @@ enum PlotEntityMapper {
 
     static func calendarEvent(from dto: PlotCreatedEntityDTO) -> CalendarEvent? {
         guard dto.type == .schedule else { return nil }
-        let start = dto.startAt ?? Date()
-        let end = dto.endAt ?? start.addingTimeInterval(defaultEventDuration)
         return CalendarEvent(
             id: dto.id,
             title: dto.title,
-            startTime: start,
-            endTime: end,
+            startTime: dto.startAt ?? Date(),
+            endTime: dto.endAt,
             swatch: defaultScheduleSwatch,
             location: dto.location ?? "",
             notes: dto.notes ?? "",
@@ -48,6 +44,7 @@ enum PlotEntityMapper {
             title: dto.title,
             isCompleted: dto.isCompleted ?? false,
             dueDate: dto.dueDate,
+            hasDueTime: dto.dueHasTime ?? false,
             priority: TodoItem.Priority(apiPriority: dto.priority ?? 2),
             createdAt: dto.createdAt ?? dto.updatedAt ?? Date()
         )
@@ -60,6 +57,7 @@ enum PlotEntityMapper {
             title: dto.title,
             isCompleted: dto.isCompleted ?? false,
             dueDate: dto.dueDate,
+            hasDueTime: dto.dueHasTime ?? false,
             priority: TodoItem.Priority(apiPriority: dto.priority ?? 2),
             createdAt: Date()
         )
@@ -109,7 +107,7 @@ enum PlotEntityMapper {
         PlotPatchEntityRequestDTO(
             title: event.title,
             startAt: event.startTime,
-            endAt: event.endTime,
+            endAt: event.endTime.map { .set($0) } ?? .clear,
             isAllDay: event.isAllDay,
             location: event.location,
             notes: event.notes
@@ -120,6 +118,7 @@ enum PlotEntityMapper {
         PlotPatchEntityRequestDTO(
             title: todo.title,
             dueDate: todo.dueDate,
+            dueHasTime: todo.dueDate == nil ? nil : todo.hasDueTime,
             isCompleted: todo.isCompleted,
             priority: todo.priority.apiPriority
         )
@@ -139,7 +138,7 @@ enum PlotEntityMapper {
         var merged = event
         merged.title = dto.title
         if let startAt = dto.startAt { merged.startTime = startAt }
-        if let endAt = dto.endAt { merged.endTime = endAt }
+        merged.endTime = dto.endAt
         if let isAllDay = dto.isAllDay { merged.isAllDay = isAllDay }
         if let location = dto.location { merged.location = location }
         if let notes = dto.notes { merged.notes = notes }
@@ -151,6 +150,7 @@ enum PlotEntityMapper {
         var merged = todo
         merged.title = dto.title
         if let dueDate = dto.dueDate { merged.dueDate = dueDate }
+        if let dueHasTime = dto.dueHasTime { merged.hasDueTime = dueHasTime }
         if let isCompleted = dto.isCompleted { merged.isCompleted = isCompleted }
         if let priority = dto.priority { merged.priority = TodoItem.Priority(apiPriority: priority) }
         return merged
