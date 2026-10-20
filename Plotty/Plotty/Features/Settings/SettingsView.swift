@@ -15,7 +15,6 @@ struct SettingsView: View {
     @State private var helpSheetPresented = false
     @State private var ossSheetPresented = false
     @State private var aiPersonaSheetPresented = false
-    @State private var profileEditSheetPresented = false
     @State private var passwordSheetPresented = false
     @State private var logoutConfirmPresented = false
     @State private var deleteAccountConfirmPresented = false
@@ -32,29 +31,25 @@ struct SettingsView: View {
                 SettingsGlassSection(title: "アカウント") {
                     if let account = accountSession.currentAccount {
                         SettingsSignedInSummary(account: account)
-                        SettingsInsetDivider()
-                        SettingsRowChevron(icon: "pencil", label: "プロフィールを編集") {
-                            profileEditSheetPresented = true
-                        }
-                        SettingsInsetDivider()
+                    } else {
+                        SettingsSignedOutSummary()
+                    }
+                    SettingsInsetDivider()
+                    SettingsRowChevron(icon: "person.crop.circle", label: "アカウント") {
+                        accountSheetPresented = true
+                    }
+                    SettingsInsetDivider()
+                    if accountSession.currentAccount != nil {
                         // ログインはメールのみ。既存の Google / Apple ユーザーも認証コードでログインした後に
                         // ここでパスワードを登録してメールログインへ移れるよう、アカウント種別に関係なく出す
                         SettingsRowChevron(icon: "key", label: "パスワードを設定") {
                             passwordSheetPresented = true
                         }
                         SettingsInsetDivider()
-                    } else {
-                        SettingsSignedOutSummary()
-                        SettingsInsetDivider()
                     }
                     
                     SettingsRowChevron(icon: "arrow.triangle.2.circlepath", label: "アカウントを切り替え") {
                         accountSwitcherPresented = true
-                    }
-                    SettingsInsetDivider()
-                    
-                    SettingsRowChevron(icon: "person.crop.circle", label: "アカウント") {
-                        accountSheetPresented = true
                     }
                     SettingsInsetDivider()
                     
@@ -177,12 +172,6 @@ struct SettingsView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationSizing(.page)
-        }
-        .sheet(isPresented: $profileEditSheetPresented) {
-            ProfileEditSheet()
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-                .presentationSizing(.page)
         }
         .sheet(isPresented: $passwordSheetPresented) {
             PasswordSettingsSheet()
