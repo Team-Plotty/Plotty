@@ -8,15 +8,28 @@ import type {
   MessageReadModel,
   MessageWriteInput,
   PersistenceRepository,
+  RecentMessageFilter,
   RelatedEntityRef,
   ScheduleWriteInput,
   TaskWriteInput
 } from "../services/persistence.js";
 
+const MESSAGE_SELECT = "id,user_id,role,content_encrypted,iv,related_entities,created_at";
+
+const rowToMessageReadModel = (row: Record<string, unknown>): MessageReadModel => ({
+  id: String(row.id),
+  userId: String(row.user_id),
+  role: row.role as "user" | "assistant",
+  contentEncrypted: String(row.content_encrypted),
+  iv: String(row.iv),
+  relatedEntities: (row.related_entities ?? []) as RelatedEntityRef[],
+  createdAt: String(row.created_at)
+});
+
 const SCHEDULE_SELECT =
   "id,user_id,title_encrypted,iv,origin_text_encrypted,start_at,end_at,is_all_day,location,created_at,source_message_id,updated_at";
 const TASK_SELECT =
-  "id,user_id,title_encrypted,iv,due_date,is_completed,priority,created_at,source_message_id,updated_at";
+  "id,user_id,title_encrypted,iv,due_date,due_has_time,is_completed,priority,created_at,source_message_id,updated_at";
 const MEMO_SELECT =
   "id,user_id,title_encrypted,iv,content_encrypted,is_pinned,created_at,source_message_id,updated_at";
 
@@ -43,6 +56,7 @@ const rowToTaskReadModel = (row: Record<string, unknown>): EntityReadModel => ({
   titleEncrypted: String(row.title_encrypted),
   iv: String(row.iv),
   dueDate: row.due_date ? String(row.due_date) : undefined,
+  dueHasTime: Boolean(row.due_has_time),
   isCompleted: Boolean(row.is_completed),
   priority: row.priority ? (Number(row.priority) as 1 | 2 | 3) : 2,
   createdAt: row.created_at ? String(row.created_at) : undefined,
@@ -127,6 +141,7 @@ export const createSupabasePersistenceRepository = (
       title_hash: input.titleHash,
       iv: input.iv,
       due_date: input.dueDate,
+      due_has_time: input.dueHasTime,
       priority: input.priority,
       is_completed: input.isCompleted
     });
@@ -273,6 +288,7 @@ export const createSupabasePersistenceRepository = (
     if (input.isAllDay !== undefined) updatePayload.is_all_day = input.isAllDay;
     if (input.location !== undefined) updatePayload.location = input.location;
     if (input.dueDate !== undefined) updatePayload.due_date = input.dueDate;
+    if (input.dueHasTime !== undefined) updatePayload.due_has_time = input.dueHasTime;
     if (input.isCompleted !== undefined) updatePayload.is_completed = input.isCompleted;
     if (input.priority !== undefined) updatePayload.priority = input.priority;
     if (input.contentEncrypted !== undefined) updatePayload.content_encrypted = input.contentEncrypted;
@@ -345,21 +361,27 @@ export const createSupabasePersistenceRepository = (
   async listMessages(filter: MessageListFilter): Promise<MessageReadModel[]> {
     const { data, error } = await supabase
       .from("messages")
-      .select("id,user_id,role,content_encrypted,iv,related_entities,created_at")
+      .select(MESSAGE_SELECT)
       .eq("user_id", filter.userId)
       .order("created_at", { ascending: true })
       .limit(filter.limit);
     if (error) throw error;
 
-    return (data ?? []).map((row) => ({
-      id: String(row.id),
-      userId: String(row.user_id),
-      role: row.role as "user" | "assistant",
-      contentEncrypted: String(row.content_encrypted),
-      iv: String(row.iv),
-      relatedEntities: (row.related_entities ?? []) as RelatedEntityRef[],
-      createdAt: String(row.created_at)
-    }));
+    return (data ?? []).map((row) => rowToMessageReadModel(row as Record<string, unknown>));
+  },
+  async listRecentMessages(filter: RecentMessageFilter): Promise<MessageReadModel[]> {
+    const { data, error } = await supabase
+      .from("messages")
+      .select(MESSAGE_SELECT)
+      .eq("user_id", filter.userId)
+      .gte("created_at", filter.since)
+      .order("created_at", { ascending: false })
+      .limit(filter.limit);
+    if (error) throw error;
+
+    return (data ?? [])
+      .map((row) => rowToMessageReadModel(row as Record<string, unknown>))
+      .reverse();
   },
   async findMessageById(userId: string, messageId: string) {
     const { data, error } = await supabase

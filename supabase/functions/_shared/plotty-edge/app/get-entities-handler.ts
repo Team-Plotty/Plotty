@@ -52,6 +52,7 @@ const toErrorResponse = (
     CONFLICT: 409,
     GROQ_TIMEOUT: 504,
     GROQ_UNAVAILABLE: 503,
+    GROQ_CONFIG_ERROR: 502,
     RATE_LIMITED: 429,
     INTERNAL_ERROR: 500
   };

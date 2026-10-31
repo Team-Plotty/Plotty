@@ -52,7 +52,7 @@ struct PlotGetEntitiesResponseDTO: Decodable, Sendable {
     let nextCursor: String?
 }
 
-/// GET / PATCH / reclassify で共通の discriminated union 風 DTO。
+/// GET / PATCH で共通の discriminated union 風 DTO。
 /// Edge が狭い subset のみ返す場合も optional で吸収する。
 struct PlotEntityListItemDTO: Codable, Sendable {
     let type: PlotEntityType
@@ -61,6 +61,7 @@ struct PlotEntityListItemDTO: Codable, Sendable {
     let startAt: Date?
     let endAt: Date?
     let dueDate: Date?
+    let dueHasTime: Bool?
     let isAllDay: Bool?
     let location: String?
     let notes: String?
@@ -74,11 +75,21 @@ struct PlotEntityListItemDTO: Codable, Sendable {
 
 // MARK: - PATCH /entities/{type}/{id}
 
+/// PATCH の項目を「送らない」「null を送って消す」「値を送る」で区別する。
+/// Optional だけでは「送らない」と「消す」を表し分けられないため用意している
+enum PlotPatchValue<Value: Encodable & Sendable>: Sendable {
+    case unchanged
+    case clear
+    case set(Value)
+}
+
 struct PlotPatchEntityRequestDTO: Encodable, Sendable {
     var title: String?
     var startAt: Date?
-    var endAt: Date?
+    /// 終了時刻は「指定なし」に戻せるよう、null を明示的に送れる
+    var endAt: PlotPatchValue<Date> = .unchanged
     var dueDate: Date?
+    var dueHasTime: Bool?
     var isAllDay: Bool?
     var location: String?
     var notes: String?
@@ -86,6 +97,33 @@ struct PlotPatchEntityRequestDTO: Encodable, Sendable {
     var isCompleted: Bool?
     var isPinned: Bool?
     var priority: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case title, startAt, endAt, dueDate, dueHasTime, isAllDay, location, notes, content, isCompleted, isPinned, priority
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(title, forKey: .title)
+        try container.encodeIfPresent(startAt, forKey: .startAt)
+        switch endAt {
+        case .unchanged:
+            break
+        case .clear:
+            try container.encodeNil(forKey: .endAt)
+        case .set(let value):
+            try container.encode(value, forKey: .endAt)
+        }
+        try container.encodeIfPresent(dueDate, forKey: .dueDate)
+        try container.encodeIfPresent(dueHasTime, forKey: .dueHasTime)
+        try container.encodeIfPresent(isAllDay, forKey: .isAllDay)
+        try container.encodeIfPresent(location, forKey: .location)
+        try container.encodeIfPresent(notes, forKey: .notes)
+        try container.encodeIfPresent(content, forKey: .content)
+        try container.encodeIfPresent(isCompleted, forKey: .isCompleted)
+        try container.encodeIfPresent(isPinned, forKey: .isPinned)
+        try container.encodeIfPresent(priority, forKey: .priority)
+    }
 }
 
 struct PlotPatchEntityResponseDTO: Decodable, Sendable {
@@ -139,6 +177,7 @@ struct PlotCreatedEntityDTO: Decodable, Sendable {
     let startAt: Date?
     let endAt: Date?
     let dueDate: Date?
+    let dueHasTime: Bool?
     let isAllDay: Bool?
     let location: String?
     let notes: String?
@@ -146,24 +185,6 @@ struct PlotCreatedEntityDTO: Decodable, Sendable {
     let isCompleted: Bool?
     let isPinned: Bool?
     let priority: Int?
-}
-
-// MARK: - POST /chat/reclassify
-
-struct PlotReclassifySourceDTO: Encodable, Sendable {
-    let type: PlotEntityType
-    let id: UUID
-}
-
-struct PlotPostReclassifyRequestDTO: Encodable, Sendable {
-    let source: PlotReclassifySourceDTO
-    let targetType: PlotEntityType
-    let reasonText: String?
-}
-
-struct PlotPostReclassifyResponseDTO: Decodable, Sendable {
-    let confirmationText: String
-    let migratedEntity: PlotEntityListItemDTO
 }
 
 // MARK: - GET /chat/messages

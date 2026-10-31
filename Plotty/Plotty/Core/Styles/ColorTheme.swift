@@ -33,6 +33,9 @@ extension Color {
     // 入力バー背景
     static let darkInputBG = Color(hex: "#3D3935").opacity(0.88)
     
+    /// チャット入力欄・カテゴリ選択の面。直下に出るシステムキーボードの背景色に合わせ、キーボードと一体に見せる
+    static let darkComposerSurface = Color(hex: "#1F1E1D")
+    
     /// 検索・入力のプレースホルダ（ガラス上でも読めるコントラスト）
     static let darkInputPlaceholder = Color(hex: "#FFFCF8").opacity(0.72)
 }

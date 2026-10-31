@@ -39,6 +39,7 @@ struct PlotTopSearchRow: View {
             .opacity(isFocused ? 1 : 0)
             .allowsHitTesting(isFocused)
         }
+        .plotTextInputArea()
         .animation(expansionAnimation, value: isFocused)
     }
     

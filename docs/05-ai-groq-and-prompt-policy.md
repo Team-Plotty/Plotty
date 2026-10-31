@@ -8,8 +8,9 @@
 
 ## モデル運用
 
-- 本番: `llama-3.3-70b-versatile`（精度重視。旧 `llama-3.1-70b-versatile` は Groq 側で廃止）
-- 開発: `llama-3.1-8b-instant`（高速重視）
+- 本番: `openai/gpt-oss-120b`（精度重視。旧 `llama-3.3-70b-versatile` は 2026/08/16 に Groq 側で提供終了）
+- 開発: `openai/gpt-oss-20b`（高速重視。旧 `llama-3.1-8b-instant` は同日に提供終了）
+- 提供終了の予定は [Groq の Deprecations](https://console.groq.com/docs/deprecations) で定期的に確認する
 - タイムアウト: 10秒
 - リトライ: 最大1回
 

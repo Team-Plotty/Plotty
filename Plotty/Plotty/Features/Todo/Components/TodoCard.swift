@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - タスクカード（カレンダー `EventRow` と同じカード面）
 struct TodoCard: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.appSettings) private var appSettings
     
     let todo: TodoItem
     let onToggle: () -> Void
@@ -38,9 +39,9 @@ struct TodoCard: View {
                         .font(.scaledCaption())
                         .foregroundStyle(tertiaryTextColor)
                     
-                    if let due = todo.dueDate {
+                    if let deadlineText {
                         Label {
-                            Text(due, format: .dateTime.month(.abbreviated).day())
+                            Text(deadlineText)
                         } icon: {
                             Image(systemName: "calendar")
                         }
@@ -71,8 +72,18 @@ struct TodoCard: View {
         colorScheme == .dark ? Color.darkTextTertiary : Color.lightTextTertiary
     }
     
+    /// 端末の言語ではなくアプリの言語設定で整形する（`Text(date, format:)` だと英語端末で "Oct 11" になる）
+    private var deadlineText: String? {
+        guard let due = todo.dueDate else { return nil }
+        return PlotDateFormatter.deadline(due, hasTime: todo.hasDueTime, language: appSettings.language)
+    }
+    
     private var accessibilityLabel: String {
         let state = todo.isCompleted ? "完了" : "未完了"
-        return "\(todo.title)、\(state)、優先度 \(todo.priority.title)"
+        var label = "\(todo.title)、\(state)、優先度 \(todo.priority.title)"
+        if let deadlineText {
+            label += "、期限 \(deadlineText)"
+        }
+        return label
     }
 }

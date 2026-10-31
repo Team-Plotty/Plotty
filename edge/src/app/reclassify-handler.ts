@@ -56,6 +56,7 @@ const toErrorResponse = (
     CONFLICT: 409,
     GROQ_TIMEOUT: 504,
     GROQ_UNAVAILABLE: 503,
+    GROQ_CONFIG_ERROR: 502,
     RATE_LIMITED: 429,
     INTERNAL_ERROR: 500
   };
@@ -107,11 +108,13 @@ export const createReclassifyHandler = (deps: ReclassifyHandlerDeps) => {
     }
 
     try {
+      const userSettings = await deps.userSettingsRepository.findByUserId(userId);
       const result = await reclassifyEntity(deps.persistenceRepository, deps.cryptoService, {
         userId,
         sourceType: parsedBody.data.source.type,
         sourceId: parsedBody.data.source.id,
-        targetType: parsedBody.data.target_type
+        targetType: parsedBody.data.target_type,
+        timezone: userSettings?.timezone ?? "UTC"
       });
 
       const migratedEntity = await entityReadModelToDto(deps.cryptoService, result.migratedEntity);

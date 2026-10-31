@@ -1,3 +1,5 @@
+// [SNS認証停止] 認証はメールのみで運用するため Sign in with Apple は無効化中（ファイル全体をコメントアウト）
+/*
 import CryptoKit
 import Foundation
 
@@ -25,3 +27,4 @@ enum PlotAppleSignInNonce {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
+*/

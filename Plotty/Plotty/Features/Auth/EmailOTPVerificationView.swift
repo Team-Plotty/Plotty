@@ -1,13 +1,13 @@
 import SwiftUI
 
-// MARK: - メール OTP 入力（ログイン / 新規登録共通）
+// MARK: - メール OTP 入力（パスワードを忘れたときのログイン）
 struct EmailOTPVerificationView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.accountSession) private var accountSession
     @Environment(\.connectivity) private var connectivity
 
     let challenge: EmailOTPChallenge
+    /// 認証成功時の後片付け（認証フローの画面を閉じる等）は呼び出し側が決める。
     let onSuccess: () -> Void
 
     @State private var otpCode = ""
@@ -29,16 +29,8 @@ struct EmailOTPVerificationView: View {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
                     header
 
-                    if !connectivity.isOnline {
-                        PlotOfflineBanner()
-                    }
-
                     if let infoMessage {
                         PlotInfoBanner(message: infoMessage)
-                    }
-
-                    if let errorMessage {
-                        PlotErrorBanner(message: errorMessage, onRetry: nil)
                     }
 
                     otpField
@@ -47,17 +39,16 @@ struct EmailOTPVerificationView: View {
                     magicLinkNote
                 }
                 .padding(.horizontal, Spacing.screenEdge)
-                .padding(.vertical, Spacing.xl)
+                // 左上に重なる戻るボタン（44pt）の下から見出しを始める
+                .padding(.top, Spacing.minTouchTarget + Spacing.md)
+                .padding(.bottom, Spacing.xl)
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .navigationTitle(challenge.purpose.navigationTitle)
+        // 数字キーボードには閉じるキーが無いため、欄外タップで閉じられるようにする
+        .plotDismissTextInputOnNotification(isFocused: $isOTPFocused)
+        .navigationTitle("認証コードでログイン")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("戻る") { dismiss() }
-            }
-        }
         .onAppear {
             infoMessage = "\(challenge.email) に認証コードを送信しました。"
             isOTPFocused = true
@@ -76,6 +67,7 @@ struct EmailOTPVerificationView: View {
                 resendCooldown -= 1
             }
         }
+        .plotErrorAlert("ログインできませんでした", message: $errorMessage)
         .plotAnalyticsScreen(.emailOTP)
     }
 
@@ -119,12 +111,13 @@ struct EmailOTPVerificationView: View {
                         .fill(Color.clear)
                         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
                 }
+                .plotTextInputArea()
         }
     }
 
     private var verifyButton: some View {
         Button(action: verifyCode) {
-            Text(challenge.purpose == .signup ? "登録を完了" : "ログインする")
+            Text("ログインする")
                 .font(.scaledBodyLarge().weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -151,7 +144,7 @@ struct EmailOTPVerificationView: View {
     }
 
     private var magicLinkNote: some View {
-        Text("メール内のリンクから開いた場合は、この画面を閉じて自動的にログインされます。")
+        Text("メール内のリンクから開いた場合は、この画面を閉じて自動的にログインされます。ログイン後、設定画面の「パスワードを設定」から新しいパスワードを登録できます。")
             .font(.scaledCaption())
             .foregroundStyle(secondaryColor)
             .frame(maxWidth: .infinity)
@@ -171,8 +164,6 @@ struct EmailOTPVerificationView: View {
             let result = await accountSession.verifyEmailOTP(
                 email: challenge.email,
                 code: otpCode,
-                purpose: challenge.purpose,
-                displayName: challenge.displayName,
                 isOnline: connectivity.isOnline
             )
             await MainActor.run {
@@ -180,7 +171,6 @@ struct EmailOTPVerificationView: View {
                 switch result {
                 case .success:
                     onSuccess()
-                    dismiss()
                 case .failure(let error):
                     errorMessage = error.localizedDescription
                     isOTPFocused = true
@@ -198,8 +188,6 @@ struct EmailOTPVerificationView: View {
         Task {
             let result = await accountSession.sendEmailOTP(
                 email: challenge.email,
-                purpose: challenge.purpose,
-                displayName: challenge.displayName,
                 isOnline: connectivity.isOnline
             )
             await MainActor.run {
@@ -265,7 +253,7 @@ private struct EmailOTPAcceptButtonStyle: ButtonStyle {
 #Preview {
     NavigationStack {
         EmailOTPVerificationView(
-            challenge: EmailOTPChallenge(email: "preview@plotty.app", purpose: .login),
+            challenge: EmailOTPChallenge(email: "preview@plotty.app"),
             onSuccess: {}
         )
         .environment(\.accountSession, AccountSession.preview(loggedIn: false))

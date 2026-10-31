@@ -220,10 +220,17 @@ extension View {
         }
     }
     
-    /// チャット入力欄。一覧カードと同じ Liquid Glass（固定角丸）。
-    /// `background { }` で二重に敷くと下に不透明な板が乗り、チャット本文と重なって見えなくなるため、直接 `glassEffect` のみ適用する。
+    /// 上部検索欄（`PlotTopSearchRow`）。一覧カードと同じ Liquid Glass（固定角丸）。
+    /// チャット入力欄は本文と重なって読みにくいため、こちらではなく `plotChatComposerSurface` を使う。
     func plotChatComposerGlass(cornerRadius: CGFloat = PlotChatComposerMetrics.cornerRadius) -> some View {
         glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+    
+    /// チャット下部の入力欄・カテゴリ選択。チャット本文の上に重なるため、半透明だと文字が透けて読めない。不透明のベタ塗りにする。
+    func plotChatComposerSurface(cornerRadius: CGFloat = PlotChatComposerMetrics.cornerRadius) -> some View {
+        background {
+            PlotChatComposerSurfaceFace(cornerRadius: cornerRadius)
+        }
     }
     
     /// カプセル型チップ（フィルタ・「すべて」など）。ライトはフラット、ダークは Liquid Glass。
@@ -246,6 +253,25 @@ struct PlotRootChromeGlass: View {
         Rectangle()
             .fill(Color.clear)
             .glassEffect(.regular, in: Rectangle())
+    }
+}
+
+// MARK: - チャット入力欄まわりの不透明な面
+private struct PlotChatComposerSurfaceFace: View {
+    @Environment(\.plotColorScheme) private var plotColorScheme
+    
+    let cornerRadius: CGFloat
+    
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        shape
+            .fill(plotColorScheme == .dark ? Color.darkComposerSurface : Color.lightSurface)
+            .overlay(
+                shape.strokeBorder(
+                    plotColorScheme == .dark ? Color.darkBorderDefault : Color.lightBorderDefault,
+                    lineWidth: 0.5
+                )
+            )
     }
 }
 

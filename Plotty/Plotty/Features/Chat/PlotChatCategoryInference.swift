@@ -154,10 +154,10 @@ enum PlotChatCategoryInference {
     private static func hint(for category: PlotChatCategory, language: AppLanguage) -> String {
         switch (category, language) {
         case (.schedule, .japanese): return "カレンダーに登録しそう"
-        case (.task, .japanese): return "ToDo に登録しそう"
+        case (.task, .japanese): return "タスクに登録しそう"
         case (.memo, .japanese): return "メモに保存しそう"
         case (.schedule, .english): return "Looks like a calendar event"
-        case (.task, .english): return "Looks like a to-do"
+        case (.task, .english): return "Looks like a task"
         case (.memo, .english): return "Looks like a memo"
         }
     }

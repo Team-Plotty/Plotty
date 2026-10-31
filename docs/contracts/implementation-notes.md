@@ -101,7 +101,7 @@ RLS: 本人 SELECT のみ。INSERT/UPDATE は Edge `service_role` のみ。
 | チャット履歴 GET | `11` §3.7, Phase E2 | MVP 初版はセッション内 `messages` のみ可。必要なら `GET /messages` を Edge に追加 |
 | 設定 API（`public.users`） | `11` §3.3, Phase E1 | RLS 下の Supabase 直 PATCH か Edge 経由かは E1 で決定。プロフィール・timezone・`ai_persona_config` |
 | AI 推論アシスト UI | `01`, `09` §1.2, Phase E3 | 500ms デバウンス・**API 呼び出しなし**のローカル/heuristic |
-| 再分類の 30 日制限 | `01`, Phase E4 | 元メッセージ削除後は UI で再分類不可 |
+| 再分類の 30 日制限 | `01`, Phase E4 | 2026/10/10 に iOS の再分類 UI を廃止したため不要。サーバー API は残置 |
 | Groq 障害 UX 文言 | B6 | エラーコードは `errors.ts` 済み。ユーザー向け文言・再試行は E5/B6 |
 | OSS ライセンス本文 | Phase F | プレースホルダーから実ライブラリ一覧へ |
 | ページネーション | `api-contract-mvp.md` §1 | `cursor`, `from`, `to` は Phase 2 |

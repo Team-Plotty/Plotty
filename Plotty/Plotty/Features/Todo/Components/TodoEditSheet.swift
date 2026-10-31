@@ -25,10 +25,9 @@ struct TodoEditSheet: View {
                             Text(p.title).tag(p)
                         }
                     }
-                    DatePicker("期限", selection: Binding(
-                        get: { draft.dueDate ?? Date() },
-                        set: { draft.dueDate = $0 }
-                    ), displayedComponents: [.date])
+                }
+                Section("期限") {
+                    TodoDeadlineFields(dueDate: dueDateBinding, hasDueTime: $draft.hasDueTime)
                 }
             }
             .navigationTitle("タスクを編集")
@@ -38,11 +37,26 @@ struct TodoEditSheet: View {
                     Button("キャンセル", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { onSave(draft) }
+                    Button("保存") { onSave(normalizedDraft) }
                         .disabled(draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
         .frame(maxWidth: .infinity)
+    }
+    
+    private var dueDateBinding: Binding<Date> {
+        Binding(
+            get: { draft.dueDate ?? Date() },
+            set: { draft.dueDate = $0 }
+        )
+    }
+    
+    private var normalizedDraft: TodoItem {
+        var saved = draft
+        if let due = saved.dueDate {
+            saved.dueDate = TodoItem.normalizedDueDate(due, hasTime: saved.hasDueTime)
+        }
+        return saved
     }
 }

@@ -93,10 +93,12 @@ create table if not exists public.tasks (
   updated_at timestamptz not null default timezone('utc', now()),
   is_completed boolean not null default false,
   due_date timestamptz not null,
+  due_has_time boolean not null default false,
   priority smallint not null default 2 check (priority between 1 and 3)
 );
 
 comment on table public.tasks is 'タスク';
+comment on column public.tasks.due_has_time is '締切に時刻まで指定したか。false は日付のみ（due_date の時刻は当日末で表示しない）';
 
 create index if not exists tasks_user_due_idx
   on public.tasks (user_id, due_date asc) where not is_deleted;

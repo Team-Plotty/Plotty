@@ -13,6 +13,8 @@ enum PlotAnalyticsScreen: String, Sendable {
     case login
     case signUp
     case emailOTP
+    case passwordRecovery
+    case passwordSettings
     case account
     case help
     case terms
@@ -212,9 +214,15 @@ extension AuthError {
         case .invalidEmail: return "invalid_email"
         case .offline: return "offline"
         case .providerUnavailable: return "provider_unavailable"
-        case .appleRelayHint: return "apple_relay_hint"
+        // [SNS認証停止] case .appleRelayHint: return "apple_relay_hint"
         case .otpDeliveryFailed: return "otp_delivery_failed"
         case .otpVerificationFailed: return "otp_verification_failed"
+        case .invalidCredentials: return "invalid_credentials"
+        case .emailAlreadyRegistered: return "email_already_registered"
+        case .weakPassword: return "weak_password"
+        case .emailConfirmationRequired: return "email_confirmation_required"
+        case .signUpFailed: return "sign_up_failed"
+        case .passwordUpdateFailed: return "password_update_failed"
         case .logoutFailed: return "logout_failed"
         case .deleteAccountFailed: return "delete_account_failed"
         }

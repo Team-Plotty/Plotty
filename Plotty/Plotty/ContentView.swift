@@ -17,6 +17,8 @@ struct ContentView: View {
     @State private var selectedTab: TabItem = .chat
     @State private var chatCategory: PlotChatCategory?
     @State private var pendingSettingsRoute: SettingsRoute?
+    /// チャットの登録カードから開きたいデータ。対象タブが編集シートを開いたら `nil` に戻す
+    @State private var pendingEntityRoute: PlotEntityRoute?
     
     // 各タブの新規作成シート表示状態
     @State private var showMemoCreate = false
@@ -61,7 +63,6 @@ struct ContentView: View {
         }
         .onAppear {
             PlotAnalytics.trackScreen(selectedTab.analyticsScreen)
-            focusChatComposerIfNeeded()
         }
         .onChange(of: selectedTab) { _, newTab in
             PlotAnalytics.trackScreen(newTab.analyticsScreen)
@@ -70,16 +71,13 @@ struct ContentView: View {
                 closeSearch()
             }
             
-            if newTab == .chat {
-                focusChatComposerIfNeeded()
-            } else {
+            // チャットを開いただけではキーボードを出さない（履歴を読みたいだけのときに画面が半分隠れるため）
+            if newTab != .chat {
                 dismissChatComposerImmediately()
                 isChatAIProcessing = false
             }
         }
     }
-    
-    @Environment(\.plotDataStore) private var dataStore
     
     private var mainContent: some View {
         ZStack {
@@ -108,23 +106,6 @@ struct ContentView: View {
                         pendingSettingsRoute = .account
                     }
                 )
-                .contentShape(Rectangle())
-                .simultaneousGesture(
-                    TapGesture().onEnded {
-                        dismissTextInputForCurrentTab()
-                    }
-                )
-                
-                // TODOタブの時だけ進捗バーを表示
-                if selectedTab == .todo {
-                    TodoHeaderProgress(
-                        completedCount: dataStore.todos.filter(\.isCompleted).count,
-                        totalCount: dataStore.todos.count
-                    )
-                    .padding(.horizontal, Spacing.screenEdge)
-                    .padding(.top, Spacing.xs)
-                    .padding(.bottom, Spacing.xs)
-                }
             }
             .padding(.bottom, Spacing.xs)
             .frame(maxWidth: .infinity)
@@ -146,13 +127,15 @@ struct ContentView: View {
             MemoView(
                 selectedTab: tab,
                 showCreateSheet: $showMemoCreate,
-                searchText: $memoSearchText
+                searchText: $memoSearchText,
+                pendingEntityRoute: $pendingEntityRoute
             )
         case .todo:
             TodoView(
                 selectedTab: tab,
                 showCreateSheet: $showTodoCreate,
-                searchText: $todoSearchText
+                searchText: $todoSearchText,
+                pendingEntityRoute: $pendingEntityRoute
             )
         case .chat:
             ChatTabView(
@@ -161,10 +144,14 @@ struct ContentView: View {
                 selectedCategory: $chatCategory,
                 isComposerFocused: $isChatComposerFocused,
                 isAIProcessing: $isChatAIProcessing,
-                sendRequested: $chatSendRequested
+                sendRequested: $chatSendRequested,
+                onOpenEntity: openEntity
             )
         case .calendar:
-            CalendarTabView(showCreateSheet: $showCalendarCreate)
+            CalendarTabView(
+                showCreateSheet: $showCalendarCreate,
+                pendingEntityRoute: $pendingEntityRoute
+            )
         case .settings:
             SettingsView(pendingRoute: $pendingSettingsRoute)
         }
@@ -217,14 +204,6 @@ struct ContentView: View {
         }
     }
     
-    /// チャットタブ表示時に入力欄へフォーカス（起動直後はレイアウト確定を待つ）
-    private func focusChatComposerIfNeeded() {
-        guard selectedTab == .chat else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            isChatComposerFocused = true
-        }
-    }
-    
     private func dismissTextInputForCurrentTab() {
         PlotTextInputDismiss.postNotification()
         isChatComposerFocused = false
@@ -239,6 +218,12 @@ struct ContentView: View {
             isChatComposerFocused = false
             chatCategory = nil
         }
+    }
+    
+    private func openEntity(_ route: PlotEntityRoute) {
+        dismissChatComposerImmediately()
+        selectedTab = route.tab
+        pendingEntityRoute = route
     }
     
     private func fabTapped() {

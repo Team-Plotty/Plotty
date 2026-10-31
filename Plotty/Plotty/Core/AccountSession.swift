@@ -6,9 +6,17 @@ enum AuthError: LocalizedError, Equatable {
     case invalidEmail
     case offline
     case providerUnavailable(String)
-    case appleRelayHint
+    // [SNS認証停止] Apple の非公開メール（Hide My Email）向けの案内
+    // case appleRelayHint
     case otpDeliveryFailed
     case otpVerificationFailed
+    case invalidCredentials
+    case emailAlreadyRegistered
+    case weakPassword
+    /// サーバー側でメール確認がオンのままのときに起きる（登録はできたがセッションが返らない）。
+    case emailConfirmationRequired
+    case signUpFailed
+    case passwordUpdateFailed
     case logoutFailed
     case deleteAccountFailed
 
@@ -16,12 +24,25 @@ enum AuthError: LocalizedError, Equatable {
         switch self {
         case .invalidEmail:
             return "メールアドレスの形式を確認してください。"
+        case .invalidCredentials:
+            return "メールアドレスまたはパスワードが正しくありません。"
+        case .emailAlreadyRegistered:
+            return "このメールアドレスはすでに登録されています。ログイン画面からログインしてください。"
+        case .weakPassword:
+            return "パスワードは\(PlotInputLimits.passwordMinimum)文字以上で入力してください。"
+        case .emailConfirmationRequired:
+            return "確認メールを送信しました。メール内のリンクを開いてから、ログインしてください。"
+        case .signUpFailed:
+            return "登録に失敗しました。通信状態を確認して、もう一度お試しください。"
+        case .passwordUpdateFailed:
+            return "パスワードの設定に失敗しました。通信状態を確認して、もう一度お試しください。"
         case .offline:
             return "インターネットに接続してから、もう一度お試しください。"
         case .providerUnavailable(let provider):
             return "\(provider)でのログインに失敗しました。しばらくしてから再試行してください。"
-        case .appleRelayHint:
-            return "Hide My Email を使っている場合、既存アカウントと紐づいていないことがあります。別のメールアドレスでログインするか、ヘルプをご確認ください。"
+        // [SNS認証停止]
+        // case .appleRelayHint:
+        //     return "Hide My Email を使っている場合、既存アカウントと紐づいていないことがあります。別のメールアドレスでログインするか、ヘルプをご確認ください。"
         case .otpDeliveryFailed:
             return "認証コードの送信に失敗しました。メールアドレスを確認して、もう一度お試しください。"
         case .otpVerificationFailed:
@@ -71,7 +92,7 @@ struct PlottyAccount: Identifiable, Hashable, Codable {
         id: UUID(uuidString: "A1000001-0000-4000-8000-000000000001")!,
         displayName: "プレビューユーザー",
         email: "preview@plotty.app",
-        provider: .google
+        provider: .email
     )
 }
 
@@ -160,165 +181,230 @@ final class AccountSession {
     }
     #endif
 
+    // [SNS認証停止] 認証はメールのみで運用するため Google / Apple のログイン入口は無効化中
+    // @MainActor
+    // func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
+    //     guard isOnline else {
+    //         PlotAnalytics.trackAuthFailure(action: "login", error: .offline, provider: provider)
+    //         return .failure(.offline)
+    //     }
+    //
+    //     if provider == .google {
+    //         return await performSupabaseOAuthLogin(provider: provider, email: email)
+    //     }
+    //
+    //     if provider == .apple {
+    //         // Apple は PlotAppleSignInButton → completeSupabaseSignIn 経由
+    //         return .failure(.providerUnavailable(provider.title))
+    //     }
+    //
+    //     if provider == .email {
+    //         return .failure(.providerUnavailable(provider.title))
+    //     }
+    //
+    //     loginWithMock(provider: provider, email: email)
+    //     PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
+    //     return .success(())
+    // }
+
+    // MARK: - メール＋パスワード
+
+    /// メールアドレスとパスワードでアカウントを作成し、そのままログイン状態にする。
+    /// 表示名は登録時には受け取らず、設定画面から任意で登録してもらう。
     @MainActor
-    func performLogin(provider: AuthProvider, email: String?, isOnline: Bool) async -> Result<Void, AuthError> {
+    func signUpWithPassword(email: String, password: String, isOnline: Bool) async -> Result<Void, AuthError> {
+        let action = "signup_password"
         guard isOnline else {
-            PlotAnalytics.trackAuthFailure(action: "login", error: .offline, provider: provider)
+            PlotAnalytics.trackAuthFailure(action: action, error: .offline, provider: .email)
             return .failure(.offline)
         }
-
-        if provider == .google {
-            return await performSupabaseOAuthLogin(provider: provider, email: email)
-        }
-
-        if provider == .apple {
-            // Apple は PlotAppleSignInButton → completeSupabaseSignIn 経由
-            return .failure(.providerUnavailable(provider.title))
-        }
-
-        if provider == .email {
-            return .failure(.providerUnavailable(provider.title))
-        }
-
-        loginWithMock(provider: provider, email: email)
-        PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
-        return .success(())
-    }
-
-    /// メールに OTP / マジックリンクを送信する。
-    @MainActor
-    func sendEmailOTP(
-        email: String,
-        purpose: EmailOTPPurpose,
-        displayName: String?,
-        isOnline: Bool
-    ) async -> Result<Void, AuthError> {
-        guard isOnline else {
-            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_send" : "login_otp_send", error: .offline, provider: .email)
-            return .failure(.offline)
-        }
-
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidEmail(mail) else {
-            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_send" : "login_otp_send", error: .invalidEmail, provider: .email)
+            PlotAnalytics.trackAuthFailure(action: action, error: .invalidEmail, provider: .email)
+            return .failure(.invalidEmail)
+        }
+        guard password.count >= PlotInputLimits.passwordMinimum else {
+            PlotAnalytics.trackAuthFailure(action: action, error: .weakPassword, provider: .email)
+            return .failure(.weakPassword)
+        }
+
+        guard supabaseEnabled else {
+            loginWithMock(provider: .email, email: mail)
+            PlotAnalytics.trackAuthSuccess(action: "signup", provider: .email)
+            return .success(())
+        }
+
+        do {
+            guard let session = try await AuthService.signUpWithPassword(email: mail, password: password) else {
+                PlotAnalytics.trackAuthFailure(action: action, error: .emailConfirmationRequired, provider: .email)
+                return .failure(.emailConfirmationRequired)
+            }
+            return completeSupabaseSignIn(session, isSignUp: true)
+        } catch {
+            let mapped = Self.mapPasswordAuthError(error, fallback: .signUpFailed)
+            PlotAnalytics.trackAuthFailure(action: action, error: mapped, provider: .email)
+            return .failure(mapped)
+        }
+    }
+
+    /// メールアドレスとパスワードでログインする。
+    @MainActor
+    func signInWithPassword(email: String, password: String, isOnline: Bool) async -> Result<Void, AuthError> {
+        let action = "login_password"
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: action, error: .offline, provider: .email)
+            return .failure(.offline)
+        }
+        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(mail) else {
+            PlotAnalytics.trackAuthFailure(action: action, error: .invalidEmail, provider: .email)
             return .failure(.invalidEmail)
         }
 
         guard supabaseEnabled else {
             loginWithMock(provider: .email, email: mail)
-            PlotAnalytics.trackAuthSuccess(action: purpose == .signup ? "signup" : "login", provider: .email)
+            PlotAnalytics.trackAuthSuccess(action: "login", provider: .email)
             return .success(())
-        }
-
-        var metadata: [String: AnyJSON]?
-        let name = (displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !name.isEmpty {
-            metadata = ["full_name": .string(name)]
         }
 
         do {
-            try await AuthService.sendEmailOTP(
-                email: mail,
-                createUser: purpose.createsUser,
-                data: metadata
-            )
+            let session = try await AuthService.signInWithPassword(email: mail, password: password)
+            return completeSupabaseSignIn(session)
+        } catch {
+            let mapped = Self.mapPasswordAuthError(error, fallback: .providerUnavailable(AuthProvider.email.title))
+            PlotAnalytics.trackAuthFailure(action: action, error: mapped, provider: .email)
+            return .failure(mapped)
+        }
+    }
+
+    /// ログイン中アカウントのパスワードを設定・変更する（認証コードでログインした後の再設定にも使う）。
+    @MainActor
+    func updatePassword(_ password: String, isOnline: Bool) async -> Result<Void, AuthError> {
+        let action = "password_update"
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: action, error: .offline, provider: storedAccount?.provider)
+            return .failure(.offline)
+        }
+        guard password.count >= PlotInputLimits.passwordMinimum else {
+            return .failure(.weakPassword)
+        }
+        guard supabaseEnabled else { return .success(()) }
+
+        do {
+            try await AuthService.updatePassword(password)
             return .success(())
         } catch {
-            PlotAnalytics.trackAuthFailure(
-                action: purpose == .signup ? "signup_otp_send" : "login_otp_send",
-                error: .otpDeliveryFailed,
-                provider: .email
-            )
+            let mapped = Self.mapPasswordAuthError(error, fallback: .passwordUpdateFailed)
+            PlotAnalytics.trackAuthFailure(action: action, error: mapped, provider: storedAccount?.provider)
+            return .failure(mapped)
+        }
+    }
+
+    /// Supabase Auth のエラーコードを、画面に出すアプリのエラーへ変換する。
+    private static func mapPasswordAuthError(_ error: Error, fallback: AuthError) -> AuthError {
+        guard let authError = error as? Auth.AuthError else { return fallback }
+        switch authError.errorCode {
+        case .invalidCredentials:
+            return .invalidCredentials
+        case .userAlreadyExists, .emailExists:
+            return .emailAlreadyRegistered
+        case .weakPassword:
+            return .weakPassword
+        case .emailNotConfirmed:
+            return .emailConfirmationRequired
+        default:
+            return fallback
+        }
+    }
+
+    // MARK: - メール OTP（パスワードを忘れたときのログイン）
+
+    /// 既存アカウントのメールに OTP / マジックリンクを送信する。
+    @MainActor
+    func sendEmailOTP(email: String, isOnline: Bool) async -> Result<Void, AuthError> {
+        let action = "login_otp_send"
+        guard isOnline else {
+            PlotAnalytics.trackAuthFailure(action: action, error: .offline, provider: .email)
+            return .failure(.offline)
+        }
+
+        let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(mail) else {
+            PlotAnalytics.trackAuthFailure(action: action, error: .invalidEmail, provider: .email)
+            return .failure(.invalidEmail)
+        }
+
+        guard supabaseEnabled else { return .success(()) }
+
+        do {
+            try await AuthService.sendEmailOTP(email: mail)
+            return .success(())
+        } catch {
+            PlotAnalytics.trackAuthFailure(action: action, error: .otpDeliveryFailed, provider: .email)
             return .failure(.otpDeliveryFailed)
         }
     }
 
     /// メール OTP を検証してセッションを反映する。
     @MainActor
-    func verifyEmailOTP(
-        email: String,
-        code: String,
-        purpose: EmailOTPPurpose,
-        displayName: String?,
-        isOnline: Bool
-    ) async -> Result<Void, AuthError> {
+    func verifyEmailOTP(email: String, code: String, isOnline: Bool) async -> Result<Void, AuthError> {
+        let action = "login_otp_verify"
         guard isOnline else {
-            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify", error: .offline, provider: .email)
+            PlotAnalytics.trackAuthFailure(action: action, error: .offline, provider: .email)
             return .failure(.offline)
         }
 
         let mail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let token = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidEmail(mail), token.count == 6 else {
-            PlotAnalytics.trackAuthFailure(action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify", error: .otpVerificationFailed, provider: .email)
+            PlotAnalytics.trackAuthFailure(action: action, error: .otpVerificationFailed, provider: .email)
             return .failure(.otpVerificationFailed)
         }
 
         guard supabaseEnabled else {
             loginWithMock(provider: .email, email: mail)
-            applySignUpDisplayName(displayName)
-            PlotAnalytics.trackAuthSuccess(action: purpose == .signup ? "signup" : "login", provider: .email)
+            PlotAnalytics.trackAuthSuccess(action: "login", provider: .email)
             return .success(())
         }
 
         do {
-            let session = try await AuthService.verifyEmailOTP(
-                email: mail,
-                token: token,
-                type: purpose.verificationType
-            )
-            let result = completeSupabaseSignIn(
-                session,
-                displayNameOverride: displayName,
-                isSignUp: purpose == .signup
-            )
-            return result
+            let session = try await AuthService.verifyEmailOTP(email: mail, token: token)
+            return completeSupabaseSignIn(session)
         } catch {
-            PlotAnalytics.trackAuthFailure(
-                action: purpose == .signup ? "signup_otp_verify" : "login_otp_verify",
-                error: .otpVerificationFailed,
-                provider: .email
-            )
+            PlotAnalytics.trackAuthFailure(action: action, error: .otpVerificationFailed, provider: .email)
             return .failure(.otpVerificationFailed)
         }
     }
 
-    @MainActor
-    func performSignUp(
-        displayName: String,
-        email: String,
-        provider: AuthProvider,
-        isOnline: Bool
-    ) async -> Result<Void, AuthError> {
-        guard isOnline else { return .failure(.offline) }
+    // MARK: - SNS で新規登録
 
-        if provider == .google {
-            let result = await performSupabaseOAuthLogin(
-                provider: provider,
-                email: email,
-                pullProfile: false
-            )
-            if case .success = result {
-                applySignUpDisplayName(displayName)
-                await syncSignUpProfile(displayNameOverride: displayName)
-            }
-            return result
-        }
+    // [SNS認証停止] 認証はメールのみで運用するため Google / Apple の登録入口は無効化中
+    // /// Google で新規登録する（表示名は Google のプロフィール名を使い、変更は設定画面から行う）。
+    // @MainActor
+    // func performSignUp(email: String, provider: AuthProvider, isOnline: Bool) async -> Result<Void, AuthError> {
+    //     guard isOnline else { return .failure(.offline) }
+    //
+    //     if provider == .google {
+    //         let result = await performSupabaseOAuthLogin(
+    //             provider: provider,
+    //             email: email,
+    //             pullProfile: false
+    //         )
+    //         if case .success = result {
+    //             await syncSignUpProfile(displayNameOverride: nil)
+    //         }
+    //         return result
+    //     }
+    //
+    //     if provider == .apple || provider == .email {
+    //         return .failure(.providerUnavailable(provider.title))
+    //     }
+    //
+    //     loginWithMock(provider: provider, email: email)
+    //     return .success(())
+    // }
 
-        if provider == .apple {
-            return .failure(.providerUnavailable(provider.title))
-        }
-
-        if provider == .email {
-            return .failure(.providerUnavailable(provider.title))
-        }
-
-        loginWithMock(provider: provider, email: email)
-        applySignUpDisplayName(displayName)
-        return .success(())
-    }
-
-    /// Sign in with Apple / OAuth 完了後に Supabase セッションを反映する。
+    /// ログイン / 新規登録の完了後に Supabase セッションを反映する。
     @MainActor
     func completeSupabaseSignIn(
         _ session: Session,
@@ -461,26 +547,27 @@ final class AccountSession {
 
     // MARK: - モック（プレビュー用）
 
-    @MainActor
-    private func performSupabaseOAuthLogin(
-        provider: AuthProvider,
-        email: String?,
-        pullProfile: Bool = true
-    ) async -> Result<Void, AuthError> {
-        guard supabaseEnabled else {
-            loginWithMock(provider: provider, email: email)
-            return .success(())
-        }
-        do {
-            let session = try await AuthService.signInWithGoogle()
-            applySupabaseSession(session, pullProfile: pullProfile)
-            PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
-            return .success(())
-        } catch {
-            PlotAnalytics.trackAuthFailure(action: "login", error: .providerUnavailable(provider.title), provider: provider)
-            return .failure(.providerUnavailable(provider.title))
-        }
-    }
+    // [SNS認証停止] 認証はメールのみで運用するため Google OAuth は無効化中
+    // @MainActor
+    // private func performSupabaseOAuthLogin(
+    //     provider: AuthProvider,
+    //     email: String?,
+    //     pullProfile: Bool = true
+    // ) async -> Result<Void, AuthError> {
+    //     guard supabaseEnabled else {
+    //         loginWithMock(provider: provider, email: email)
+    //         return .success(())
+    //     }
+    //     do {
+    //         let session = try await AuthService.signInWithGoogle()
+    //         applySupabaseSession(session, pullProfile: pullProfile)
+    //         PlotAnalytics.trackAuthSuccess(action: "login", provider: provider)
+    //         return .success(())
+    //     } catch {
+    //         PlotAnalytics.trackAuthFailure(action: "login", error: .providerUnavailable(provider.title), provider: provider)
+    //         return .failure(.providerUnavailable(provider.title))
+    //     }
+    // }
 
     @MainActor
     private func applySignUpDisplayName(_ displayName: String?) {
